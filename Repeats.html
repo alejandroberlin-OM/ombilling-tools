@@ -1,0 +1,621 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>OM Billing Inc.™ — Units to Repeats</title>
+<link href="https://fonts.googleapis.com/css2?family=Libre+Baskerville:ital,wght@0,400;0,700;1,400&family=Source+Sans+3:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --g1:#7c3a0e;--g2:#b45309;--g3:#ea8a1e;--g4:#fcd9a8;--g5:#fdf6ec;
+  --gold:#c8a84b;--gold2:#e0bc60;
+  --ink:#3a2410;--ink2:#7c3a0e;--muted:#8a6f52;
+  --bg:#faf4ec;--card:#fff;--border:#f0dcc0;
+  --ok:#1a7a4a;--ok-bg:#e3f5ed;
+  --warn:#7a5010;--warn-bg:#fdf3e0;
+  --err:#991b1b;--err-bg:#fef2f2;
+  --r:11px;--rs:6px;--sh:0 1px 3px rgba(0,0,0,.06),0 4px 14px rgba(0,0,0,.05)
+}
+body{font-family:"Source Sans 3",sans-serif;background:var(--bg);color:var(--ink);min-height:100vh;font-size:14px}
+.hdr{background:var(--g1);color:#fff;height:68px;display:flex;align-items:center;gap:18px;padding:0 28px;
+     position:sticky;top:0;z-index:300;box-shadow:0 2px 16px rgba(0,0,0,.3)}
+.hdr-title{font-family:"Libre Baskerville",serif;font-size:17px;font-weight:700;color:#fff;line-height:1.2}
+.hdr-module{font-size:11px;color:rgba(255,255,255,.6);margin-top:2px;letter-spacing:.03em}
+.hdr-brand{font-family:"Libre Baskerville",serif;font-size:13px;font-weight:700;color:rgba(255,255,255,.55);margin-left:auto}
+.hdr-tm{font-size:9px;vertical-align:super;color:var(--gold2)}
+#file-status-pill{display:none;align-items:center;gap:6px;padding:4px 12px;border-radius:20px;
+  font-size:11.5px;font-weight:600;background:rgba(255,255,255,.1);color:rgba(255,255,255,.7);
+  border:1px solid rgba(255,255,255,.2);white-space:nowrap}
+#file-status-pill.saving{color:var(--gold2)}
+#file-status-pill.saved{color:#fbbf24}
+#file-status-pill.fallback{color:#fbbf24}
+.fsp-dot{width:7px;height:7px;border-radius:50%;background:currentColor;flex-shrink:0}
+.wrap{max-width:980px;margin:0 auto;padding:32px 24px 60px}
+.pg-title{font-family:"Libre Baskerville",serif;font-size:22px;font-weight:700;color:var(--g1);margin-bottom:4px}
+.pg-sub{font-size:13px;color:var(--muted);margin-bottom:28px;line-height:1.65}
+.card{background:var(--card);border:1px solid var(--border);border-radius:var(--r);margin-bottom:16px;overflow:hidden;box-shadow:var(--sh)}
+.card-hd{padding:13px 18px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px;background:#fafaff}
+.ct{font-size:14px;font-weight:700;color:var(--g1)}
+.cd{font-size:12px;color:var(--muted);margin-top:1px}
+.card-body{padding:18px}
+.upz{border:2px dashed var(--border);border-radius:var(--r);padding:30px 16px;text-align:center;
+     cursor:pointer;position:relative;transition:all .2s}
+.upz:hover{border-color:var(--g3);background:var(--g5)}
+.upz.loaded{border-style:solid;border-color:var(--ok);background:var(--ok-bg)}
+.upz input[type=file]{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%}
+.uz-icon{font-size:30px;margin-bottom:8px;opacity:.7}
+.uz-lbl{font-size:14px;font-weight:700;color:var(--g1);margin-bottom:3px}
+.uz-hint{font-size:12px;color:var(--muted)}
+.uz-file{font-size:12px;font-weight:700;margin-top:8px;word-break:break-all}
+.note{background:var(--g5);border-left:3px solid var(--g3);padding:9px 13px;
+      border-radius:0 var(--rs) var(--rs) 0;font-size:12px;color:var(--ink2);line-height:1.6}
+.alert{border-radius:var(--rs);padding:10px 13px;font-size:13px;margin-bottom:12px;line-height:1.55}
+.a-warn{background:var(--warn-bg);color:var(--warn);border:1px solid #f6d88a}
+.a-info{background:#eef2ff;color:#3730a3;border:1px solid #c7d2fe}
+.a-ok{background:var(--ok-bg);color:var(--ok);border:1px solid #86efac}
+/* Rules table */
+.rules-table{width:100%;border-collapse:collapse}
+.rules-table th{padding:8px 12px;text-align:left;color:#fff;font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;background:var(--g1)}
+.rules-table th:first-child{border-radius:5px 0 0 0}.rules-table th:last-child{border-radius:0 5px 0 0}
+.rules-table td{padding:7px 10px;border-bottom:1px solid var(--border);vertical-align:middle}
+.rules-table tr:last-child td{border-bottom:none}
+.rules-table input,.rules-table select{padding:6px 9px;border:1.5px solid var(--border);border-radius:var(--rs);
+  font-size:13px;font-family:inherit;color:var(--ink);background:#fff;outline:none;width:100%}
+.rules-table input:focus,.rules-table select:focus{border-color:var(--g3)}
+.rules-table input.code{font-family:monospace;text-transform:uppercase;font-weight:700}
+.rules-table .num{width:70px}
+.rule-del{background:none;border:none;color:var(--muted);cursor:pointer;font-size:17px;line-height:1;padding:3px 6px;border-radius:5px}
+.rule-del:hover{color:var(--err);background:var(--err-bg)}
+.badd{margin-top:12px;padding:7px 14px;background:none;border:1.5px dashed var(--g3);color:var(--g2);
+      border-radius:var(--rs);font-size:12.5px;font-weight:700;cursor:pointer;font-family:inherit}
+.badd:hover{background:var(--g5)}
+/* Preview */
+.sstrip{display:flex;gap:0;background:var(--g1);border-radius:var(--rs);overflow:hidden;margin-bottom:16px}
+.ssi{flex:1;padding:11px 14px;border-right:1px solid rgba(255,255,255,.1)}
+.ssi:last-child{border-right:none}
+.ssl{font-size:9.5px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:rgba(255,255,255,.5);margin-bottom:2px}
+.ssv{font-size:19px;font-weight:800;color:#fff;font-family:"Libre Baskerville",serif}
+.ssv.gold{color:var(--gold2)}
+.prev-table{width:100%;border-collapse:collapse;font-size:12.5px}
+.prev-table th{padding:8px 10px;text-align:left;color:#fff;font-size:9.5px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;background:var(--g2);position:sticky;top:0}
+.prev-table td{padding:7px 10px;border-bottom:1px solid var(--border);vertical-align:top}
+.prev-table tr:nth-child(even) td{background:#fafaff}
+.chip{display:inline-block;padding:2px 8px;border-radius:10px;font-size:11px;font-weight:700;font-family:monospace}
+.chip-code{background:var(--g5);color:var(--g2)}
+.dates-list{font-family:monospace;font-size:11.5px;color:var(--muted);line-height:1.7}
+.dates-list b{color:var(--ink);background:#fff8e0;padding:0 3px;border-radius:3px}
+.scroll-box{max-height:380px;overflow:auto;border-radius:var(--rs)}
+/* Buttons */
+.btn{display:inline-flex;align-items:center;gap:7px;padding:10px 20px;border:none;border-radius:var(--rs);
+     font-size:14px;font-weight:700;cursor:pointer;font-family:inherit;transition:all .15s}
+.btn-gold{background:var(--gold);color:var(--g1)}.btn-gold:hover{background:var(--gold2)}
+.btn-gold:disabled{opacity:.45;cursor:not-allowed}
+.btn-outline{background:none;border:1.5px solid var(--border);color:var(--muted)}.btn-outline:hover{border-color:var(--g3);color:var(--g2)}
+/* FS modals */
+#fs-setup-modal{position:fixed;inset:0;z-index:9998;background:rgba(124,58,14,.92);
+  display:none;align-items:center;justify-content:center;padding:24px}
+.fs-modal-box{background:var(--card);border-radius:16px;padding:36px 40px;max-width:460px;width:100%;box-shadow:0 24px 60px rgba(0,0,0,.3)}
+.fs-modal-icon{font-size:44px;margin-bottom:14px}
+.fs-modal-title{font-family:"Libre Baskerville",serif;font-size:20px;font-weight:700;color:var(--g1);margin-bottom:8px}
+.fs-modal-body{font-size:13px;color:var(--muted);line-height:1.7;margin-bottom:24px}
+.fs-btn-row{display:flex;gap:10px;flex-direction:column}
+.fs-btn-primary{padding:12px 20px;background:var(--g1);color:#fff;border:none;border-radius:var(--rs);font-size:14px;font-weight:700;cursor:pointer;font-family:inherit;text-align:left}
+.fs-btn-primary:hover{background:var(--g2)}
+.fs-btn-secondary{padding:10px 20px;background:none;color:var(--muted);border:1.5px solid var(--border);border-radius:var(--rs);font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;text-align:left}
+.fs-btn-secondary:hover{border-color:var(--g3);color:var(--g2)}
+#fs-permission-prompt{position:fixed;inset:0;z-index:9997;background:rgba(124,58,14,.92);
+  display:none;align-items:center;justify-content:center;padding:24px}
+footer{background:var(--g1);color:rgba(255,255,255,.4);font-size:10.5px;padding:16px 28px;
+       text-align:center;line-height:1.75;margin-top:60px}
+footer strong{color:rgba(255,255,255,.65)}
+</style>
+</head>
+<body>
+
+<!-- FS setup modal -->
+<div id="fs-setup-modal" style="display:none">
+  <div class="fs-modal-box">
+    <div class="fs-modal-icon">💾</div>
+    <div class="fs-modal-title">Set up your data file</div>
+    <div class="fs-modal-body">Link to your <code>OM_Billing_Data.json</code> to store your repeat rules.<br><br>
+      Use the <strong>same file</strong> as the other modules to keep everything together.</div>
+    <div class="fs-btn-row">
+      <button class="fs-btn-primary" onclick="fsSetupNew()">📄 Create new data file</button>
+      <button class="fs-btn-primary" onclick="fsSetupOpen()">📂 Open existing data file</button>
+      <button class="fs-btn-secondary" onclick="fsSetupSkip()">Use browser storage instead</button>
+    </div>
+  </div>
+</div>
+
+<div id="fs-permission-prompt" style="display:none">
+  <div style="background:var(--card);border-radius:16px;padding:40px 44px;max-width:400px;width:100%;text-align:center;box-shadow:0 24px 60px rgba(0,0,0,.3)">
+    <div style="font-size:48px;margin-bottom:16px">📂</div>
+    <div style="font-family:'Libre Baskerville',serif;font-size:20px;font-weight:700;color:var(--g1);margin-bottom:8px">Open Data File</div>
+    <div style="font-size:13px;color:var(--muted);margin-bottom:28px;line-height:1.7">Click below to allow access to your data file.<br><strong>Required once per browser session.</strong></div>
+    <button onclick="fsGrantPermission()" style="padding:12px 32px;background:var(--g1);color:white;border:none;border-radius:8px;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit;width:100%">📂 Open My Data File</button>
+    <div style="margin-top:14px"><button onclick="fsSkipToLocalStorage()" style="background:none;border:none;font-size:11.5px;color:var(--muted);cursor:pointer;font-family:inherit;text-decoration:underline">Use browser storage instead</button></div>
+  </div>
+</div>
+
+<header class="hdr">
+  <div>
+    <div class="hdr-title">OM Billing Inc.™</div>
+    <div class="hdr-module">Units to Repeats · 3B Repeat Expansion</div>
+  </div>
+  <div id="file-status-pill"><span class="fsp-dot"></span><span id="fsp-label">—</span></div>
+  <div class="hdr-brand">OM Billing Inc.<span class="hdr-tm">™</span></div>
+</header>
+
+<div class="wrap">
+  <div class="pg-title">Units to Repeats</div>
+  <div class="pg-sub">
+    Upload a 3B export. For codes that bill on a recurring schedule, this tool expands a service quantity into
+    individual dated rows — one per occurrence — and sets each quantity to 1. All other columns are preserved exactly.
+  </div>
+
+  <!-- Repeat rules -->
+  <div class="card">
+    <div class="card-hd">
+      <div>
+        <div class="ct">🔁 Repeat Rules</div>
+        <div class="cd">Which service codes repeat, and the interval between occurrences</div>
+      </div>
+    </div>
+    <div class="card-body">
+      <table class="rules-table">
+        <thead><tr>
+          <th style="width:140px">Service Code</th>
+          <th>Interval</th>
+          <th style="width:90px">Every</th>
+          <th style="width:50px"></th>
+        </tr></thead>
+        <tbody id="rules-tbody"></tbody>
+      </table>
+      <button class="badd" onclick="addRule()">+ Add Code</button>
+      <div class="note" style="margin-top:14px">
+        <strong>Interval types:</strong> <em>Month(s)</em> lands on the same calendar day the following month
+        (e.g. Jun 24 → Jul 24 → Aug 24). <em>Day(s)</em> adds a fixed number of days.
+        <em>Weekly — align to weekday</em> keeps the first service on its original date, then every repeat lands
+        on the chosen weekday, +7 days apart (e.g. G512A on Tue Jun 23 → Mon Jun 29 → Jul 6 → …).
+        Month-ends are handled automatically (Jan 31 + 1 month → Feb 28).
+      </div>
+    </div>
+  </div>
+
+  <!-- Upload -->
+  <div class="card">
+    <div class="card-hd"><div><div class="ct">📁 Upload 3B Export</div></div></div>
+    <div class="card-body">
+      <div class="upz" id="zone-file">
+        <input type="file" accept=".csv,.xlsx,.xls" onchange="loadFile(this)">
+        <div class="uz-icon">📊</div>
+        <div class="uz-lbl">3B Patient Export</div>
+        <div class="uz-hint">CSV or Excel · ServiceCode & ServiceQty columns detected automatically</div>
+        <div class="uz-file" id="file-name"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Preview + generate -->
+  <div id="section-preview" style="display:none">
+    <div class="card">
+      <div class="card-hd">
+        <div>
+          <div class="ct">🔍 Expansion Preview</div>
+          <div class="cd">Rows with a matching code and quantity greater than 1</div>
+        </div>
+      </div>
+      <div class="card-body">
+        <div class="sstrip">
+          <div class="ssi"><div class="ssl">Total Rows In</div><div class="ssv" id="stat-in">0</div></div>
+          <div class="ssi"><div class="ssl">Rows to Expand</div><div class="ssv gold" id="stat-expand">0</div></div>
+          <div class="ssi"><div class="ssl">New Rows Added</div><div class="ssv gold" id="stat-new">0</div></div>
+          <div class="ssi"><div class="ssl">Total Rows Out</div><div class="ssv" id="stat-out">0</div></div>
+        </div>
+        <div id="preview-empty" class="alert a-info" style="display:none">
+          No rows matched your repeat rules with a quantity greater than 1. Nothing to expand — the file would be unchanged.
+        </div>
+        <div class="scroll-box" id="preview-wrap">
+          <table class="prev-table">
+            <thead><tr>
+              <th>Patient</th><th>Code</th><th>Orig. Date</th><th style="text-align:center">Qty</th><th>Generated Dates (qty→1 each)</th>
+            </tr></thead>
+            <tbody id="preview-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+    <div style="display:flex;gap:12px;align-items:center">
+      <button class="btn btn-gold" id="btn-generate" onclick="generateOutput()">⚡ Generate Expanded CSV</button>
+      <button class="btn btn-outline" onclick="clearAll()">✕ Start Over</button>
+      <span id="gen-status" style="font-size:12px;color:var(--muted)"></span>
+    </div>
+  </div>
+
+</div>
+
+<footer class="footer" style="margin-top:auto">
+  <strong>OM Billing Inc.™</strong> &nbsp;|&nbsp; Units to Repeats · 3B Repeat Expansion<br>
+  Copyright © <script>document.write(new Date().getFullYear())</script> <strong>OM Billing Inc.™</strong> All rights reserved.<br>
+  Proprietary software. Patient data processed locally per PIPEDA.
+</footer>
+
+<a href="https://tools.om-billing.com/index2.html" style="position:fixed;bottom:20px;right:20px;z-index:200;
+  display:flex;align-items:center;gap:6px;padding:8px 14px;
+  background:rgba(255,255,255,.92);backdrop-filter:blur(8px);
+  border:1px solid rgba(0,0,0,.1);border-radius:20px;
+  font-family:inherit;font-size:12px;font-weight:600;color:#444;
+  text-decoration:none;box-shadow:0 2px 12px rgba(0,0,0,.1);
+  transition:all .2s" onmouseover="this.style.boxShadow='0 4px 20px rgba(0,0,0,.18)'"
+  onmouseout="this.style.boxShadow='0 2px 12px rgba(0,0,0,.1)'"
+  title="Return to portal">← Portal</a>
+
+<script>
+'use strict';
+
+// ── Shared data keys (same file as other modules) ────────────────────
+const DATA_KEYS=['om_prov','om_diag','om_fees','om_prem','om_settings',
+                 'om_ledger','om_inv_ctr','om_qc_diag','om_qc_loc','om_qc_set','om_repeat_rules'];
+const ls=(k,d)=>{try{const s=localStorage.getItem(k);return s?JSON.parse(s):d}catch(e){return d}};
+const lsSet=(k,v)=>{try{localStorage.setItem(k,JSON.stringify(v))}catch(e){};_scheduleSave&&_scheduleSave();};
+
+// ── Default repeat rules (from DMOH billing practice) ─────────────────
+const DEFAULT_RULES=[
+  {code:'G382A', type:'months', n:1},
+  {code:'G388A', type:'months', n:1},
+  {code:'G512A', type:'weekday', n:1},  // n = weekday (0=Sun..6=Sat); Monday=1
+];
+let rules=ls('om_repeat_rules', null) || DEFAULT_RULES.slice();
+
+// ── State ─────────────────────────────────────────────────────────────
+let rows=[];        // array-of-arrays incl. header row 0
+let header=[];      // header cells
+let colCode=-1, colDate=-1, colQty=-1;
+
+// ── Domain + token check ──────────────────────────────────────────────
+async function _verifyToken(){
+  const meta=document.querySelector('meta[name="om-token"]');
+  if(!meta)return false;
+  const token=meta.content;
+  const dateStr=meta.dataset.date||new Date().toISOString().slice(0,10);
+  const data=new TextEncoder().encode(dateStr+'OM2026BillingSuiteSecure');
+  const hash=await crypto.subtle.digest('SHA-256',data);
+  const expected=Array.from(new Uint8Array(hash)).map(b=>b.toString(16).padStart(2,'0')).join('').slice(0,16);
+  return token===expected;
+}
+function _checkDomain(){
+  const host=window.location.hostname;
+  const allowed=['om-billing.com','tools.om-billing.com','pages.dev','localhost','127.0.0.1'];
+  if(allowed.some(d=>host===d||host.endsWith('.'+d))){
+    _verifyToken().then(valid=>{
+      if(!valid && window.location.protocol!=='file:'){
+        console.warn('OM Billing: token mismatch — possible tampering');
+      }
+    });
+    return true;
+  }
+  if(window.location.protocol==='file:'){
+    document.body.innerHTML='<div style="position:fixed;inset:0;background:#7c3a0e;display:flex;flex-direction:column;'+
+      'align-items:center;justify-content:center;font-family:sans-serif;text-align:center;padding:40px">'+
+      '<div style="font-size:48px;margin-bottom:20px">🔒</div>'+
+      '<div style="font-size:24px;font-weight:700;color:#fff;margin-bottom:12px">Unauthorized Use</div>'+
+      '<div style="font-size:14px;color:rgba(255,255,255,.6);max-width:420px;line-height:1.7">'+
+      'This software is licensed for use via the OM Billing portal only.<br>'+
+      'Access at <strong style="color:#f0b968">om-billing.com</strong><br><br>'+
+      'Contact: <strong style="color:#f0b968">admin@om-billing.com</strong></div></div>';
+    return false;
+  }
+  return true;
+}
+
+// ── Date helpers (MM/DD/YYYY) ─────────────────────────────────────────
+function parseDate(s){
+  s=String(s||'').trim();
+  let m=s.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})$/); // MM/DD/YYYY
+  if(m)return new Date(+m[3], +m[1]-1, +m[2]);
+  m=s.match(/^(\d{4})[\/\-](\d{1,2})[\/\-](\d{1,2})$/);     // YYYY-MM-DD
+  if(m)return new Date(+m[1], +m[2]-1, +m[3]);
+  return null;
+}
+function fmtDate(d){
+  const mm=String(d.getMonth()+1).padStart(2,'0');
+  const dd=String(d.getDate()).padStart(2,'0');
+  return `${mm}/${dd}/${d.getFullYear()}`;
+}
+function addMonths(d0, n){
+  const d=new Date(d0.getTime());
+  const day=d.getDate();
+  d.setDate(1);                 // avoid overflow while changing month
+  d.setMonth(d.getMonth()+n);
+  const lastDay=new Date(d.getFullYear(), d.getMonth()+1, 0).getDate();
+  d.setDate(Math.min(day,lastDay)); // clamp to month end
+  return d;
+}
+function addDays(d0, n){
+  const d=new Date(d0.getTime());
+  d.setDate(d.getDate()+n);
+  return d;
+}
+// Weekly aligned to a fixed weekday: occurrence 0 = service date;
+// occurrence 1 = first target weekday strictly after; then +7 each.
+function weekdayOcc(d0, weekday, i){
+  if(i===0)return new Date(d0.getTime());
+  let ahead=(weekday - d0.getDay() + 7) % 7;
+  if(ahead===0)ahead=7;
+  return addDays(d0, ahead + 7*(i-1));
+}
+function occurrenceDate(d0, rule, i){ // i = 0..N-1
+  if(i===0)return new Date(d0.getTime());
+  if(rule.type==='months') return addMonths(d0, rule.n*i);
+  if(rule.type==='weekday') return weekdayOcc(d0, rule.n, i);
+  return addDays(d0, rule.n*i);
+}
+function ruleFor(code){
+  const c=String(code||'').trim().toUpperCase();
+  return rules.find(r=>String(r.code||'').trim().toUpperCase()===c) || null;
+}
+
+// ── Rules UI ──────────────────────────────────────────────────────────
+function renderRules(){
+  const tb=document.getElementById('rules-tbody');
+  tb.innerHTML='';
+  rules.forEach((r,i)=>{
+    const tr=document.createElement('tr');
+    tr.innerHTML=`
+      <td><input class="code" value="${esc(r.code)}" oninput="updRule(${i},'code',this.value)" placeholder="G000A"></td>
+      <td><select onchange="updRule(${i},'type',this.value)">
+        <option value="months"${r.type==='months'?' selected':''}>Month(s) — same day next month</option>
+        <option value="days"${r.type==='days'?' selected':''}>Day(s) — fixed number of days</option>
+        <option value="weekday"${r.type==='weekday'?' selected':''}>Weekly — align to weekday</option>
+      </select></td>
+      <td>${r.type==='weekday'
+        ? `<select onchange="updRule(${i},'n',this.value)">${[['0','Sun'],['1','Mon'],['2','Tue'],['3','Wed'],['4','Thu'],['5','Fri'],['6','Sat']].map(([v,l])=>`<option value="${v}"${String(r.n)===v?' selected':''}>${l}</option>`).join('')}</select>`
+        : `<input class="num" type="number" min="1" value="${r.n}" oninput="updRule(${i},'n',this.value)">`}</td>
+      <td><button class="rule-del" onclick="delRule(${i})" title="Remove">×</button></td>`;
+    tb.appendChild(tr);
+  });
+}
+function updRule(i,field,val){
+  if(field==='code'){rules[i].code=val.toUpperCase().replace(/[^A-Z0-9]/g,'');}
+  else if(field==='n'){
+    const v=parseInt(val); rules[i].n=isNaN(v)?0:v;
+    if(rules[i].type!=='weekday')rules[i].n=Math.max(1,rules[i].n);
+  }
+  else if(field==='type'){
+    rules[i].type=val;
+    if(val==='weekday' && (rules[i].n<0||rules[i].n>6))rules[i].n=1; // default Monday
+    if(val!=='weekday' && rules[i].n<1)rules[i].n=1;
+    renderRules();
+  }
+  else rules[i][field]=val;
+  lsSet('om_repeat_rules',rules);
+  if(rows.length)scan();
+}
+function addRule(){rules.push({code:'',type:'months',n:1});lsSet('om_repeat_rules',rules);renderRules();}
+function delRule(i){rules.splice(i,1);lsSet('om_repeat_rules',rules);renderRules();if(rows.length)scan();}
+
+// ── File loading ──────────────────────────────────────────────────────
+async function loadFile(input){
+  const file=input.files[0];if(!file)return;
+  document.getElementById('file-name').textContent='✓ '+file.name;
+  document.getElementById('file-name').style.color='var(--ok)';
+  document.getElementById('zone-file').classList.add('loaded');
+
+  const name=file.name.toLowerCase();
+  let text;
+  if(name.endsWith('.csv')){
+    text=await file.text();
+  }else{
+    // Excel → convert first sheet to CSV text (keeps everything as text)
+    const buf=await file.arrayBuffer();
+    const wb=XLSX.read(buf,{type:'array',raw:true});
+    text=XLSX.utils.sheet_to_csv(wb.Sheets[wb.SheetNames[0]]);
+  }
+  rows=parseCSV(text);
+  if(!rows.length){alert('File appears empty.');return;}
+  header=rows[0];
+
+  const find=(names)=>header.findIndex(h=>names.some(n=>String(h).toLowerCase().replace(/[\s_]/g,'').includes(n)));
+  colCode=find(['servicecode','svccode']);
+  colDate=find(['servicedate','svcdate']);
+  colQty =find(['serviceqty','servicequantity','qty','units']);
+  if(colCode<0)colCode=15;
+  if(colDate<0)colDate=14;
+  if(colQty<0) colQty =16;
+
+  scan();
+}
+
+// ── Robust CSV parse / write ──────────────────────────────────────────
+function parseCSV(text){
+  const out=[];let row=[],field='',i=0,inQ=false;
+  text=text.replace(/\r\n/g,'\n').replace(/\r/g,'\n');
+  while(i<text.length){
+    const c=text[i];
+    if(inQ){
+      if(c==='"'){ if(text[i+1]==='"'){field+='"';i+=2;continue;} inQ=false;i++;continue; }
+      field+=c;i++;continue;
+    }
+    if(c==='"'){inQ=true;i++;continue;}
+    if(c===','){row.push(field);field='';i++;continue;}
+    if(c==='\n'){row.push(field);out.push(row);row=[];field='';i++;continue;}
+    field+=c;i++;
+  }
+  if(field.length||row.length){row.push(field);out.push(row);}
+  // drop trailing empty line
+  if(out.length && out[out.length-1].length===1 && out[out.length-1][0]==='')out.pop();
+  return out;
+}
+function csvCell(v){
+  v=String(v==null?'':v);
+  return /[",\n]/.test(v) ? '"'+v.replace(/"/g,'""')+'"' : v;
+}
+function toCSV(arr){return arr.map(r=>r.map(csvCell).join(',')).join('\r\n');}
+
+// ── Scan & preview ────────────────────────────────────────────────────
+let expansions=[];
+function scan(){
+  document.getElementById('section-preview').style.display='block';
+  expansions=[];
+  let newRows=0;
+  for(let r=1;r<rows.length;r++){
+    const code=String(rows[r][colCode]||'').trim();
+    const rule=ruleFor(code);
+    if(!rule)continue;
+    const qty=parseInt(String(rows[r][colQty]||'1').trim())||1;
+    if(qty<=1)continue;
+    const d0=parseDate(rows[r][colDate]);
+    if(!d0)continue;
+    const dates=[];
+    for(let i=0;i<qty;i++)dates.push(fmtDate(occurrenceDate(d0,rule,i)));
+    const nameIdx=header.findIndex(h=>String(h).toLowerCase().includes('firstname'));
+    const lastIdx=header.findIndex(h=>String(h).toLowerCase().includes('lastname'));
+    const pname=((nameIdx>=0?rows[r][nameIdx]:'')+' '+(lastIdx>=0?rows[r][lastIdx]:'')).trim()||'(row '+r+')';
+    expansions.push({r,code,qty,dates,pname,type:rule.type,n:rule.n});
+    newRows+=qty-1;
+  }
+  // Stats
+  const totalIn=rows.length-1;
+  document.getElementById('stat-in').textContent=totalIn;
+  document.getElementById('stat-expand').textContent=expansions.length;
+  document.getElementById('stat-new').textContent=newRows;
+  document.getElementById('stat-out').textContent=totalIn+newRows;
+
+  const empty=document.getElementById('preview-empty');
+  const wrap=document.getElementById('preview-wrap');
+  const btn=document.getElementById('btn-generate');
+  if(!expansions.length){empty.style.display='block';wrap.style.display='none';btn.disabled=true;}
+  else{empty.style.display='none';wrap.style.display='block';btn.disabled=false;}
+
+  const tb=document.getElementById('preview-tbody');
+  tb.innerHTML='';
+  expansions.forEach(e=>{
+    const datesHtml=e.dates.map((d,i)=>i===0?`<b>${d}</b>`:d).join(' · ');
+    const tr=document.createElement('tr');
+    tr.innerHTML=`
+      <td>${esc(e.pname)}</td>
+      <td><span class="chip chip-code">${esc(e.code)}</span></td>
+      <td style="font-family:monospace">${esc(e.dates[0])}</td>
+      <td style="text-align:center;font-weight:700">${e.qty}</td>
+      <td class="dates-list">${datesHtml}<div style="font-size:10px;color:var(--muted);margin-top:2px">${e.type==='weekday'?('weekly on '+['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][e.n]):('+'+e.n+' '+(e.type==='months'?'month(s)':'day(s)')+' each')}</div></td>`;
+    tb.appendChild(tr);
+  });
+}
+
+// ── Generate expanded CSV ─────────────────────────────────────────────
+function generateOutput(){
+  if(!rows.length)return;
+  const out=[header.slice()];
+  for(let r=1;r<rows.length;r++){
+    const row=rows[r];
+    const code=String(row[colCode]||'').trim();
+    const rule=ruleFor(code);
+    const qty=parseInt(String(row[colQty]||'1').trim())||1;
+    if(!rule || qty<=1){ out.push(row.slice()); continue; }
+    const d0=parseDate(row[colDate]);
+    if(!d0){ out.push(row.slice()); continue; }
+    for(let i=0;i<qty;i++){
+      const nr=row.slice();
+      nr[colDate]=fmtDate(occurrenceDate(d0,rule,i));
+      nr[colQty]='1';
+      out.push(nr);
+    }
+  }
+  const blob=new Blob([toCSV(out)],{type:'text/csv;charset=utf-8;'});
+  const fname='3B_Repeats_Expanded_'+new Date().toISOString().slice(0,10)+'.csv';
+  Object.assign(document.createElement('a'),{href:URL.createObjectURL(blob),download:fname}).click();
+  const added=out.length-rows.length;
+  document.getElementById('gen-status').textContent=`✅ ${added} rows added · ${out.length-1} total · Downloaded as ${fname}`;
+}
+
+function clearAll(){
+  rows=[];header=[];colCode=colDate=colQty=-1;expansions=[];
+  document.getElementById('section-preview').style.display='none';
+  document.getElementById('zone-file').classList.remove('loaded');
+  document.getElementById('file-name').textContent='';
+  document.getElementById('gen-status').textContent='';
+}
+
+const esc=s=>String(s==null?'':s).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;');
+
+// ── File System Storage (shared IDB — same as other modules) ──────────
+const FS_SUPPORTED=typeof window.showSaveFilePicker==='function';
+let _fileHandle=null,_usingFS=false,_saveTimer=null;
+
+function _idb(){return new Promise((res,rej)=>{const req=indexedDB.open('OM_Billing_FS',1);req.onupgradeneeded=e=>e.target.result.createObjectStore('handles');req.onsuccess=e=>res(e.target.result);req.onerror=rej;});}
+async function _saveHandle(h){const db=await _idb();return new Promise((res,rej)=>{const tx=db.transaction('handles','readwrite');tx.objectStore('handles').put(h,'dataFile');tx.oncomplete=res;tx.onerror=rej;});}
+async function _loadHandle(){const db=await _idb();return new Promise((res)=>{const tx=db.transaction('handles','readonly');const req=tx.objectStore('handles').get('dataFile');req.onsuccess=e=>res(e.target.result||null);req.onerror=()=>res(null);});}
+async function _clearHandle(){const db=await _idb();return new Promise((res,rej)=>{const tx=db.transaction('handles','readwrite');tx.objectStore('handles').delete('dataFile');tx.oncomplete=res;tx.onerror=rej;});}
+
+function _setPill(state,label){const pill=document.getElementById('file-status-pill');if(!pill)return;pill.style.display='flex';pill.className='';pill.id='file-status-pill';pill.classList.add(state);document.getElementById('fsp-label').textContent=label;}
+
+function _scheduleSave(){
+  if(!_usingFS||!_fileHandle)return;
+  _setPill('saving','Saving…');
+  clearTimeout(_saveTimer);
+  _saveTimer=setTimeout(_writeFile,600);
+}
+async function _writeFile(){
+  if(!_fileHandle)return;
+  try{
+    const data={_saved:new Date().toISOString(),_version:'OM-v1'};
+    DATA_KEYS.forEach(k=>{const v=localStorage.getItem(k);if(v!==null)data[k]=v;});
+    const w=await _fileHandle.createWritable();
+    await w.write(JSON.stringify(data,null,2));await w.close();
+    const name=await _fileHandle.getFile().then(f=>f.name);
+    _setPill('saved','✓ '+name);
+  }catch(e){_setPill('fallback','⚠ Save failed');}
+}
+
+async function _activateHandle(handle,isNew){
+  _fileHandle=handle;_usingFS=true;await _saveHandle(handle);
+  if(!isNew){
+    try{
+      const file=await handle.getFile();
+      const data=JSON.parse(await file.text());
+      DATA_KEYS.forEach(k=>{if(data[k]!==undefined)localStorage.setItem(k,data[k]);});
+    }catch(e){}
+  }
+  rules=ls('om_repeat_rules',null)||DEFAULT_RULES.slice();
+  renderRules();
+  const name=await handle.getFile().then(f=>f.name);
+  _setPill('saved','✓ '+name);
+  if(isNew)_writeFile();
+}
+
+async function _fsStartup(){
+  if(!_checkDomain())return;
+  if(!FS_SUPPORTED){_setPill('fallback','⚠ Browser storage');_initApp();return;}
+  const handle=await _loadHandle();
+  if(!handle){document.getElementById('fs-setup-modal').style.display='flex';return;}
+  try{
+    const perm=await handle.queryPermission({mode:'readwrite'});
+    if(perm==='granted'){await _activateHandle(handle,false);_initApp();return;}
+  }catch(e){}
+  document.getElementById('fs-permission-prompt').style.display='flex';
+}
+async function fsGrantPermission(){
+  document.getElementById('fs-permission-prompt').style.display='none';
+  const handle=await _loadHandle();if(!handle){document.getElementById('fs-setup-modal').style.display='flex';return;}
+  try{
+    const perm=await handle.requestPermission({mode:'readwrite'});
+    if(perm==='granted'){await _activateHandle(handle,false);_initApp();}
+    else{await _clearHandle();_usingFS=false;_setPill('fallback','⚠ Browser storage');_initApp();}
+  }catch(e){await _clearHandle();_usingFS=false;_setPill('fallback','⚠ Browser storage');_initApp();}
+}
+function fsSkipToLocalStorage(){document.getElementById('fs-permission-prompt').style.display='none';_usingFS=false;_setPill('fallback','⚠ Browser storage');_initApp();}
+async function fsSetupNew(){if(!FS_SUPPORTED)return;try{const handle=await window.showSaveFilePicker({suggestedName:'OM_Billing_Data.json',types:[{description:'OM Billing Data',accept:{'application/json':['.json']}}]});await _activateHandle(handle,true);document.getElementById('fs-setup-modal').style.display='none';_initApp();}catch(e){if(e.name!=='AbortError')alert('Error: '+e.message);}}
+async function fsSetupOpen(){if(!FS_SUPPORTED)return;try{const[handle]=await window.showOpenFilePicker({types:[{description:'OM Billing Data',accept:{'application/json':['.json']}}]});await _activateHandle(handle,false);document.getElementById('fs-setup-modal').style.display='none';_initApp();}catch(e){if(e.name!=='AbortError')alert('Error: '+e.message);}}
+function fsSetupSkip(){document.getElementById('fs-setup-modal').style.display='none';_usingFS=false;_setPill('fallback','⚠ Browser storage');_initApp();}
+
+function _initApp(){
+  rules=ls('om_repeat_rules',null)||DEFAULT_RULES.slice();
+  renderRules();
+}
+
+_fsStartup();
+</script>
+</body>
+</html>

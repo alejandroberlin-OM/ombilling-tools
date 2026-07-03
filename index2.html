@@ -78,8 +78,8 @@ body::after{
              box-shadow:0 0 6px var(--bright);animation:pulse 2s infinite}
 
 /* ── Module cards ── */
-.modules{display:grid;grid-template-columns:1fr 1fr 1fr;gap:20px;
-          max-width:1040px;width:100%;margin-bottom:56px;animation:fadeUp .8s .2s ease both}
+.modules{display:grid;grid-template-columns:1fr 1fr;gap:20px;
+          max-width:720px;width:100%;margin-bottom:56px;animation:fadeUp .8s .2s ease both}
 .module-card{
   position:relative;overflow:hidden;
   border-radius:16px;padding:36px 32px 32px;
@@ -104,6 +104,7 @@ body::after{
 .card-ifhp{--card-a:#4080c0;--card-b:#1a4070}
 .card-qc   {--card-a:#b84060;--card-b:#6b1a28}
 .card-mhdu {--card-a:#3aaa7a;--card-b:#1a5c3a}
+.card-rep  {--card-a:#ea8a1e;--card-b:#7c3a0e}
 
 .card-flag{
   display:inline-flex;align-items:center;gap:7px;
@@ -116,6 +117,7 @@ body::after{
 .card-ifhp .flag-dot{background:var(--ifhp2);box-shadow:0 0 8px var(--ifhp2)}
 .card-qc   .flag-dot{background:var(--qc2);box-shadow:0 0 8px var(--qc2)}
 .card-mhdu .flag-dot{background:#3aaa7a;box-shadow:0 0 8px #3aaa7a}
+.card-rep  .flag-dot{background:#f0b968;box-shadow:0 0 8px #f0b968}
 
 .card-title{font-family:"Cormorant Garamond",serif;font-size:26px;font-weight:600;
              color:#fff;line-height:1.15;margin-bottom:8px;position:relative;z-index:1}
@@ -203,6 +205,12 @@ footer strong{color:rgba(255,255,255,.35)}
       <div class="card-flag"><span class="flag-dot"></span>DMOH · MHDU</div>
       <div class="card-title">MHDU Provider<br>Reassignment</div>
       <div class="card-sub">Covering physician assignment<br>3B export · CSV output</div>
+      <div class="card-btn">Open Tool <span class="card-btn-arrow">→</span></div>
+    </a>
+    <a class="module-card card-rep" href="https://tools.om-billing.com/Repeats.html" target="_blank">
+      <div class="card-flag"><span class="flag-dot"></span>DMOH · MHDU</div>
+      <div class="card-title">Units to<br>Repeats</div>
+      <div class="card-sub">Expand recurring service codes<br>3B export · CSV output</div>
       <div class="card-btn">Open Tool <span class="card-btn-arrow">→</span></div>
     </a>
   </div>
