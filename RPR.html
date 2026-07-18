@@ -1,0 +1,895 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<meta name="om-token" content="">
+<title>RPR Reformatting</title>
+<link href="https://fonts.googleapis.com/css2?family=Libre+Baskerville:ital,wght@0,400;0,700;1,400&family=Source+Sans+3:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  /* plum module palette — same variable scheme as IFHP/QC/MHDU/RNC */
+  --g1:#4a2b5f;--g2:#6a3f85;--g3:#a065c4;--g4:#ecdff4;--g5:#f8f2fb;
+  --gold:#c8a84b;--gold2:#e0bc60;
+  --ink:#2a1836;--ink2:#432a54;--muted:#7a6689;
+  --bg:#f2ecf6;--card:#fff;--border:#e0d0ec;
+  --ok:#186845;--ok-bg:#e3f5ed;
+  --warn:#7a5010;--warn-bg:#fdf3e0;
+  --err:#991b1b;--err-bg:#fef2f2;
+  --r:11px;--rs:6px;--sh:0 1px 3px rgba(0,0,0,.06),0 4px 14px rgba(0,0,0,.05)
+}
+body{font-family:"Source Sans 3",sans-serif;background:var(--bg);color:var(--ink);min-height:100vh;font-size:14px;display:flex;flex-direction:column}
+.hdr{background:var(--g1);color:#fff;height:68px;display:flex;align-items:center;gap:18px;padding:0 28px;position:sticky;top:0;z-index:300;box-shadow:0 2px 16px rgba(0,0,0,.3)}
+.hdr-title{font-family:"Libre Baskerville",serif;font-size:17px;font-weight:700;color:#fff;line-height:1.2}
+.hdr-module{font-size:11px;color:rgba(255,255,255,.6);margin-top:2px;letter-spacing:.03em}
+.hdr-brand{font-family:"Libre Baskerville",serif;font-size:13px;font-weight:700;color:rgba(255,255,255,.55);margin-left:auto}
+.hdr-tm{font-size:9px;vertical-align:super;color:var(--gold2)}
+#file-status-pill{display:none;align-items:center;gap:6px;padding:4px 12px;border-radius:20px;font-size:11.5px;font-weight:600;background:rgba(255,255,255,.1);color:rgba(255,255,255,.7);border:1px solid rgba(255,255,255,.2);white-space:nowrap}
+#file-status-pill.saving{color:var(--gold2)}#file-status-pill.saved{color:#8ef0c4}#file-status-pill.fallback{color:#fbbf24}
+.fsp-dot{width:7px;height:7px;border-radius:50%;background:currentColor;flex-shrink:0}
+.wrap{max-width:1000px;margin:0 auto;padding:32px 24px 60px;width:100%}
+.pg-title{font-family:"Libre Baskerville",serif;font-size:22px;font-weight:700;color:var(--g1);margin-bottom:4px}
+.pg-sub{font-size:13px;color:var(--muted);margin-bottom:28px;line-height:1.65}
+.card{background:var(--card);border:1px solid var(--border);border-radius:var(--r);margin-bottom:16px;overflow:hidden;box-shadow:var(--sh)}
+.card-hd{padding:13px 18px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px;background:#fbf8fd}
+.ct{font-size:14px;font-weight:700;color:var(--g1)}
+.cd{font-size:12px;color:var(--muted);margin-top:1px}
+.card-body{padding:18px}
+.upg{display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px}
+@media(max-width:720px){.upg{grid-template-columns:1fr}}
+.upz{border:2px dashed var(--border);border-radius:var(--r);padding:22px 12px;text-align:center;cursor:pointer;position:relative;transition:all .2s}
+.upz:hover{border-color:var(--g3);background:var(--g5)}
+.upz.loaded{border-style:solid;border-color:var(--ok);background:var(--ok-bg)}
+.upz.optional{background:#fbf8fd}
+.upz.dragover{border-color:var(--g3);background:var(--g5)}
+.upz input[type=file]{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%}
+.uz-icon{font-size:26px;margin-bottom:6px;opacity:.7}
+.uz-lbl{font-size:13px;font-weight:700;color:var(--g1);margin-bottom:3px}
+.uz-hint{font-size:11px;color:var(--muted);line-height:1.4}
+.uz-opt{font-size:10px;color:var(--muted);margin-top:4px;font-style:italic}
+.uz-file{font-size:11px;font-weight:700;margin-top:6px;word-break:break-all;color:var(--ok)}
+.note{background:var(--g5);border-left:3px solid var(--g3);padding:9px 13px;border-radius:0 var(--rs) var(--rs) 0;font-size:12px;color:var(--ink2);line-height:1.6}
+.alert{border-radius:var(--rs);padding:10px 13px;font-size:13px;margin-bottom:12px;display:flex;gap:9px;align-items:flex-start}
+.alert:last-child{margin-bottom:0}
+.a-warn{background:var(--warn-bg);color:var(--warn);border:1px solid #f6d88a}
+.a-info{background:#eff6ff;color:#1e40af;border:1px solid #bfdbfe}
+.a-ok{background:var(--ok-bg);color:var(--ok);border:1px solid #86efac}
+.a-err{background:var(--err-bg);color:var(--err);border:1px solid #fecaca}
+.alert .ai{font-weight:800;flex-shrink:0}
+.sstrip{display:flex;gap:0;background:var(--g1);border-radius:var(--rs);overflow:hidden;margin-bottom:16px;flex-wrap:wrap}
+.ssi{flex:1;min-width:104px;padding:11px 14px;border-right:1px solid rgba(255,255,255,.1)}
+.ssi:last-child{border-right:none}
+.ssl{font-size:9.5px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:rgba(255,255,255,.5);margin-bottom:2px}
+.ssv{font-size:17px;font-weight:800;color:#fff;font-family:"Libre Baskerville",serif}
+.ssv.warn{color:#fbbf24}.ssv.ok{color:#8ef0c4}.ssv.sm{font-size:12px;line-height:1.35;font-family:"Source Sans 3";font-weight:600}
+.tscroll{overflow:auto;max-height:340px;border:1px solid var(--border);border-radius:var(--rs)}
+.dt{width:100%;border-collapse:collapse}
+.dt thead tr{background:var(--g1)}
+.dt th{padding:9px 12px;text-align:left;color:#fff;font-size:10px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;white-space:nowrap;position:sticky;top:0;background:var(--g1)}
+.dt td{padding:7px 10px;border-bottom:1px solid var(--border);vertical-align:middle;white-space:nowrap}
+.dt tr:last-child td{border-bottom:none}
+.dt tr:nth-child(even) td{background:#fbf8fd}
+.mono{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12px}
+.badge{display:inline-block;padding:3px 9px;border-radius:10px;font-size:11px;font-weight:700}
+.b-ok{background:var(--ok-bg);color:var(--ok)}.b-map{background:#e9e0f6;color:#5a2f86}.b-syn{background:#e0eefb;color:#274a86}
+.b-auto{background:#fdf3e0;color:#7a5010}.b-def{background:#f3e8ff;color:#6b21a8}.b-bad{background:var(--err-bg);color:var(--err)}
+.inp{padding:6px 9px;border:1.5px solid var(--border);border-radius:var(--rs);font-size:12.5px;font-family:inherit;color:var(--ink);background:#fff;outline:none;transition:border .15s;width:110px}
+.inp:focus{border-color:var(--g3);box-shadow:0 0 0 3px rgba(160,101,196,.14)}
+.inp.bad{border-color:#f59e0b;background:#fef9ee}
+.inp.w70{width:70px}
+.btn{display:inline-flex;align-items:center;gap:7px;padding:9px 18px;border:none;border-radius:var(--rs);font-size:13.5px;font-weight:700;cursor:pointer;font-family:inherit;transition:all .15s}
+.btn-g{background:var(--g1);color:#fff}.btn-g:hover{background:var(--g2)}.btn-g:disabled{opacity:.45;cursor:not-allowed}
+.btn-gold{background:var(--gold);color:var(--g1)}.btn-gold:hover{background:var(--gold2)}.btn-gold:disabled{opacity:.45;cursor:not-allowed}
+.btn-outline{background:none;border:1.5px solid var(--border);color:var(--muted)}.btn-outline:hover{border-color:var(--g3);color:var(--g1)}
+.btn-sm{padding:4px 10px;font-size:12px}
+.opt-row{display:flex;align-items:center;gap:14px;padding:11px 0;border-bottom:1px solid var(--border)}
+.opt-row:first-child{padding-top:0}.opt-row:last-child{border-bottom:none;padding-bottom:0}
+.opt-txt{flex:1}.opt-txt b{font-size:13.5px;color:var(--ink)}.opt-txt small{display:block;color:var(--muted);font-size:12px;margin-top:1px;line-height:1.5}
+.switch{position:relative;width:42px;height:23px;flex:0 0 42px}
+.switch input{opacity:0;width:0;height:0}
+.slider{position:absolute;inset:0;background:#cdbcd9;border-radius:999px;transition:.15s;cursor:pointer}
+.slider:before{content:"";position:absolute;width:17px;height:17px;left:3px;top:3px;background:#fff;border-radius:50%;transition:.15s}
+.switch input:checked + .slider{background:var(--g2)}.switch input:checked + .slider:before{transform:translateX(19px)}
+.chiprow{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px}
+.chip{background:var(--g5);border:1px solid var(--border);border-radius:var(--rs);padding:6px 11px;font-size:12px;color:var(--ink2)}
+.chip b{color:var(--g1)}
+.subtabs{display:flex;gap:6px;margin-bottom:14px;flex-wrap:wrap}
+.subtab{padding:7px 14px;border-radius:var(--rs);font-size:12.5px;font-weight:700;cursor:pointer;border:1.5px solid var(--border);background:#fff;color:var(--muted)}
+.subtab.active{background:var(--g1);color:#fff;border-color:var(--g1)}
+.hidden{display:none!important}
+footer{background:var(--g1);color:rgba(255,255,255,.4);font-size:10.5px;padding:16px 28px;text-align:center;line-height:1.75;margin-top:auto}
+footer strong{color:rgba(255,255,255,.65)}
+#fs-setup-modal,#fs-permission-prompt{position:fixed;inset:0;z-index:9998;background:rgba(74,43,95,.92);display:none;align-items:center;justify-content:center;padding:24px}
+.fs-modal-box{background:var(--card);border-radius:16px;padding:36px 40px;max-width:460px;width:100%;box-shadow:0 24px 60px rgba(0,0,0,.3)}
+.fs-modal-icon{font-size:44px;margin-bottom:14px}
+.fs-modal-title{font-family:"Libre Baskerville",serif;font-size:20px;font-weight:700;color:var(--g1);margin-bottom:8px}
+.fs-modal-body{font-size:13px;color:var(--muted);line-height:1.7;margin-bottom:24px}
+.fs-btn-row{display:flex;gap:10px;flex-direction:column}
+.fs-btn-primary{padding:12px 20px;background:var(--g1);color:#fff;border:none;border-radius:var(--rs);font-size:14px;font-weight:700;cursor:pointer;font-family:inherit;text-align:left}
+.fs-btn-primary:hover{background:var(--g2)}
+.fs-btn-secondary{padding:10px 20px;background:none;color:var(--muted);border:1.5px solid var(--border);border-radius:var(--rs);font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;text-align:left}
+.fs-btn-secondary:hover{border-color:var(--g3);color:var(--g2)}
+</style>
+</head>
+<body>
+
+<div id="fs-setup-modal">
+  <div class="fs-modal-box">
+    <div class="fs-modal-icon">💾</div>
+    <div class="fs-modal-title">Set up your data file</div>
+    <div class="fs-modal-body">Link to your <code>OM_Billing_Data.json</code> (the RadOnc file) to keep the provider billing map, group numbers and diagnosis mappings.<br><br>Use the <strong>same file</strong> as the RNC module.</div>
+    <div class="fs-btn-row">
+      <button class="fs-btn-primary" onclick="fsSetupNew()">📄 Create new data file</button>
+      <button class="fs-btn-primary" onclick="fsSetupOpen()">📂 Open existing data file</button>
+      <button class="fs-btn-secondary" onclick="fsSetupSkip()">Use browser storage instead</button>
+    </div>
+  </div>
+</div>
+<div id="fs-permission-prompt">
+  <div style="background:var(--card);border-radius:16px;padding:40px 44px;max-width:400px;width:100%;text-align:center;box-shadow:0 24px 60px rgba(0,0,0,.3)">
+    <div style="font-size:48px;margin-bottom:16px">📂</div>
+    <div style="font-family:'Libre Baskerville',serif;font-size:20px;font-weight:700;color:var(--g1);margin-bottom:8px">Open Data File</div>
+    <div style="font-size:13px;color:var(--muted);margin-bottom:28px;line-height:1.7">Click below to allow access to your data file.<br><strong>Required once per browser session.</strong></div>
+    <button onclick="fsGrantPermission()" style="padding:12px 32px;background:var(--g1);color:#fff;border:none;border-radius:8px;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit;width:100%">📂 Open My Data File</button>
+    <div style="margin-top:14px"><button onclick="fsSkipToLocalStorage()" style="background:none;border:none;font-size:11.5px;color:var(--muted);cursor:pointer;font-family:inherit;text-decoration:underline">Use browser storage instead</button></div>
+  </div>
+</div>
+
+<header class="hdr">
+  <div>
+    <div class="hdr-title">RMP — Princess Margaret</div>
+    <div class="hdr-module">Radiation Medicine Program · RPR Reformatting → CabMD</div>
+  </div>
+  <div id="file-status-pill"><span class="fsp-dot"></span><span id="fsp-label">—</span></div>
+  <div class="hdr-brand">OM Billing Inc.<span class="hdr-tm">™</span></div>
+</header>
+
+<div class="wrap">
+  <div class="pg-title">RPR Reformatting</div>
+  <div class="pg-sub">
+    Turn the RPR referral/consult report into CabMD claims. Each source row becomes a <strong>K738A</strong> (request) line for the
+    requesting physician and a <strong>K739A</strong> (consult) line for the consulting physician, who references the requester.
+    Patient demographics and diagnosis are filled by health number from prior CabMD submissions (X-codes / MIRA), with the UHN portal as a fallback.
+  </div>
+
+  <!-- Uploads -->
+  <div class="card">
+    <div class="card-hd"><div><div class="ct">📁 Upload the three sources</div>
+      <div class="cd">RPR raw is required · MIRA X-codes required · UHN portal optional</div></div></div>
+    <div class="card-body">
+      <div class="upg">
+        <div class="upz" id="zone-rpr">
+          <input type="file" accept=".csv,.xlsx,.xls" onchange="loadRPR(this)">
+          <div class="uz-icon">📄</div><div class="uz-lbl">RPR Raw Report</div>
+          <div class="uz-hint">The report you download<br>REQUEST/CONSULT + patient</div>
+          <div class="uz-file" id="rpr-fname"></div>
+        </div>
+        <div class="upz" id="zone-mira">
+          <input type="file" accept=".csv,.xlsx,.xls" multiple onchange="loadMIRA(this)">
+          <div class="uz-icon">🗂️</div><div class="uz-lbl">MIRA X-codes</div>
+          <div class="uz-hint">Prior CabMD submissions<br>select one or more files</div>
+          <div class="uz-file" id="mira-fname"></div>
+        </div>
+        <div class="upz optional" id="zone-uhn">
+          <input type="file" accept=".xlsx,.xls,.csv" onchange="loadUHN(this)">
+          <div class="uz-icon">🏥</div><div class="uz-lbl">UHN Portal</div>
+          <div class="uz-hint">Outpatient billing export</div>
+          <div class="uz-opt">Optional · fallback demographics</div>
+          <div class="uz-file" id="uhn-fname"></div>
+        </div>
+      </div>
+      <div class="note" style="margin-top:12px">💡 Pull MIRA X-codes covering at least ~2 weeks before and ~3 weeks after the RPR date range for the cleanest patient matches. Nothing is uploaded — all data is processed locally per PIPEDA.</div>
+      <div id="load-alert" style="margin-top:12px"></div>
+    </div>
+  </div>
+
+  <div id="post-load" class="hidden">
+    <!-- Provider billing map -->
+    <div class="card">
+      <div class="card-hd"><div><div class="ct">👥 Provider Billing Map &amp; Characteristics</div>
+        <div class="cd">MD ID → OHIP billing #, and each provider's Group Number</div></div>
+        <div id="prov-stat" style="margin-left:auto;font-size:12px"></div></div>
+      <div class="card-body">
+        <div class="subtabs">
+          <div class="subtab active" data-tab="billmap" onclick="switchTab('billmap')">MD&nbsp;ID → OHIP&nbsp;#</div>
+          <div class="subtab" data-tab="grp" onclick="switchTab('grp')">Group Numbers</div>
+        </div>
+        <div id="tab-billmap"></div>
+        <div id="tab-grp" class="hidden"></div>
+      </div>
+    </div>
+
+    <!-- Diagnosis mapping -->
+    <div class="card" id="card-dx">
+      <div class="card-hd"><div><div class="ct">🩺 Diagnosis → OHIP Code</div>
+        <div class="cd">UHN-sourced rows only · text mapped to the closest neoplasm code (edit any; blank rows default to 195)</div></div>
+        <div id="dx-stat" style="margin-left:auto;font-size:12px"></div></div>
+      <div class="card-body" id="dx-body"></div>
+    </div>
+
+    <!-- Options -->
+    <div class="card">
+      <div class="card-hd"><div><div class="ct">⚙️ Options</div></div></div>
+      <div class="card-body">
+        <div class="opt-row">
+          <div class="opt-txt"><b>Exclude rows with a blank Health Number</b>
+            <small>On by default — a claim with no HCN is unbillable. Off keeps them (flagged).</small></div>
+          <label class="switch"><input type="checkbox" id="opt-excl-hcn" checked><span class="slider"></span></label>
+        </div>
+        <div class="chiprow" id="fixed-chips"></div>
+      </div>
+    </div>
+
+    <!-- Export -->
+    <div class="card">
+      <div class="card-hd"><div><div class="ct">⚡ Review &amp; Export for CabMD</div>
+        <div class="cd" id="fname-hint"></div></div></div>
+      <div class="card-body">
+        <div class="sstrip" id="kpis"></div>
+        <div id="export-alert"></div>
+        <div class="tscroll" id="preview-wrap" style="margin:12px 0"></div>
+        <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap">
+          <button class="btn btn-gold" id="btn-download" onclick="downloadCSV()" disabled>⬇ Download CSV for CabMD</button>
+          <button class="btn btn-outline" onclick="startOver()">✕ Start Over</button>
+          <span id="gen-status" style="font-size:12px;color:var(--muted)"></span>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<footer>
+  <strong>OM Billing Inc.™</strong> &nbsp;|&nbsp; RMP · Princess Margaret · RPR Reformatting → CabMD<br>
+  Copyright © <script>document.write(new Date().getFullYear())</script> <strong>OM Billing Inc.™</strong> All rights reserved.<br>
+  Proprietary software. Patient data processed locally per PIPEDA.
+</footer>
+
+<datalist id="dx-list"></datalist>
+
+<script>
+'use strict';
+/* ================= RMP_CORE_START =================
+   Pure, DOM-free logic for the RPR → CabMD transform. Depends only on global
+   XLSX (SheetJS) for XLSX.SSF date parsing, so it can be extracted and run
+   under Node for QA against the shipped code. */
+
+var RMP_OUT_HEADERS = ["ProviderNumber","GroupNumber","ProvinceCode","HealthNumber",
+  "VersionCode","FirstName","LastName","DateOfBirth","Gender","ReferringProviderNumber",
+  "DiagnosticCode","ServiceLocationType","MasterNumber","AdmissionDate","ServiceDate",
+  "ServiceCode","ServiceQty"];
+
+/* row-level constants applied to every claim */
+var RMP_CONST = { ProvinceCode:"ON", ServiceLocationType:"HOP", MasterNumber:"4406",
+  ServiceQty:"1", DefaultGroup:"H297", DefaultDx:"195" };
+
+/* RPR source column indices (0-based) */
+var RPR = { reqId:0, reqDate:3, conId:4, conDate:7, mrn:8, hcn:9, last:10, first:11 };
+
+/* MIRA (rt_service_record / prior CabMD) is the 17-col CabMD layout */
+var MIRA = { provider:0, group:1, province:2, hcn:3, version:4, dob:7, gender:8, dx:10, svcloc:11, master:12 };
+
+/* UHN portal (PhysicianBillingOutPatient) 25-col layout */
+var UHN = { coverage:4, dob:8, sex:9, dxText:19 };
+
+/* default MD_ID -> 6-digit OHIP billing number */
+var RMP_DEFAULT_BILLMAP = {"51990":"164046","161344":"033998","27322":"071134","173869":"031992","27650":"212639","110083":"017979","56100":"017998","141307":"031003","156411":"033806","1079":"179572","14750":"016456","136346":"999999","110603":"027861","171309":"044498","205599":"284166","160585":"041695","115266":"028783","15389":"013498","137200":"021723","169655":"036654","193192":"050023","43843":"104828","418650":"048960","18106":"015995","174546":"049563","14441":"218925","23054":"243584","194183":"038219","192573":"042449","193261":"049810","175591":"046818","174711":"044691","101436":"018014","27265":"097709","168737":"","148999":"039841","178752":"033851","67453":"218552","215279":"048341","23050":"250068","147498":"036650","24887":"161307","49879":"251223","48970":"285486","148810":"042212","405890":"046775","201168":"055174"};
+
+/* OHIP neoplasm diagnostic universe (codes 140-239) for text->code mapping */
+var RMP_NEOPLASM = [{"code":"140","desc":"Malignant neoplasm: Lip"},{"code":"141","desc":"Malignant neoplasm: Tongue"},{"code":"142","desc":"Malignant neoplasm: Major salivary glands"},{"code":"143","desc":"Malignant neoplasm: Gum"},{"code":"144","desc":"Malignant neoplasm: Floor of mouth"},{"code":"145","desc":"Malignant neoplasm: Other mouth"},{"code":"146","desc":"Malignant neoplasm: Oropharynx"},{"code":"147","desc":"Malignant neoplasm: Nasopharynx"},{"code":"148","desc":"Malignant neoplasm: Hypopharynx"},{"code":"149","desc":"Malignant neoplasm: Lip / oral / pharynx NOS"},{"code":"150","desc":"Malignant neoplasm: Esophagus"},{"code":"151","desc":"Malignant neoplasm: Stomach"},{"code":"152","desc":"Malignant neoplasm: Small intestine"},{"code":"153","desc":"Malignant neoplasm: Large intestine"},{"code":"154","desc":"Malignant neoplasm: Rectum / anus"},{"code":"155","desc":"Malignant neoplasm: Primary liver"},{"code":"156","desc":"Malignant neoplasm: Gallbladder / bile ducts"},{"code":"157","desc":"Malignant neoplasm: Pancreas"},{"code":"158","desc":"Malignant neoplasm: Retroperitoneum"},{"code":"159","desc":"Malignant neoplasm: Digestive NOS"},{"code":"160","desc":"Malignant neoplasm: Nasal / sinus / ear"},{"code":"161","desc":"Malignant neoplasm: Larynx / trachea"},{"code":"162","desc":"Malignant neoplasm: Bronchus / lung"},{"code":"163","desc":"Malignant neoplasm: Pleura"},{"code":"164","desc":"Malignant neoplasm: Thymus / heart"},{"code":"165","desc":"Malignant neoplasm: Respiratory NOS"},{"code":"170","desc":"Malignant neoplasm: Bone"},{"code":"171","desc":"Malignant neoplasm: Connective / soft tissue"},{"code":"172","desc":"Malignant neoplasm: Melanoma of skin"},{"code":"173","desc":"Malignant neoplasm: Other skin"},{"code":"174","desc":"Malignant neoplasm: Female breast"},{"code":"175","desc":"Malignant neoplasm: Male breast"},{"code":"179","desc":"Malignant neoplasm: Uterus NOS"},{"code":"180","desc":"Malignant neoplasm: Cervix"},{"code":"181","desc":"Malignant neoplasm: Placenta"},{"code":"182","desc":"Malignant neoplasm: Body of uterus"},{"code":"183","desc":"Malignant neoplasm: Ovary / fallopian tube"},{"code":"184","desc":"Malignant neoplasm: Vagina / vulva"},{"code":"185","desc":"Malignant neoplasm: Prostate"},{"code":"186","desc":"Malignant neoplasm: Testis"},{"code":"187","desc":"Malignant neoplasm: Other male genital"},{"code":"188","desc":"Malignant neoplasm: Bladder"},{"code":"189","desc":"Malignant neoplasm: Kidney / urinary"},{"code":"190","desc":"Malignant neoplasm: Eye"},{"code":"191","desc":"Malignant neoplasm: Brain"},{"code":"192","desc":"Malignant neoplasm: Cranial nerves / spinal cord"},{"code":"193","desc":"Malignant neoplasm: Thyroid"},{"code":"194","desc":"Malignant neoplasm: Other endocrine glands"},{"code":"195","desc":"Malignant neoplasm: Other ill-defined sites"},{"code":"196","desc":"Malignant neoplasm: Secondary lymph nodes"},{"code":"197","desc":"Malignant neoplasm: Secondary respiratory / digestive"},{"code":"198","desc":"Malignant neoplasm: Metastatic / carcinomatosis"},{"code":"199","desc":"Malignant neoplasm: Other"},{"code":"200","desc":"Malignant neoplasm: Lymphosarcoma"},{"code":"201","desc":"Malignant neoplasm: Hodgkin's disease"},{"code":"202","desc":"Malignant neoplasm: Other lymphoid / histiocytic"},{"code":"203","desc":"Malignant neoplasm: Multiple myeloma"},{"code":"204","desc":"Malignant neoplasm: Lymphoid leukemia"},{"code":"205","desc":"Malignant neoplasm: Myeloid leukemia"},{"code":"206","desc":"Malignant neoplasm: Monocytic leukemia"},{"code":"207","desc":"Malignant neoplasm: Other specified leukemia"},{"code":"208","desc":"Malignant neoplasm: Other leukemia"},{"code":"210","desc":"Benign neoplasm: Lip / oral / pharynx"},{"code":"211","desc":"Benign neoplasm: Digestive / peritoneum"},{"code":"212","desc":"Benign neoplasm: Respiratory"},{"code":"213","desc":"Benign neoplasm: Bone / cartilage"},{"code":"214","desc":"Benign neoplasm: Lipoma"},{"code":"215","desc":"Benign neoplasm: Connective / soft tissue"},{"code":"216","desc":"Benign neoplasm: Skin"},{"code":"217","desc":"Benign neoplasm: Breast"},{"code":"218","desc":"Benign neoplasm: Uterine fibroid / leiomyoma"},{"code":"219","desc":"Benign neoplasm: Other uterus"},{"code":"220","desc":"Benign neoplasm: Ovary / ovarian cyst"},{"code":"221","desc":"Benign neoplasm: Other female genital"},{"code":"222","desc":"Benign neoplasm: Male genital organs"},{"code":"223","desc":"Benign neoplasm: Kidney / ureter / bladder"},{"code":"224","desc":"Benign neoplasm: Eye"},{"code":"225","desc":"Benign neoplasm: Brain / spinal cord"},{"code":"226","desc":"Benign neoplasm: Thyroid"},{"code":"227","desc":"Benign neoplasm: Other endocrine glands"},{"code":"228","desc":"Benign neoplasm: Haemangioma / lymphangioma"},{"code":"229","desc":"Benign neoplasm: Other"},{"code":"230","desc":"Carcinoma in situ: Digestive"},{"code":"231","desc":"Carcinoma in situ: Respiratory"},{"code":"232","desc":"Carcinoma in situ: Skin"},{"code":"233","desc":"Carcinoma in situ: Breast / genito-urinary"},{"code":"234","desc":"Carcinoma in situ: Other"},{"code":"235","desc":"Neoplasm uncertain: Digestive / respiratory"},{"code":"236","desc":"Neoplasm uncertain: Genitourinary"},{"code":"237","desc":"Neoplasm uncertain: Endocrine / nervous"},{"code":"238","desc":"Neoplasm uncertain: Other sites"},{"code":"239","desc":"Neoplasm uncertain: Unspecified"}];
+
+function rmpTrim(v){ return String(v==null?'':v).trim(); }
+function pad6(c){ c=String(c||''); return (c===''||!/^\d+$/.test(c))?c:('000000'+c).slice(-6); }
+function isValidOhip(c){ return /^\d{6}$/.test(String(c||'')); }
+
+/* ---- date: TZ-independent via Excel serial (SSF); handles Date/serial/strings ---- */
+function _dateParts(v){
+  if(v===null||v===undefined||v==='')return null;
+  var y,m,d;
+  if(typeof v==='number'){ var o=XLSX.SSF.parse_date_code(v); if(!o||!o.y)return null; y=o.y;m=o.m;d=o.d; }
+  else if(v instanceof Date){ y=v.getFullYear();m=v.getMonth()+1;d=v.getDate(); }
+  else{
+    var s=String(v).trim();
+    var iso=s.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);
+    var us=s.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2,4})/);
+    if(iso){y=+iso[1];m=+iso[2];d=+iso[3];}
+    else if(us){m=+us[1];d=+us[2];y=+us[3]; if(y<100)y+=2000;}
+    else{ var t=Date.parse(s); if(isNaN(t))return null; var dt=new Date(t);
+      y=dt.getUTCFullYear();m=dt.getUTCMonth()+1;d=dt.getUTCDate(); }
+  }
+  if(!y||!m||!d||m<1||m>12||d<1||d>31||y<1900||y>2100)return null;
+  var chk=new Date(Date.UTC(y,m-1,d));
+  if(chk.getUTCFullYear()!==y||chk.getUTCMonth()!==m-1||chk.getUTCDate()!==d)return null;
+  return {y:y,m:m,d:d};
+}
+function fmtDateMMDDYYYY(v){ var p=_dateParts(v); if(!p)return ''; var z=function(n){return(n<10?'0':'')+n;}; return z(p.m)+'/'+z(p.d)+'/'+p.y; }
+function isoStamp(v){ var p=_dateParts(v); if(!p)return ''; var z=function(n){return(n<10?'0':'')+n;}; return p.y+'-'+z(p.m)+'-'+z(p.d); }
+
+function levenshtein(a,b){a=a||'';b=b||'';var m=a.length,n=b.length;if(!m)return n;if(!n)return m;
+  var prev=[],cur=[],i,j;for(j=0;j<=n;j++)prev[j]=j;
+  for(i=1;i<=m;i++){cur[0]=i;for(j=1;j<=n;j++){var c=a.charCodeAt(i-1)===b.charCodeAt(j-1)?0:1;cur[j]=Math.min(prev[j]+1,cur[j-1]+1,prev[j-1]+c);}var t=prev;prev=cur;cur=t;}
+  return prev[n];}
+
+/* ---- diagnosis text -> OHIP neoplasm code ---- */
+var _DX_STOP = {malignant:1,benign:1,neoplasm:1,neoplasms:1,cancer:1,cancers:1,carcinoma:1,tumour:1,tumor:1,
+  of:1,the:1,and:1,other:1,unspecified:1,ca:1,mass:1,lesion:1,site:1,sites:1,'in':1,situ:1,'ill':1,defined:1,
+  'left':1,right:1,secondary:1,primary:1,metastatic:1,metastasis:1,disease:1,part:1,parts:1,nos:1};
+function _dxTokens(s){
+  return String(s||'').toLowerCase().replace(/[^a-z0-9 ]/g,' ').split(/\s+/)
+    .map(function(w){ return w.replace(/(ic|al|ary|oma|osis|ical)$/,'').replace(/s$/,''); })
+    .filter(function(w){ return w.length>=3 && !_DX_STOP[w]; });
+}
+function normDxText(s){ return String(s==null?'':s).trim().toLowerCase().replace(/\s+/g,' '); }
+/* curated oncology term/abbreviation -> OHIP neoplasm code (checked before fuzzy) */
+var RMP_DX_SYN = [
+  [/nsclc|non.?small.?cell|small.?cell.*lung|\blung\b|bronch/,'162'],
+  [/hepatocellular|\bhcc\b|\bliver\b/,'155'],
+  [/cholangio|bile ?duct|gallbladder/,'156'],
+  [/pancrea/,'157'],
+  [/gastric|\bstomach\b/,'151'],
+  [/colorectal|rectal|rectum|\banus\b|\banal\b/,'154'],
+  [/prostate/,'185'],
+  [/bladder/,'188'],
+  [/renal|\bkidney\b|nephro/,'189'],
+  [/melanoma/,'172'],
+  [/basal ?cell|squamous.*skin|skin.*squamous|\bskin\b/,'173'],
+  [/breast/,'174'],
+  [/meningioma/,'225'],
+  [/glioblastoma|\bgbm\b|glioma|astrocytoma|\bbrain\b|intracranial|meningi/,'191'],
+  [/multiple ?myeloma|\bmyeloma\b/,'203'],
+  [/dlbcl|lymphoma|lymphosarcoma|\blymphoid\b/,'200'],
+  [/\baml\b|myeloblastic|myeloid ?leuk/,'205'],
+  [/\ball\b|lymphoblastic|\bcll\b|lymphoid ?leuk/,'204'],
+  [/\bcml\b/,'205'],
+  [/leukem|leukaem/,'208'],
+  [/laryn/,'161'],
+  [/nasophary/,'147'],
+  [/orophary|tonsil/,'146'],
+  [/\btongue\b/,'141'],
+  [/thymoma|thymus/,'164'],
+  [/esophag|oesophag/,'150'],
+  [/cervix|cervical/,'180'],
+  [/endometr|uterine|uterus|corpus uteri/,'182'],
+  [/ovar/,'183'],
+  [/testic|testis/,'186'],
+  [/thyroid/,'193'],
+  [/osteosarcoma|\bbone\b/,'170'],
+  [/sarcoma/,'171']
+];
+var _NEO_SET=null;
+function _neoHas(code){ if(!_NEO_SET){_NEO_SET={};for(var i=0;i<RMP_NEOPLASM.length;i++)_NEO_SET[RMP_NEOPLASM[i].code]=RMP_NEOPLASM[i].desc;} return _NEO_SET[code]; }
+/* returns {code, desc, source:'map'|'syn'|'auto'|'default', score} */
+function mapDx(text, dxmap){
+  var key=normDxText(text);
+  if(!key) return {code:'', desc:'', source:'blank', score:0};
+  if(dxmap && dxmap[key]!==undefined && dxmap[key]!=='') return {code:String(dxmap[key]), desc:'', source:'map', score:1};
+  for(var s=0;s<RMP_DX_SYN.length;s++){ if(RMP_DX_SYN[s][0].test(key)){ var c=RMP_DX_SYN[s][1]; var dsc=_neoHas(c); if(dsc) return {code:c, desc:dsc, source:'syn', score:1}; } }
+  var toks=_dxTokens(text);
+  var best=null,bestScore=0;
+  for(var i=0;i<RMP_NEOPLASM.length;i++){
+    var dtoks=_dxTokens(RMP_NEOPLASM[i].desc);
+    if(!dtoks.length) continue;
+    var overlap=0;
+    for(var a=0;a<toks.length;a++){
+      for(var b=0;b<dtoks.length;b++){
+        if(toks[a]===dtoks[b]){overlap+=1;break;}
+        // partial stem containment
+        if(toks[a].length>=4 && (dtoks[b].indexOf(toks[a])===0||toks[a].indexOf(dtoks[b])===0)){overlap+=0.7;break;}
+      }
+    }
+    var denom=Math.max(1,Math.min(toks.length,dtoks.length));
+    var score=overlap/denom;
+    if(score>bestScore){bestScore=score;best=RMP_NEOPLASM[i];}
+  }
+  if(best && bestScore>=0.5) return {code:best.code, desc:best.desc, source:'auto', score:bestScore};
+  return {code:RMP_CONST.DefaultDx, desc:'(default)', source:'default', score:bestScore};
+}
+
+/* ---- provider lookup ---- */
+function lookupProvider(mdId, billmap){
+  var k=rmpTrim(mdId);
+  var v = billmap && billmap[k]!==undefined ? String(billmap[k]).trim() : undefined;
+  if(v===undefined) return {mdId:k, code:'', status:'unmapped'};   // MD ID not in map -> block
+  if(v==='') return {mdId:k, code:'', status:'blank'};             // deliberately blank -> block
+  if(v==='999999') return {mdId:k, code:'999999', status:'placeholder'}; // deliberate placeholder -> warn
+  if(!isValidOhip(pad6(v))) return {mdId:k, code:'', status:'invalid', raw:v}; // block
+  return {mdId:k, code:pad6(v), status:'ok'};
+}
+
+/* ---- build MIRA index by HCN (first match) ---- */
+function buildMiraIndex(miraAoa){
+  var idx={};
+  for(var r=1;r<miraAoa.length;r++){
+    var row=miraAoa[r]; if(!row) continue;
+    var hcn=rmpTrim(row[MIRA.hcn]); if(!hcn) continue;
+    if(idx[hcn]!==undefined) continue; // first match wins
+    idx[hcn]={ version:rmpTrim(row[MIRA.version]), dob:row[MIRA.dob], gender:rmpTrim(row[MIRA.gender]), dx:rmpTrim(row[MIRA.dx]) };
+  }
+  return idx;
+}
+/* ---- build UHN index by 10-digit HCN (first match) ---- */
+function buildUhnIndex(uhnAoa){
+  var idx={};
+  if(!uhnAoa) return idx;
+  for(var r=1;r<uhnAoa.length;r++){
+    var row=uhnAoa[r]; if(!row) continue;
+    var cov=rmpTrim(row[UHN.coverage]); if(cov.length<3) continue;
+    var hcn=cov.slice(0,-2);
+    if(idx[hcn]!==undefined) continue;
+    idx[hcn]={ version:cov.slice(-2), dob:row[UHN.dob], gender:rmpTrim(row[UHN.sex]), dxText:rmpTrim(row[UHN.dxText]) };
+  }
+  return idx;
+}
+
+/* ---- main transform ---- */
+function buildOutputRows(rprAoa, miraAoa, uhnAoa, cfg){
+  cfg=cfg||{};
+  var billmap=cfg.billmap||RMP_DEFAULT_BILLMAP;
+  var grpmap=cfg.grpmap||{};
+  var dxmap=cfg.dxmap||{};
+  var opts=cfg.opts||{};
+  var miraIdx=buildMiraIndex(miraAoa||[[]]);
+  var uhnIdx=buildUhnIndex(uhnAoa);
+  var rows=[], diag={ total:0, skippedBlankHcn:0, unmapped:{}, placeholder:{}, noDemo:0, fromMira:0, fromUhn:0, dxTexts:{}, dateWarn:[] };
+
+  var grp=function(ohip){ return (grpmap[ohip]!==undefined && grpmap[ohip]!=='') ? grpmap[ohip] : RMP_CONST.DefaultGroup; };
+
+  for(var i=1;i<rprAoa.length;i++){
+    var row=rprAoa[i]; if(!row) continue;
+    var any=row.some(function(c){return c!==null&&c!==undefined&&String(c).trim()!=='';});
+    if(!any) continue;
+    diag.total++;
+
+    var hcn=rmpTrim(row[RPR.hcn]);
+    if(!hcn){ if(opts.excludeBlankHCN!==false){ diag.skippedBlankHcn++; continue; } }
+
+    var reqProv=lookupProvider(row[RPR.reqId], billmap);
+    var conProv=lookupProvider(row[RPR.conId], billmap);
+    [reqProv,conProv].forEach(function(p){
+      if(p.status==='ok') return;
+      var bucket = (p.status==='placeholder') ? diag.placeholder : diag.unmapped;
+      var k=p.mdId||'(blank)'; if(!bucket[k])bucket[k]={mdId:k,status:p.status,count:0}; bucket[k].count++;
+    });
+
+    /* demographics by HCN: MIRA first, UHN fallback */
+    var demo={version:'',dob:'',gender:'',dx:'',src:'none'};
+    var m=miraIdx[hcn];
+    if(m){ demo.version=m.version; demo.dob=m.dob; demo.gender=m.gender; demo.dx=m.dx; demo.src='mira'; diag.fromMira++; }
+    if((!m || !fmtDateMMDDYYYY(demo.dob)) && uhnIdx[hcn]){
+      var u=uhnIdx[hcn];
+      if(!demo.version) demo.version=u.version;
+      demo.dob=u.dob; demo.gender=u.gender;
+      var dxr=mapDx(u.dxText, dxmap);
+      demo.dx=dxr.code; demo.src='uhn';
+      if(u.dxText){ var nk=normDxText(u.dxText); if(!diag.dxTexts[nk]) diag.dxTexts[nk]={text:u.dxText, code:dxr.code, source:dxr.source, desc:dxr.desc, score:dxr.score, count:0}; diag.dxTexts[nk].count++; }
+      diag.fromUhn++;
+    }
+    if(demo.src==='none') diag.noDemo++;
+
+    var dobF=fmtDateMMDDYYYY(demo.dob);
+    var reqDateF=fmtDateMMDDYYYY(row[RPR.reqDate]);
+    var conDateF=fmtDateMMDDYYYY(row[RPR.conDate]);
+    if(!reqDateF) diag.dateWarn.push({row:i+1,field:'REQUEST_DATE',raw:row[RPR.reqDate]});
+    if(!conDateF) diag.dateWarn.push({row:i+1,field:'CONSULT_DATE',raw:row[RPR.conDate]});
+
+    var first=rmpTrim(row[RPR.first]), last=rmpTrim(row[RPR.last]);
+    function mk(prov, svcDate, svcCode, referring){
+      return [ prov.code||'', grp(prov.code), RMP_CONST.ProvinceCode, hcn, demo.version||'',
+        first, last, dobF, (demo.gender||''), referring||'', demo.dx||'', RMP_CONST.ServiceLocationType,
+        RMP_CONST.MasterNumber, '', svcDate, svcCode, RMP_CONST.ServiceQty ];
+    }
+    rows.push(mk(reqProv, reqDateF, 'K738A', ''));            // request
+    rows.push(mk(conProv, conDateF, 'K739A', reqProv.code||'')); // consult (refers request provider)
+  }
+  return {rows:rows, diag:diag};
+}
+
+/* ---- CSV ---- */
+function csvEscape(v){ var s=(v===null||v===undefined)?'':String(v);
+  if(/[",\r\n]/.test(s)||/^\s|\s$/.test(s)) return '"'+s.replace(/"/g,'""')+'"'; return s; }
+function rowsToCSV(rows){ var out=[RMP_OUT_HEADERS.map(csvEscape).join(',')];
+  for(var i=0;i<rows.length;i++) out.push(rows[i].map(csvEscape).join(',')); return out.join('\r\n')+'\r\n'; }
+function computeFilename(rows){
+  var min=null,max=null;
+  for(var i=0;i<rows.length;i++){ var p=_dateParts(rows[i][14]); if(!p)continue; var key=p.y*10000+p.m*100+p.d;
+    if(min===null||key<min.k){min={k:key,v:rows[i][14]};} if(max===null||key>max.k){max={k:key,v:rows[i][14]};} }
+  if(!min||!max) return 'RPR_output.csv';
+  return 'RPR_'+isoStamp(min.v)+'_'+isoStamp(max.v)+'.csv';
+}
+/* ================= RMP_CORE_END ================= */
+/* ============================ RPR APP ============================ */
+var EMBED_PROVNAMES = {"164046":"Andrew Bayley","033998":"Alejandro Berlin","071134":"Andrea Bezjak","031992":"Scott Bratman","045516":"Runting Cai","212639":"Charles Catton","017979":"John Cho","017998":"Peter Chung","031003":"Tatiana Conrad","033806":"Jennifer Croke","179572":"Bernard Cummings","016456":"Laura Dawson","999999":"Eman Duhaiby","027861":"Meredith Giuliani","044498":"Rachel Glicksman","041695":"Ezra Hahn","028783":"Kathy Han","013498":"David Hodgson","021723":"Andrew Hope","036654":"Ali Hosni Abdalaty","055174":"Badr Id Said","050023":"Dana Keilty","104828":"John Kim","048960":"David Kirsch","015995":"Christine Anne Koch","049563":"Jennifer Kwan","218925":"Norman Laperriere","243584":"Fei-Fei Liu","038219":"Benjamin Lok","042449":"Jelena Lukovic","049810":"Nauman Malik","046818":"Andrew Mcpartlin","044691":"Aruz Mesci","018014":"Barbara-Ann Millar","097709":"Michael Milosevic","217539":"David Payne","039841":"Danielle Rodin","033851":"David Shultz","218552":"Alex Sun","048341":"Chiaojung Jillian Tsai","250068":"Richard Tsang","036650":"Derek Tsang","161307":"John Waldron","284166":"Padraig Warde","038011":"Danielle Weidman","251223":"Woody Wells","285486":"Rebecca Wong","042212":"Philip Wong","046775":"Michael Yan"};
+
+var ST = {
+  rprAoa:null, rprName:'', miraAoa:null, miraNames:[], uhnAoa:null, uhnName:'',
+  overrides:{}, grpmap:{}, dxmap:{}, opts:{excludeBlankHCN:true},
+  provNames:{}, result:null
+};
+
+/* ---- helpers ---- */
+function $(id){return document.getElementById(id);}
+function esc(s){return String(s==null?'':s).replace(/[&<>"]/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];});}
+function nameFor(ohip){ ohip=pad6(ohip); return ST.provNames[ohip]||EMBED_PROVNAMES[ohip]||''; }
+function effBillmap(){ var m={}; for(var k in RMP_DEFAULT_BILLMAP) m[k]=RMP_DEFAULT_BILLMAP[k]; for(var k2 in ST.overrides) m[k2]=ST.overrides[k2]; return m; }
+
+/* ---- file parsing (CSV manual to preserve leading zeros; xlsx via SheetJS) ---- */
+function parseCSV(text){
+  var rows=[],row=[],cur='',q=false,i,c;
+  if(text.charCodeAt(0)===0xFEFF) text=text.slice(1);
+  for(i=0;i<text.length;i++){ c=text[i];
+    if(q){ if(c==='"'){ if(text[i+1]==='"'){cur+='"';i++;} else q=false; } else cur+=c; }
+    else{ if(c==='"')q=true; else if(c===','){row.push(cur);cur='';}
+      else if(c==='\n'){row.push(cur);rows.push(row);row=[];cur='';}
+      else if(c==='\r'){} else cur+=c; } }
+  if(cur!==''||row.length){row.push(cur);rows.push(row);}
+  return rows.filter(function(r){return r.some(function(x){return String(x).trim()!=='';});});
+}
+function readFile(file){
+  return new Promise(function(res,rej){
+    var rd=new FileReader(), isXlsx=/\.x(lsx|ls)$/i.test(file.name);
+    rd.onerror=function(){rej(new Error('read failed'));};
+    rd.onload=function(e){
+      try{
+        if(isXlsx){
+          var wb=XLSX.read(new Uint8Array(e.target.result),{type:'array',cellDates:false,raw:true});
+          var ws=wb.Sheets[wb.SheetNames[0]];
+          res(XLSX.utils.sheet_to_json(ws,{header:1,defval:null,blankrows:false,raw:true}));
+        } else { res(parseCSV(e.target.result)); }
+      }catch(err){rej(err);}
+    };
+    if(isXlsx) rd.readAsArrayBuffer(file); else rd.readAsText(file);
+  });
+}
+function loadZone(id,on){var z=$(id);if(on)z.classList.add('loaded');else z.classList.remove('loaded');}
+
+function loadRPR(inp){
+  var f=inp.files[0]; if(!f)return;
+  readFile(f).then(function(aoa){
+    var h=(aoa[0]||[]).map(function(x){return String(x||'').toUpperCase();});
+    if(h.indexOf('REQUEST_MD_ID')<0 || h.indexOf('PATIENT_HCN')<0){
+      alertLoad('a-err','That file doesn\u2019t look like an RPR report (missing REQUEST_MD_ID / PATIENT_HCN columns).'); return;
+    }
+    ST.rprAoa=aoa; ST.rprName=f.name; $('rpr-fname').textContent=f.name; loadZone('zone-rpr',true);
+    rebuild();
+  }).catch(function(){alertLoad('a-err','Could not read that file.');});
+}
+function loadMIRA(inp){
+  var files=Array.prototype.slice.call(inp.files); if(!files.length)return;
+  Promise.all(files.map(readFile)).then(function(list){
+    var header=null, data=[];
+    list.forEach(function(aoa){
+      if(!aoa.length)return;
+      var h=(aoa[0]||[]).map(function(x){return String(x||'').toUpperCase();});
+      if(h.indexOf('HEALTHNUMBER')<0){ return; } // skip non-CabMD files silently
+      if(!header) header=aoa[0];
+      for(var r=1;r<aoa.length;r++) data.push(aoa[r]);
+    });
+    if(!header){ alertLoad('a-err','None of those look like CabMD X-code files (need a HealthNumber column).'); return; }
+    ST.miraAoa=[header].concat(data); ST.miraNames=files.map(function(f){return f.name;});
+    $('mira-fname').textContent=files.length===1?files[0].name:(files.length+' files · '+data.length+' rows'); loadZone('zone-mira',true);
+    rebuild();
+  }).catch(function(){alertLoad('a-err','Could not read the MIRA files.');});
+}
+function loadUHN(inp){
+  var f=inp.files[0]; if(!f)return;
+  readFile(f).then(function(aoa){
+    var h=(aoa[0]||[]).map(function(x){return String(x||'').toUpperCase();});
+    if(h.indexOf('COVERAGE ID')<0 && h.indexOf('DX / DIAGNOSIS')<0){
+      alertLoad('a-warn','That file doesn\u2019t look like a UHN portal export \u2014 loaded anyway, but demographics may not match.');
+    }
+    ST.uhnAoa=aoa; ST.uhnName=f.name; $('uhn-fname').textContent=f.name; loadZone('zone-uhn',true);
+    rebuild();
+  }).catch(function(){alertLoad('a-err','Could not read the UHN file.');});
+}
+function alertLoad(cls,msg){ $('load-alert').innerHTML='<div class="alert '+cls+'"><span class="ai">'+(cls==='a-err'?'\u2715':'\u26A0')+'</span><span>'+msg+'</span></div>'; }
+
+/* ---- main rebuild ---- */
+function rebuild(){
+  $('load-alert').innerHTML='';
+  if(!ST.rprAoa){ return; }
+  if(!ST.miraAoa){ alertLoad('a-info','RPR loaded. Now add the MIRA X-code file(s) \u2014 they\u2019re required to fill patient demographics.'); }
+  ST.opts.excludeBlankHCN = $('opt-excl-hcn').checked;
+  var cfg={ billmap:effBillmap(), grpmap:ST.grpmap, dxmap:ST.dxmap, opts:ST.opts };
+  ST.result = buildOutputRows(ST.rprAoa, ST.miraAoa||[[]], ST.uhnAoa, cfg);
+  $('post-load').classList.remove('hidden');
+  renderBillmap(); renderGrp(); renderDx(); renderFixedChips(); renderKPIs(); renderPreview(); renderGate();
+}
+
+/* ---- provider billing map tab ---- */
+function distinctMdIds(){
+  var seen={}, out=[];
+  for(var i=1;i<ST.rprAoa.length;i++){ var r=ST.rprAoa[i]; if(!r)continue;
+    [r[RPR.reqId],r[RPR.conId]].forEach(function(v){ var k=rmpTrim(v); if(k&&!seen[k]){seen[k]=1;out.push(k);} }); }
+  return out;
+}
+function renderBillmap(){
+  var ids=distinctMdIds(), bm=effBillmap();
+  var unresolved=0, ph=0;
+  var rowsHtml=ids.map(function(id){
+    var p=lookupProvider(id,bm), nm=nameFor(p.code), st=p.status;
+    var badge, code=(ST.overrides[id]!==undefined?ST.overrides[id]:(RMP_DEFAULT_BILLMAP[id]!==undefined?RMP_DEFAULT_BILLMAP[id]:''));
+    if(st==='ok') badge='<span class="badge b-ok">mapped</span>';
+    else if(st==='placeholder'){ ph++; badge='<span class="badge b-auto">placeholder 999999</span>'; }
+    else { unresolved++; badge='<span class="badge b-bad">'+(st==='unmapped'?'not in map':st)+'</span>'; }
+    return '<tr><td class="mono">'+esc(id)+'</td>'+
+      '<td><input class="inp w70'+(st!=='ok'&&st!=='placeholder'?' bad':'')+'" value="'+esc(code)+'" '+
+        'oninput="setBillmap(\''+esc(id)+'\',this.value)" placeholder="000000"></td>'+
+      '<td>'+(nm?esc(nm):'<span style="color:var(--muted)">\u2014</span>')+'</td>'+
+      '<td>'+badge+'</td></tr>';
+  }).join('');
+  $('tab-billmap').innerHTML =
+    (unresolved?'<div class="alert a-err"><span class="ai">\u2715</span><span><b>'+unresolved+'</b> physician ID(s) have no OHIP billing number. Enter each below \u2014 export is blocked until resolved.</span></div>':
+      '<div class="alert a-ok"><span class="ai">\u2713</span><span>All '+ids.length+' physician IDs in this report map to an OHIP billing number.'+(ph?' ('+ph+' use the 999999 placeholder.)':'')+'</span></div>')+
+    '<div class="tscroll"><table class="dt"><thead><tr><th>MD ID</th><th>OHIP #</th><th>Physician</th><th>Status</th></tr></thead><tbody>'+rowsHtml+'</tbody></table></div>';
+  $('prov-stat').innerHTML = unresolved? '<span class="badge b-bad">'+unresolved+' unresolved</span>' : '<span class="badge b-ok">complete</span>';
+}
+function setBillmap(id,val){
+  val=String(val||'').trim();
+  if(val==='') delete ST.overrides[id]; else ST.overrides[id]=val;
+  persist('om_rmp_billmap',ST.overrides);
+  rebuild();
+}
+
+/* ---- group numbers tab ---- */
+function providersInOutput(){
+  var seen={}, out=[];
+  (ST.result?ST.result.rows:[]).forEach(function(r){ var o=r[0]; if(o&&!seen[o]){seen[o]=1;out.push(o);} });
+  out.sort(function(a,b){ return (nameFor(a)||'zz').localeCompare(nameFor(b)||'zz'); });
+  return out;
+}
+function renderGrp(){
+  var provs=providersInOutput();
+  var nonDefault=0;
+  var rowsHtml=provs.map(function(o){
+    var g=(ST.grpmap[o]!==undefined&&ST.grpmap[o]!=='')?ST.grpmap[o]:RMP_CONST.DefaultGroup;
+    if(g!==RMP_CONST.DefaultGroup) nonDefault++;
+    return '<tr><td class="mono">'+esc(o)+'</td><td>'+(nameFor(o)?esc(nameFor(o)):'<span style="color:var(--muted)">\u2014</span>')+'</td>'+
+      '<td><input class="inp w70" value="'+esc(g)+'" oninput="setGrp(\''+esc(o)+'\',this.value)"></td></tr>';
+  }).join('');
+  $('tab-grp').innerHTML =
+    '<div class="note" style="margin-bottom:12px">Group Number is per physician. Default is <b>'+RMP_CONST.DefaultGroup+'</b>; set the exceptions (e.g. <b>Tatiana Conrad</b> and <b>Woody Wells</b>) here. Saved to the data file for next time.'+(nonDefault?' <b>'+nonDefault+'</b> currently differ from '+RMP_CONST.DefaultGroup+'.':'')+'</div>'+
+    '<div class="tscroll"><table class="dt"><thead><tr><th>OHIP #</th><th>Physician</th><th>Group #</th></tr></thead><tbody>'+rowsHtml+'</tbody></table></div>';
+}
+function setGrp(ohip,val){
+  val=String(val||'').trim().toUpperCase();
+  if(val===''||val===RMP_CONST.DefaultGroup) delete ST.grpmap[ohip]; else ST.grpmap[ohip]=val;
+  persist('om_prov_grp',ST.grpmap);
+  rebuild();
+}
+
+/* ---- diagnosis mapping ---- */
+function renderDx(){
+  var dxTexts = ST.result? Object.keys(ST.result.diag.dxTexts).map(function(k){return ST.result.diag.dxTexts[k];}) : [];
+  if(!ST.uhnAoa || !dxTexts.length){
+    $('card-dx').classList.add('hidden'); return;
+  }
+  $('card-dx').classList.remove('hidden');
+  dxTexts.sort(function(a,b){return b.count-a.count;});
+  var defaults=0, srcCount={map:0,syn:0,auto:0,default:0};
+  var rowsHtml=dxTexts.map(function(d){
+    srcCount[d.source]=(srcCount[d.source]||0)+1;
+    if(d.source==='default') defaults++;
+    var badge={map:'<span class="badge b-map">saved</span>',syn:'<span class="badge b-syn">matched</span>',
+      auto:'<span class="badge b-auto">closest</span>',default:'<span class="badge b-def">default 195</span>'}[d.source]||'';
+    var cur = ST.dxmap[normDxText(d.text)]!==undefined ? ST.dxmap[normDxText(d.text)] : d.code;
+    return '<tr><td>'+esc(d.text)+'</td><td style="text-align:center">'+d.count+'</td>'+
+      '<td><input class="inp w70" list="dx-list" value="'+esc(cur)+'" oninput="setDx(\''+esc(normDxText(d.text)).replace(/'/g,"\\'")+'\',this.value)"></td>'+
+      '<td>'+badge+'</td><td style="color:var(--muted);font-size:11.5px">'+esc(d.desc||'')+'</td></tr>';
+  }).join('');
+  buildDxDatalist();
+  $('dx-body').innerHTML =
+    '<div class="note" style="margin-bottom:12px">'+dxTexts.length+' distinct diagnoses came from the UHN portal (as text). '+
+    srcCount.syn+' matched a known site, '+(srcCount.auto||0)+' mapped to the closest code, '+defaults+' fell back to <b>195</b>. Edit any code; changes are saved and reused.</div>'+
+    '<div class="tscroll"><table class="dt"><thead><tr><th>UHN diagnosis text</th><th>#</th><th>OHIP</th><th>Source</th><th>Matched descriptor</th></tr></thead><tbody>'+rowsHtml+'</tbody></table></div>';
+  $('dx-stat').innerHTML = defaults? '<span class="badge b-def">'+defaults+' at 195</span>' : '<span class="badge b-ok">all coded</span>';
+}
+function setDx(normKey,val){
+  val=String(val||'').trim();
+  if(val==='') delete ST.dxmap[normKey]; else ST.dxmap[normKey]=val;
+  persist('om_rmp_dxmap',ST.dxmap);
+  rebuild();
+}
+function buildDxDatalist(){
+  if($('dx-list').childElementCount) return;
+  var html=RMP_NEOPLASM.map(function(n){return '<option value="'+n.code+'">'+esc(n.code+' \u2014 '+n.desc)+'</option>';}).join('');
+  $('dx-list').innerHTML=html;
+}
+
+/* ---- fixed constants chips ---- */
+function renderFixedChips(){
+  $('fixed-chips').innerHTML =
+    '<div class="chip">Province <b>ON</b></div><div class="chip">Location <b>HOP</b></div>'+
+    '<div class="chip">Master <b>4406</b></div><div class="chip">Qty <b>1</b></div>'+
+    '<div class="chip">Request <b>K738A</b></div><div class="chip">Consult <b>K739A</b></div>';
+}
+
+/* ---- KPIs ---- */
+function renderKPIs(){
+  var d=ST.result.diag, rows=ST.result.rows.length;
+  function ssi(l,v,cls){return '<div class="ssi"><div class="ssl">'+l+'</div><div class="ssv '+(cls||'')+'">'+v+'</div></div>';}
+  var unresolved=Object.keys(d.unmapped).length;
+  $('kpis').innerHTML =
+    ssi('CabMD Rows',rows,'ok')+
+    ssi('Source Claims',d.total)+
+    ssi('From MIRA',d.fromMira)+
+    ssi('From UHN',d.fromUhn,d.fromUhn?'':'')+
+    ssi('No Demographics',d.noDemo,d.noDemo?'warn':'ok')+
+    ssi('Blank-HCN Skipped',d.skippedBlankHcn,d.skippedBlankHcn?'warn':'')+
+    ssi('Unresolved MD',unresolved,unresolved?'warn':'ok');
+  $('fname-hint').textContent='File will be named '+computeFilename(ST.result.rows);
+}
+
+/* ---- preview ---- */
+function renderPreview(){
+  var rows=ST.result.rows.slice(0,12);
+  var head='<tr>'+RMP_OUT_HEADERS.map(function(h){return '<th>'+esc(h)+'</th>';}).join('')+'</tr>';
+  var body=rows.map(function(r){return '<tr>'+r.map(function(c,i){
+    var cls=(i===0||i===9)?'mono':'';return '<td class="'+cls+'">'+esc(c)+'</td>';}).join('')+'</tr>';}).join('');
+  $('preview-wrap').innerHTML='<table class="dt"><thead>'+head+'</thead><tbody>'+body+'</tbody></table>';
+}
+
+/* ---- gate + export ---- */
+function renderGate(){
+  var d=ST.result.diag, msgs=[], block=false;
+  var unresolved=Object.keys(d.unmapped);
+  if(unresolved.length){ block=true; msgs.push(['a-err','\u2715','<b>'+unresolved.length+'</b> physician ID(s) still need an OHIP billing number (Provider Billing Map above).']); }
+  if(!ST.miraAoa){ block=true; msgs.push(['a-err','\u2715','Add the MIRA X-code file(s) \u2014 required to fill demographics.']); }
+  if(d.noDemo){ msgs.push(['a-warn','\u26A0','<b>'+d.noDemo+'</b> patient(s) matched neither MIRA nor UHN \u2014 those rows have blank demographics. Review before submitting, or add more X-code coverage.']); }
+  if(!ST.uhnAoa){ msgs.push(['a-info','\u2139','No UHN portal file loaded. Patients not found in MIRA will have blank demographics.']); }
+  var defaults = ST.result? Object.keys(ST.result.diag.dxTexts).filter(function(k){return ST.result.diag.dxTexts[k].source==='default';}).length:0;
+  if(defaults){ msgs.push(['a-warn','\u26A0','<b>'+defaults+'</b> UHN diagnosis text(s) defaulted to code 195 \u2014 confirm or edit in Diagnosis \u2192 OHIP Code.']); }
+  if(Object.keys(d.placeholder).length){ msgs.push(['a-info','\u2139','<b>'+Object.keys(d.placeholder).length+'</b> physician ID(s) use the 999999 placeholder billing number.']); }
+  if(!block && !msgs.length) msgs.push(['a-ok','\u2713','Ready to export \u2014 '+ST.result.rows.length+' CabMD rows.']);
+  else if(!block) msgs.unshift(['a-ok','\u2713','Ready to export \u2014 '+ST.result.rows.length+' CabMD rows. Review the notes below.']);
+  $('export-alert').innerHTML=msgs.map(function(m){return '<div class="alert '+m[0]+'"><span class="ai">'+m[1]+'</span><span>'+m[2]+'</span></div>';}).join('');
+  $('btn-download').disabled=block;
+}
+function downloadCSV(){
+  if(!ST.result) return;
+  var csv=rowsToCSV(ST.result.rows), name=computeFilename(ST.result.rows);
+  var blob=new Blob([csv],{type:'text/csv;charset=utf-8'}), url=URL.createObjectURL(blob);
+  var a=document.createElement('a'); a.href=url; a.download=name; document.body.appendChild(a); a.click();
+  document.body.removeChild(a); URL.revokeObjectURL(url);
+  $('gen-status').textContent='Saved '+name+' ('+ST.result.rows.length+' rows).';
+}
+function startOver(){
+  ST.rprAoa=ST.miraAoa=ST.uhnAoa=ST.result=null; ST.rprName=ST.uhnName='';
+  ['rpr','mira','uhn'].forEach(function(z){ loadZone('zone-'+z,false); $(z+'-fname').textContent=''; });
+  document.querySelectorAll('#zone-rpr input,#zone-mira input,#zone-uhn input').forEach(function(i){i.value='';});
+  $('post-load').classList.add('hidden'); $('load-alert').innerHTML=''; $('gen-status').textContent='';
+}
+function switchTab(t){
+  document.querySelectorAll('.subtab').forEach(function(el){el.classList.toggle('active',el.getAttribute('data-tab')===t);});
+  $('tab-billmap').classList.toggle('hidden',t!=='billmap');
+  $('tab-grp').classList.toggle('hidden',t!=='grp');
+}
+
+/* ==================== STORAGE STACK (shared OM_Billing_FS / dataFile) ==================== */
+var DATA_KEYS=['om_prov','om_diag','om_fees','om_prem','om_settings','om_ledger','om_inv_ctr','om_lic',
+  'om_qc_diag','om_qc_loc','om_qc_set','om_rnc_providerOverrides','om_rnc_aliases','om_rnc_opts',
+  'om_rmp_billmap','om_prov_grp','om_rmp_dxmap','om_rmp_opts'];
+var IDB_NAME='OM_Billing_FS', IDB_STORE='handles', IDB_KEY='dataFile';
+var _fileHandle=null, _useLS=false, _saveTimer=null;
+
+function _idb(){return new Promise(function(res,rej){var r=indexedDB.open(IDB_NAME,1);
+  r.onupgradeneeded=function(){r.result.createObjectStore(IDB_STORE);};
+  r.onsuccess=function(){res(r.result);};r.onerror=function(){rej(r.error);};});}
+function _saveHandle(h){return _idb().then(function(db){return new Promise(function(res,rej){
+  var tx=db.transaction(IDB_STORE,'readwrite');tx.objectStore(IDB_STORE).put(h,IDB_KEY);
+  tx.oncomplete=function(){res();};tx.onerror=function(){rej(tx.error);};});});}
+function _loadHandle(){return _idb().then(function(db){return new Promise(function(res){
+  var tx=db.transaction(IDB_STORE,'readonly'),rq=tx.objectStore(IDB_STORE).get(IDB_KEY);
+  rq.onsuccess=function(){res(rq.result||null);};rq.onerror=function(){res(null);};});});}
+function _clearHandle(){return _idb().then(function(db){return new Promise(function(res){
+  var tx=db.transaction(IDB_STORE,'readwrite');tx.objectStore(IDB_STORE).delete(IDB_KEY);
+  tx.oncomplete=function(){res();};});});}
+
+function _setPill(state,txt){var p=$('file-status-pill');if(!p)return;p.style.display='flex';
+  p.className='';if(state)p.classList.add(state);$('fsp-label').textContent=txt;}
+function lsGet(k,d){try{var v=localStorage.getItem(k);return v==null?d:JSON.parse(v);}catch(e){return d;}}
+function lsSet(k,v){try{localStorage.setItem(k,JSON.stringify(v));}catch(e){}}
+
+function persist(key,val){ lsSet(key,val); _scheduleSave(); }
+function _scheduleSave(){ if(_useLS)return; _setPill('saving','Saving\u2026'); if(_saveTimer)clearTimeout(_saveTimer);
+  _saveTimer=setTimeout(_persist,700); }
+function _persist(){
+  if(_useLS||!_fileHandle){return;}
+  _fileHandle.getFile().then(function(file){return file.text();}).then(function(txt){
+    var obj={}; try{obj=JSON.parse(txt||'{}');}catch(e){obj={};}
+    // merge-preserving: overlay only our DATA_KEYS from localStorage, keep everything else
+    DATA_KEYS.forEach(function(k){ var v=localStorage.getItem(k); if(v!=null){ try{obj[k]=JSON.parse(v);}catch(e){obj[k]=v;} } });
+    obj._saved=new Date().toISOString(); if(!obj._version)obj._version='OM-v1';
+    return _fileHandle.createWritable().then(function(w){return w.write(JSON.stringify(obj,null,2)).then(function(){return w.close();});});
+  }).then(function(){_setPill('saved','Saved to file');}).catch(function(){_setPill('fallback','Save failed \u2014 using browser');_useLS=true;});
+}
+
+function _applyDataToState(obj){
+  DATA_KEYS.forEach(function(k){ if(obj[k]!==undefined){ lsSet(k, typeof obj[k]==='string'? _tryParse(obj[k]) : obj[k]); } });
+}
+function _tryParse(s){ try{return JSON.parse(s);}catch(e){return s;} }
+
+function _loadStateFromLS(){
+  ST.overrides=lsGet('om_rmp_billmap',{})||{};
+  ST.grpmap=lsGet('om_prov_grp',{})||{};
+  ST.dxmap=lsGet('om_rmp_dxmap',{})||{};
+  ST.opts=lsGet('om_rmp_opts',{excludeBlankHCN:true})||{excludeBlankHCN:true};
+  var prov=lsGet('om_prov',[])||[]; ST.provNames={};
+  if(Array.isArray(prov)) prov.forEach(function(p){ if(p&&p.num)ST.provNames[pad6(p.num)]=p.name||''; });
+  if($('opt-excl-hcn')) $('opt-excl-hcn').checked = ST.opts.excludeBlankHCN!==false;
+}
+
+/* file bytes -> localStorage (values may be JSON strings per OM format) */
+function _ingestFileObject(obj){
+  DATA_KEYS.forEach(function(k){ if(obj[k]!==undefined){ localStorage.setItem(k, typeof obj[k]==='string'?obj[k]:JSON.stringify(obj[k])); } });
+}
+
+function fsGrantPermission(){
+  $('fs-permission-prompt').style.display='none';
+  if(!_fileHandle){fsSkipToLocalStorage();return;}
+  _fileHandle.requestPermission({mode:'readwrite'}).then(function(perm){
+    if(perm==='granted'){ _activateHandle(); } else { fsSkipToLocalStorage(); }
+  }).catch(function(){fsSkipToLocalStorage();});
+}
+function _activateHandle(){
+  _fileHandle.getFile().then(function(file){return file.text();}).then(function(txt){
+    var obj={}; try{obj=JSON.parse(txt||'{}');}catch(e){obj={};}
+    _ingestFileObject(obj); _loadStateFromLS(); _setPill('saved','Linked to file'); _useLS=false;
+  }).catch(function(){fsSkipToLocalStorage();});
+}
+function fsSkipToLocalStorage(){ _useLS=true; _fileHandle=null; $('fs-permission-prompt').style.display='none';
+  $('fs-setup-modal').style.display='none'; _setPill('fallback','Browser storage'); _loadStateFromLS(); }
+
+function fsSetupNew(){
+  if(!window.showSaveFilePicker){fsSkipToLocalStorage();return;}
+  window.showSaveFilePicker({suggestedName:'OM_Billing_Data.json',
+    types:[{description:'JSON',accept:{'application/json':['.json']}}]}).then(function(h){
+    _fileHandle=h; return _saveHandle(h);}).then(function(){
+    $('fs-setup-modal').style.display='none'; var seed={_version:'OM-v1',_saved:new Date().toISOString()};
+    return _fileHandle.createWritable().then(function(w){return w.write(JSON.stringify(seed,null,2)).then(function(){return w.close();});});
+  }).then(function(){_loadStateFromLS();_setPill('saved','Linked to file');_useLS=false;}).catch(function(){});
+}
+function fsSetupOpen(){
+  if(!window.showOpenFilePicker){fsSkipToLocalStorage();return;}
+  window.showOpenFilePicker({types:[{description:'JSON',accept:{'application/json':['.json']}}]}).then(function(hs){
+    _fileHandle=hs[0]; return _saveHandle(_fileHandle);}).then(function(){
+    $('fs-setup-modal').style.display='none'; _activateHandle();
+  }).catch(function(){});
+}
+function fsSetupSkip(){ fsSkipToLocalStorage(); }
+
+function _fsStartup(){
+  if(!('showOpenFilePicker'in window)||!window.indexedDB){ _useLS=true; _setPill('fallback','Browser storage'); _loadStateFromLS(); return; }
+  _loadHandle().then(function(h){
+    if(!h){ $('fs-setup-modal').style.display='flex'; _loadStateFromLS(); return; }
+    _fileHandle=h;
+    h.queryPermission({mode:'readwrite'}).then(function(perm){
+      if(perm==='granted'){ _activateHandle(); }
+      else { $('fs-permission-prompt').style.display='flex'; _loadStateFromLS(); }
+    });
+  }).catch(function(){ _useLS=true; _setPill('fallback','Browser storage'); _loadStateFromLS(); });
+}
+
+/* ---- domain / token guard (kept intact; do not remove) ---- */
+function _checkDomain(){
+  var h=location.hostname;
+  var ok=(h==='om-billing.com'||h==='tools.om-billing.com'||/\.pages\.dev$/.test(h)||h==='localhost'||h==='127.0.0.1'||h==='');
+  if(location.protocol==='file:') return true;
+  return ok;
+}
+function _verifyToken(){ return true; } /* token check reserved; always allow in-suite */
+
+function _initApp(){
+  if(!_checkDomain()){ document.body.innerHTML='<div style="padding:60px;text-align:center;font-family:sans-serif">Unauthorized host.</div>'; return; }
+  if(!_verifyToken()){ return; }
+  _fsStartup();
+}
+document.addEventListener('DOMContentLoaded',_initApp);
+
+/* fixed portal pill */
+(function(){var a=document.createElement('a');a.href='https://tools.om-billing.com/index2.html';
+  a.textContent='\u25A4 OM Billing Suite';a.style.cssText='position:fixed;bottom:16px;right:16px;z-index:400;background:#fff;color:#4a2b5f;border:1px solid #e0d0ec;border-radius:20px;padding:8px 16px;font:600 12.5px/1 "Source Sans 3",sans-serif;text-decoration:none;box-shadow:0 2px 12px rgba(0,0,0,.12)';
+  document.addEventListener('DOMContentLoaded',function(){document.body.appendChild(a);});})();
+</script>
+</body>
+</html>
