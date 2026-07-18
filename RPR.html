@@ -188,13 +188,13 @@ footer strong{color:rgba(255,255,255,.65)}
   <div id="post-load" class="hidden">
     <!-- Provider billing map -->
     <div class="card">
-      <div class="card-hd"><div><div class="ct">👥 Provider Billing Map &amp; Characteristics</div>
-        <div class="cd">MD ID → OHIP billing #, and each provider's Group Number</div></div>
+      <div class="card-hd"><div><div class="ct">👥 Provider Billing Map &amp; Registry</div>
+        <div class="cd">MD ID → OHIP billing #, and the shared doctor registry (billing group per physician)</div></div>
         <div id="prov-stat" style="margin-left:auto;font-size:12px"></div></div>
       <div class="card-body">
         <div class="subtabs">
           <div class="subtab active" data-tab="billmap" onclick="switchTab('billmap')">MD&nbsp;ID → OHIP&nbsp;#</div>
-          <div class="subtab" data-tab="grp" onclick="switchTab('grp')">Group Numbers</div>
+          <div class="subtab" data-tab="grp" onclick="switchTab('grp')">Doctor Registry</div>
         </div>
         <div id="tab-billmap"></div>
         <div id="tab-grp" class="hidden"></div>
@@ -216,7 +216,7 @@ footer strong{color:rgba(255,255,255,.65)}
         <div class="opt-row">
           <div class="opt-txt"><b>Exclude rows with a blank Health Number</b>
             <small>On by default — a claim with no HCN is unbillable. Off keeps them (flagged).</small></div>
-          <label class="switch"><input type="checkbox" id="opt-excl-hcn" checked><span class="slider"></span></label>
+          <label class="switch"><input type="checkbox" id="opt-excl-hcn" checked onchange="optChanged()"><span class="slider"></span></label>
         </div>
         <div class="chiprow" id="fixed-chips"></div>
       </div>
@@ -503,7 +503,7 @@ var EMBED_PROVNAMES = {"164046":"Andrew Bayley","033998":"Alejandro Berlin","071
 
 var ST = {
   rprAoa:null, rprName:'', miraAoa:null, miraNames:[], uhnAoa:null, uhnName:'',
-  overrides:{}, grpmap:{}, dxmap:{}, opts:{excludeBlankHCN:true},
+  overrides:{}, providers:[], dxmap:{}, opts:{excludeBlankHCN:true},
   provNames:{}, result:null
 };
 
@@ -512,6 +512,9 @@ function $(id){return document.getElementById(id);}
 function esc(s){return String(s==null?'':s).replace(/[&<>"]/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];});}
 function nameFor(ohip){ ohip=pad6(ohip); return ST.provNames[ohip]||EMBED_PROVNAMES[ohip]||''; }
 function effBillmap(){ var m={}; for(var k in RMP_DEFAULT_BILLMAP) m[k]=RMP_DEFAULT_BILLMAP[k]; for(var k2 in ST.overrides) m[k2]=ST.overrides[k2]; return m; }
+function rebuildProvNames(){ ST.provNames={}; ST.providers.forEach(function(p){ if(p&&p.num)ST.provNames[pad6(p.num)]=p.name||''; }); }
+/* billing group per OHIP number, from the shared doctor registry (om_prov) */
+function grpmapFromProviders(){ var m={}; ST.providers.forEach(function(p){ if(p&&p.num&&p.grp&&String(p.grp).trim())m[pad6(p.num)]=String(p.grp).trim(); }); return m; }
 
 /* ---- file parsing (CSV manual to preserve leading zeros; xlsx via SheetJS) ---- */
 function parseCSV(text){
@@ -584,17 +587,40 @@ function loadUHN(inp){
 }
 function alertLoad(cls,msg){ $('load-alert').innerHTML='<div class="alert '+cls+'"><span class="ai">'+(cls==='a-err'?'\u2715':'\u26A0')+'</span><span>'+msg+'</span></div>'; }
 
-/* ---- main rebuild ---- */
+/* ---- main rebuild (full render, structural) ---- */
 function rebuild(){
   $('load-alert').innerHTML='';
   if(!ST.rprAoa){ return; }
   if(!ST.miraAoa){ alertLoad('a-info','RPR loaded. Now add the MIRA X-code file(s) \u2014 they\u2019re required to fill patient demographics.'); }
   ST.opts.excludeBlankHCN = $('opt-excl-hcn').checked;
-  var cfg={ billmap:effBillmap(), grpmap:ST.grpmap, dxmap:ST.dxmap, opts:ST.opts };
+  var cfg={ billmap:effBillmap(), grpmap:grpmapFromProviders(), dxmap:ST.dxmap, opts:ST.opts };
   ST.result = buildOutputRows(ST.rprAoa, ST.miraAoa||[[]], ST.uhnAoa, cfg);
   $('post-load').classList.remove('hidden');
-  renderBillmap(); renderGrp(); renderDx(); renderFixedChips(); renderKPIs(); renderPreview(); renderGate();
+  renderBillmap(); renderRegistry(); renderDx(); renderFixedChips(); renderKPIs(); renderPreview(); renderGate();
 }
+
+/* ---- light recompute: recompute output + refresh KPIs/preview/gate/top-badges,
+       WITHOUT re-rendering the editable tables (keeps input focus while typing) ---- */
+function recalcLight(){
+  if(!ST.rprAoa){ return; }
+  ST.opts.excludeBlankHCN = $('opt-excl-hcn').checked;
+  ST.result = buildOutputRows(ST.rprAoa, ST.miraAoa||[[]], ST.uhnAoa,
+    { billmap:effBillmap(), grpmap:grpmapFromProviders(), dxmap:ST.dxmap, opts:ST.opts });
+  renderKPIs(); renderPreview(); renderGate();
+  var d=ST.result.diag, unresolved=Object.keys(d.unmapped).length;
+  $('prov-stat').innerHTML = unresolved? '<span class="badge b-bad">'+unresolved+' unresolved</span>':'<span class="badge b-ok">complete</span>';
+  var defs=Object.keys(d.dxTexts).filter(function(k){return d.dxTexts[k].source==='default';}).length;
+  if($('dx-stat')) $('dx-stat').innerHTML = defs?'<span class="badge b-def">'+defs+' at 195</span>':'<span class="badge b-ok">all coded</span>';
+}
+
+/* refresh the editable tables (to update status badges) only once the user has
+   clicked out of them, so active typing is never interrupted */
+var _settleTimer=null;
+function scheduleSettle(){ clearTimeout(_settleTimer); _settleTimer=setTimeout(function(){
+  var ae=document.activeElement;
+  if(ae && ae.closest && ae.closest('#tab-billmap,#tab-grp,#dx-body')) return;
+  if(ST.result){ renderBillmap(); renderRegistry(); renderDx(); }
+},900); }
 
 /* ---- provider billing map tab ---- */
 function distinctMdIds(){
@@ -614,7 +640,7 @@ function renderBillmap(){
     else { unresolved++; badge='<span class="badge b-bad">'+(st==='unmapped'?'not in map':st)+'</span>'; }
     return '<tr><td class="mono">'+esc(id)+'</td>'+
       '<td><input class="inp w70'+(st!=='ok'&&st!=='placeholder'?' bad':'')+'" value="'+esc(code)+'" '+
-        'oninput="setBillmap(\''+esc(id)+'\',this.value)" placeholder="000000"></td>'+
+        'oninput="setBillmap(\''+esc(id)+'\',this.value,this)" placeholder="000000"></td>'+
       '<td>'+(nm?esc(nm):'<span style="color:var(--muted)">\u2014</span>')+'</td>'+
       '<td>'+badge+'</td></tr>';
   }).join('');
@@ -624,39 +650,44 @@ function renderBillmap(){
     '<div class="tscroll"><table class="dt"><thead><tr><th>MD ID</th><th>OHIP #</th><th>Physician</th><th>Status</th></tr></thead><tbody>'+rowsHtml+'</tbody></table></div>';
   $('prov-stat').innerHTML = unresolved? '<span class="badge b-bad">'+unresolved+' unresolved</span>' : '<span class="badge b-ok">complete</span>';
 }
-function setBillmap(id,val){
+function setBillmap(id,val,el){
   val=String(val||'').trim();
   if(val==='') delete ST.overrides[id]; else ST.overrides[id]=val;
   persist('om_rmp_billmap',ST.overrides);
-  rebuild();
+  if(el){ var padded=/^\d+$/.test(val)?('000000'+val).slice(-6):val; el.classList.toggle('bad',!(/^\d{6}$/.test(padded))); }
+  recalcLight(); scheduleSettle();
 }
 
-/* ---- group numbers tab ---- */
-function providersInOutput(){
-  var seen={}, out=[];
-  (ST.result?ST.result.rows:[]).forEach(function(r){ var o=r[0]; if(o&&!seen[o]){seen[o]=1;out.push(o);} });
-  out.sort(function(a,b){ return (nameFor(a)||'zz').localeCompare(nameFor(b)||'zz'); });
-  return out;
-}
-function renderGrp(){
-  var provs=providersInOutput();
-  var nonDefault=0;
-  var rowsHtml=provs.map(function(o){
-    var g=(ST.grpmap[o]!==undefined&&ST.grpmap[o]!=='')?ST.grpmap[o]:RMP_CONST.DefaultGroup;
-    if(g!==RMP_CONST.DefaultGroup) nonDefault++;
-    return '<tr><td class="mono">'+esc(o)+'</td><td>'+(nameFor(o)?esc(nameFor(o)):'<span style="color:var(--muted)">\u2014</span>')+'</td>'+
-      '<td><input class="inp w70" value="'+esc(g)+'" oninput="setGrp(\''+esc(o)+'\',this.value)"></td></tr>';
+/* ---- doctor registry tab (shared om_prov; adds a Billing Group field) ---- */
+function renderRegistry(){
+  var list=ST.providers.map(function(p,idx){return {p:p,idx:idx};});
+  list.sort(function(a,b){return String(a.p.name||'zzz').localeCompare(String(b.p.name||'zzz'));});
+  var nonDef=0;
+  var rowsHtml=list.map(function(o){
+    var p=o.p,i=o.idx, grp=(p.grp&&String(p.grp).trim())||'';
+    if(grp && grp!==RMP_CONST.DefaultGroup) nonDef++;
+    return '<tr>'+
+      '<td><input class="inp w70 mono" value="'+esc(p.num||'')+'" oninput="provEdit('+i+',\'num\',this.value)"></td>'+
+      '<td><input class="inp" style="width:160px" value="'+esc(p.name||'')+'" oninput="provEdit('+i+',\'name\',this.value)"></td>'+
+      '<td><input class="inp w70" value="'+esc(grp)+'" placeholder="'+RMP_CONST.DefaultGroup+'" oninput="provEdit('+i+',\'grp\',this.value)"></td>'+
+      '<td><button class="btn btn-outline btn-sm" onclick="delProv('+i+')">\u2715</button></td></tr>';
   }).join('');
   $('tab-grp').innerHTML =
-    '<div class="note" style="margin-bottom:12px">Group Number is per physician. Default is <b>'+RMP_CONST.DefaultGroup+'</b>; set the exceptions (e.g. <b>Tatiana Conrad</b> and <b>Woody Wells</b>) here. Saved to the data file for next time.'+(nonDefault?' <b>'+nonDefault+'</b> currently differ from '+RMP_CONST.DefaultGroup+'.':'')+'</div>'+
-    '<div class="tscroll"><table class="dt"><thead><tr><th>OHIP #</th><th>Physician</th><th>Group #</th></tr></thead><tbody>'+rowsHtml+'</tbody></table></div>';
+    '<div class="note" style="margin-bottom:12px">Shared doctor registry (saved to the data file, used by every module). <b>Billing Group</b> defaults to <b>'+RMP_CONST.DefaultGroup+'</b> when left blank \u2014 set the exceptions here (e.g. Conrad &amp; Wells \u2192 <b>1244</b>).'+(nonDef?' <b>'+nonDef+'</b> currently use a non-default group.':'')+'</div>'+
+    '<div class="tscroll"><table class="dt"><thead><tr><th>OHIP #</th><th>Physician</th><th>Billing Group</th><th></th></tr></thead><tbody>'+rowsHtml+'</tbody></table></div>'+
+    '<div style="margin-top:10px"><button class="btn btn-outline btn-sm" onclick="addProv()">+ Add Doctor</button></div>';
 }
-function setGrp(ohip,val){
-  val=String(val||'').trim().toUpperCase();
-  if(val===''||val===RMP_CONST.DefaultGroup) delete ST.grpmap[ohip]; else ST.grpmap[ohip]=val;
-  persist('om_prov_grp',ST.grpmap);
-  rebuild();
+function provEdit(i,field,val){
+  if(!ST.providers[i])return;
+  if(field==='num') val=String(val||'').trim();
+  else if(field==='grp') val=String(val||'').trim().toUpperCase();
+  ST.providers[i][field]=val;
+  persist('om_prov',ST.providers);
+  if(field==='num'||field==='name') rebuildProvNames();
+  recalcLight(); scheduleSettle();
 }
+function addProv(){ ST.providers.push({num:'000000',name:'',spec:'',cpso:'',grp:''}); persist('om_prov',ST.providers); rebuildProvNames(); renderRegistry(); }
+function delProv(i){ ST.providers.splice(i,1); persist('om_prov',ST.providers); rebuildProvNames(); renderRegistry(); recalcLight(); }
 
 /* ---- diagnosis mapping ---- */
 function renderDx(){
@@ -688,7 +719,7 @@ function setDx(normKey,val){
   val=String(val||'').trim();
   if(val==='') delete ST.dxmap[normKey]; else ST.dxmap[normKey]=val;
   persist('om_rmp_dxmap',ST.dxmap);
-  rebuild();
+  recalcLight(); scheduleSettle();
 }
 function buildDxDatalist(){
   if($('dx-list').childElementCount) return;
@@ -764,6 +795,11 @@ function switchTab(t){
   $('tab-billmap').classList.toggle('hidden',t!=='billmap');
   $('tab-grp').classList.toggle('hidden',t!=='grp');
 }
+function optChanged(){
+  ST.opts.excludeBlankHCN=$('opt-excl-hcn').checked;
+  persist('om_rmp_opts',ST.opts);
+  rebuild();
+}
 
 /* ==================== STORAGE STACK (shared OM_Billing_FS / dataFile) ==================== */
 var DATA_KEYS=['om_prov','om_diag','om_fees','om_prem','om_settings','om_ledger','om_inv_ctr','om_lic',
@@ -811,11 +847,19 @@ function _tryParse(s){ try{return JSON.parse(s);}catch(e){return s;} }
 
 function _loadStateFromLS(){
   ST.overrides=lsGet('om_rmp_billmap',{})||{};
-  ST.grpmap=lsGet('om_prov_grp',{})||{};
   ST.dxmap=lsGet('om_rmp_dxmap',{})||{};
   ST.opts=lsGet('om_rmp_opts',{excludeBlankHCN:true})||{excludeBlankHCN:true};
-  var prov=lsGet('om_prov',[])||[]; ST.provNames={};
-  if(Array.isArray(prov)) prov.forEach(function(p){ if(p&&p.num)ST.provNames[pad6(p.num)]=p.name||''; });
+  var prov=lsGet('om_prov',null);
+  if(!Array.isArray(prov)||!prov.length){
+    prov=Object.keys(EMBED_PROVNAMES).map(function(n){return {num:n,name:EMBED_PROVNAMES[n],spec:'',cpso:'',grp:''};});
+  }
+  ST.providers=prov;
+  /* migrate any legacy per-OHIP group map into the shared registry (one-time) */
+  var legacy=lsGet('om_prov_grp',{})||{}, changed=false;
+  Object.keys(legacy).forEach(function(oh){ var pd=pad6(oh);
+    ST.providers.forEach(function(p){ if(p&&pad6(p.num)===pd && (!p.grp||!String(p.grp).trim())){ p.grp=legacy[oh]; changed=true; } }); });
+  if(changed) persist('om_prov',ST.providers);
+  rebuildProvNames();
   if($('opt-excl-hcn')) $('opt-excl-hcn').checked = ST.opts.excludeBlankHCN!==false;
 }
 
