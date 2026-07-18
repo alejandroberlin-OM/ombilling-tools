@@ -1,0 +1,793 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<!-- Injected at the edge by the Cloudflare Worker; blank on a downloaded copy -->
+<meta name="om-token" content="">
+<title>DMOH · RNC Processor</title>
+<link href="https://fonts.googleapis.com/css2?family=Libre+Baskerville:ital,wght@0,400;0,700;1,400&family=Source+Sans+3:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  /* teal module palette — same variable scheme as IFHP/QC/MHDU */
+  --g1:#0e564e;--g2:#127d72;--g3:#25b3a4;--g4:#cdeee9;--g5:#eefaf8;
+  --gold:#c8a84b;--gold2:#e0bc60;
+  --ink:#0c2723;--ink2:#1f4a44;--muted:#5a7a75;
+  --bg:#eaf4f2;--card:#fff;--border:#c6e3de;
+  --ok:#186845;--ok-bg:#e3f5ed;
+  --warn:#7a5010;--warn-bg:#fdf3e0;
+  --err:#991b1b;--err-bg:#fef2f2;
+  --r:11px;--rs:6px;--sh:0 1px 3px rgba(0,0,0,.06),0 4px 14px rgba(0,0,0,.05)
+}
+body{font-family:"Source Sans 3",sans-serif;background:var(--bg);color:var(--ink);min-height:100vh;font-size:14px;
+     display:flex;flex-direction:column}
+.hdr{background:var(--g1);color:#fff;height:68px;display:flex;align-items:center;gap:18px;padding:0 28px;
+     position:sticky;top:0;z-index:300;box-shadow:0 2px 16px rgba(0,0,0,.3)}
+.hdr-title{font-family:"Libre Baskerville",serif;font-size:17px;font-weight:700;color:#fff;line-height:1.2}
+.hdr-module{font-size:11px;color:rgba(255,255,255,.6);margin-top:2px;letter-spacing:.03em}
+.hdr-brand{font-family:"Libre Baskerville",serif;font-size:13px;font-weight:700;color:rgba(255,255,255,.55);margin-left:auto}
+.hdr-tm{font-size:9px;vertical-align:super;color:var(--gold2)}
+#file-status-pill{display:none;align-items:center;gap:6px;padding:4px 12px;border-radius:20px;
+  font-size:11.5px;font-weight:600;background:rgba(255,255,255,.1);color:rgba(255,255,255,.7);
+  border:1px solid rgba(255,255,255,.2);white-space:nowrap}
+#file-status-pill.saving{color:var(--gold2)}
+#file-status-pill.saved{color:#6ee7b7}
+#file-status-pill.fallback{color:#fbbf24}
+.fsp-dot{width:7px;height:7px;border-radius:50%;background:currentColor;flex-shrink:0}
+.wrap{max-width:960px;margin:0 auto;padding:32px 24px 60px;width:100%}
+.pg-title{font-family:"Libre Baskerville",serif;font-size:22px;font-weight:700;color:var(--g1);margin-bottom:4px}
+.pg-sub{font-size:13px;color:var(--muted);margin-bottom:28px;line-height:1.65}
+.card{background:var(--card);border:1px solid var(--border);border-radius:var(--r);margin-bottom:16px;overflow:hidden;box-shadow:var(--sh)}
+.card-hd{padding:13px 18px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px;background:#fafcff}
+.ct{font-size:14px;font-weight:700;color:var(--g1)}
+.cd{font-size:12px;color:var(--muted);margin-top:1px}
+.card-body{padding:18px}
+.upz{border:2px dashed var(--border);border-radius:var(--r);padding:26px 14px;text-align:center;
+     cursor:pointer;position:relative;transition:all .2s}
+.upz:hover{border-color:var(--g3);background:var(--g5)}
+.upz.loaded{border-style:solid;border-color:var(--ok);background:var(--ok-bg)}
+.upz.dragover{border-color:var(--g3);background:var(--g5)}
+.upz input[type=file]{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%}
+.uz-icon{font-size:28px;margin-bottom:7px;opacity:.7}
+.uz-lbl{font-size:13px;font-weight:700;color:var(--g1);margin-bottom:3px}
+.uz-hint{font-size:11px;color:var(--muted)}
+.uz-file{font-size:11px;font-weight:700;margin-top:6px;word-break:break-all}
+.note{background:var(--g5);border-left:3px solid var(--g3);padding:9px 13px;
+      border-radius:0 var(--rs) var(--rs) 0;font-size:12px;color:var(--ink2);line-height:1.6}
+.alert{border-radius:var(--rs);padding:10px 13px;font-size:13px;margin-bottom:12px;display:flex;gap:9px;align-items:flex-start}
+.alert:last-child{margin-bottom:0}
+.a-warn{background:var(--warn-bg);color:var(--warn);border:1px solid #f6d88a}
+.a-info{background:#eff6ff;color:#1e40af;border:1px solid #bfdbfe}
+.a-ok{background:var(--ok-bg);color:var(--ok);border:1px solid #86efac}
+.a-err{background:var(--err-bg);color:var(--err);border:1px solid #fecaca}
+.alert .ai{font-weight:800;flex-shrink:0}
+/* stat strip */
+.sstrip{display:flex;gap:0;background:var(--g1);border-radius:var(--rs);overflow:hidden;margin-bottom:16px;flex-wrap:wrap}
+.ssi{flex:1;min-width:110px;padding:11px 14px;border-right:1px solid rgba(255,255,255,.1)}
+.ssi:last-child{border-right:none}
+.ssl{font-size:9.5px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:rgba(255,255,255,.5);margin-bottom:2px}
+.ssv{font-size:17px;font-weight:800;color:#fff;font-family:"Libre Baskerville",serif}
+.ssv.warn{color:#fbbf24}.ssv.ok{color:#6ee7b7}
+.ssv.sm{font-size:12px;line-height:1.35;font-family:"Source Sans 3";font-weight:600}
+/* tables (shared date-table styling) */
+.tscroll{overflow:auto;max-height:360px;border:1px solid var(--border);border-radius:var(--rs)}
+.date-table{width:100%;border-collapse:collapse}
+.date-table thead tr{background:var(--g1)}
+.date-table th{padding:9px 12px;text-align:left;color:#fff;font-size:10px;font-weight:700;letter-spacing:.07em;
+  text-transform:uppercase;white-space:nowrap;position:sticky;top:0;background:var(--g1)}
+.date-table td{padding:8px 10px;border-bottom:1px solid var(--border);vertical-align:middle;white-space:nowrap}
+.date-table tr:last-child td{border-bottom:none}
+.date-table tr:nth-child(even) td{background:#fafcff}
+.mono{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12px}
+.date-badge{display:inline-block;padding:3px 9px;border-radius:10px;font-size:11px;font-weight:700}
+.db-ok{background:var(--ok-bg);color:var(--ok)}
+.db-alias{background:#e6eefb;color:#274a86}
+.db-bad{background:var(--err-bg);color:var(--err)}
+/* fix input (from typeahead styling) */
+.ta-input{width:150px;padding:6px 9px;border:1.5px solid var(--border);border-radius:var(--rs);
+          font-size:12.5px;font-family:inherit;color:var(--ink);background:#fff;outline:none;transition:border .15s}
+.ta-input:focus{border-color:var(--g3);box-shadow:0 0 0 3px rgba(37,179,164,.12)}
+.ta-input.unassigned{border-color:#f59e0b;background:#fef9ee}
+/* buttons */
+.btn{display:inline-flex;align-items:center;gap:7px;padding:9px 18px;border:none;border-radius:var(--rs);
+     font-size:13.5px;font-weight:700;cursor:pointer;font-family:inherit;transition:all .15s}
+.btn-g{background:var(--g1);color:#fff}.btn-g:hover{background:var(--g2)}
+.btn-g:disabled{opacity:.45;cursor:not-allowed}
+.btn-gold{background:var(--gold);color:var(--g1)}.btn-gold:hover{background:var(--gold2)}
+.btn-gold:disabled{opacity:.45;cursor:not-allowed}
+.btn-outline{background:none;border:1.5px solid var(--border);color:var(--muted)}.btn-outline:hover{border-color:var(--g3);color:var(--g1)}
+.btn-sm{padding:5px 11px;font-size:12px;border-radius:var(--rs)}
+/* option rows */
+.opt-row{display:flex;align-items:center;gap:14px;padding:11px 0;border-bottom:1px solid var(--border)}
+.opt-row:first-child{padding-top:0}.opt-row:last-child{border-bottom:none;padding-bottom:0}
+.opt-txt{flex:1}.opt-txt b{font-size:13.5px;color:var(--ink)}
+.opt-txt small{display:block;color:var(--muted);font-size:12px;margin-top:1px;line-height:1.5}
+.switch{position:relative;width:42px;height:23px;flex:0 0 42px}
+.switch input{opacity:0;width:0;height:0}
+.slider{position:absolute;inset:0;background:#c3d6d2;border-radius:999px;transition:.15s;cursor:pointer}
+.slider:before{content:"";position:absolute;width:17px;height:17px;left:3px;top:3px;background:#fff;border-radius:50%;transition:.15s}
+.switch input:checked + .slider{background:var(--g2)}
+.switch input:checked + .slider:before{transform:translateX(19px)}
+.switch input:disabled + .slider{opacity:.55;cursor:not-allowed}
+.chiprow{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px}
+.chip{background:var(--g5);border:1px solid var(--border);border-radius:var(--rs);padding:6px 11px;font-size:12px;color:var(--ink2)}
+.chip b{color:var(--g1)}
+.hidden{display:none!important}
+/* footer */
+footer{background:var(--g1);color:rgba(255,255,255,.4);font-size:10.5px;padding:16px 28px;
+       text-align:center;line-height:1.75;margin-top:auto}
+footer strong{color:rgba(255,255,255,.65)}
+/* FS modals (identical structure to other modules) */
+#fs-setup-modal{position:fixed;inset:0;z-index:9998;background:rgba(14,86,78,.92);
+  display:none;align-items:center;justify-content:center;padding:24px}
+.fs-modal-box{background:var(--card);border-radius:16px;padding:36px 40px;max-width:460px;width:100%;box-shadow:0 24px 60px rgba(0,0,0,.3)}
+.fs-modal-icon{font-size:44px;margin-bottom:14px}
+.fs-modal-title{font-family:"Libre Baskerville",serif;font-size:20px;font-weight:700;color:var(--g1);margin-bottom:8px}
+.fs-modal-body{font-size:13px;color:var(--muted);line-height:1.7;margin-bottom:24px}
+.fs-btn-row{display:flex;gap:10px;flex-direction:column}
+.fs-btn-primary{padding:12px 20px;background:var(--g1);color:#fff;border:none;border-radius:var(--rs);font-size:14px;font-weight:700;cursor:pointer;font-family:inherit;text-align:left}
+.fs-btn-primary:hover{background:var(--g2)}
+.fs-btn-secondary{padding:10px 20px;background:none;color:var(--muted);border:1.5px solid var(--border);border-radius:var(--rs);font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;text-align:left}
+.fs-btn-secondary:hover{border-color:var(--g3);color:var(--g2)}
+#fs-permission-prompt{position:fixed;inset:0;z-index:9997;background:rgba(14,86,78,.92);
+  display:none;align-items:center;justify-content:center;padding:24px}
+</style>
+</head>
+<body>
+
+<!-- FS setup modal -->
+<div id="fs-setup-modal" style="display:none">
+  <div class="fs-modal-box">
+    <div class="fs-modal-icon">💾</div>
+    <div class="fs-modal-title">Set up your data file</div>
+    <div class="fs-modal-body">Link to your <code>OM_Billing_Data.json</code> to keep your provider roster and name fixes.<br><br>
+      Use the <strong>same file</strong> as the IFHP, QC and MHDU modules so everything stays in sync.</div>
+    <div class="fs-btn-row">
+      <button class="fs-btn-primary" onclick="fsSetupNew()">📄 Create new data file</button>
+      <button class="fs-btn-primary" onclick="fsSetupOpen()">📂 Open existing data file</button>
+      <button class="fs-btn-secondary" onclick="fsSetupSkip()">Use browser storage instead</button>
+    </div>
+  </div>
+</div>
+
+<div id="fs-permission-prompt" style="display:none">
+  <div style="background:var(--card);border-radius:16px;padding:40px 44px;max-width:400px;width:100%;text-align:center;box-shadow:0 24px 60px rgba(0,0,0,.3)">
+    <div style="font-size:48px;margin-bottom:16px">📂</div>
+    <div style="font-family:'Libre Baskerville',serif;font-size:20px;font-weight:700;color:var(--g1);margin-bottom:8px">Open Data File</div>
+    <div style="font-size:13px;color:var(--muted);margin-bottom:28px;line-height:1.7">Click below to allow access to your data file.<br><strong>Required once per browser session.</strong></div>
+    <button onclick="fsGrantPermission()" style="padding:12px 32px;background:var(--g1);color:white;border:none;border-radius:8px;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit;width:100%">📂 Open My Data File</button>
+    <div style="margin-top:14px"><button onclick="fsSkipToLocalStorage()" style="background:none;border:none;font-size:11.5px;color:var(--muted);cursor:pointer;font-family:inherit;text-decoration:underline">Use browser storage instead</button></div>
+  </div>
+</div>
+
+<header class="hdr">
+  <div>
+    <div class="hdr-title">DMOH — Princess Margaret</div>
+    <div class="hdr-module">RNC · Radiation Nursing Clinic → CabMD</div>
+  </div>
+  <div id="file-status-pill"><span class="fsp-dot"></span><span id="fsp-label">—</span></div>
+  <div class="hdr-brand">OM Billing Inc.<span class="hdr-tm">™</span></div>
+</header>
+
+<div class="wrap">
+  <div class="pg-title">RNC Processor</div>
+  <div class="pg-sub">
+    Upload the RNC workbook from Eleni. Each completed and arrived visit becomes an <strong>A341A</strong> nursing-consult claim
+    for CabMD, with the covering physician's MOH number looked up from the roster and diagnostic code <strong>994</strong> applied to every row.
+    All source values are read exactly as written; dates are emitted in CabMD's MM/DD/YYYY format.
+  </div>
+
+  <!-- Upload -->
+  <div class="card">
+    <div class="card-hd"><div><div class="ct">📁 Upload RNC Workbook</div>
+      <div class="cd">.xlsx from Eleni · one sheet · read entirely in your browser</div></div></div>
+    <div class="card-body">
+      <div class="upz" id="zone-rnc">
+        <input type="file" accept=".xlsx,.xls" onchange="loadRNCFile(this)">
+        <div class="uz-icon">📊</div>
+        <div class="uz-lbl">RNC Export</div>
+        <div class="uz-hint">Drop the file here or click to choose</div>
+        <div class="uz-file" id="rnc-fname"></div>
+      </div>
+      <div class="note" style="margin-top:12px">💡 Nothing is uploaded — patient data is processed locally per PIPEDA.</div>
+      <div id="load-alert" style="margin-top:12px"></div>
+    </div>
+  </div>
+
+  <div id="post-load" class="hidden">
+
+    <!-- Column check -->
+    <div class="card">
+      <div class="card-hd"><div><div class="ct">🧭 Column Layout Check</div>
+        <div class="cd">flags a silent format change from Eleni before it corrupts output</div></div></div>
+      <div class="card-body" id="sig-body"></div>
+    </div>
+
+    <!-- Providers -->
+    <div class="card">
+      <div class="card-hd">
+        <div><div class="ct">👨‍⚕️ Provider Names → Billing Numbers</div>
+          <div class="cd">fix any unmatched name before export · fixes are saved to your data file</div></div>
+        <div id="prov-stat" style="margin-left:auto;font-size:12px"></div>
+      </div>
+      <div class="card-body" id="prov-body"></div>
+    </div>
+
+    <!-- Options -->
+    <div class="card">
+      <div class="card-hd"><div><div class="ct">⚙️ Claim Options</div></div></div>
+      <div class="card-body">
+        <div class="opt-row">
+          <div class="opt-txt"><b>Diagnostic code 994 on every claim</b>
+            <small>Adverse effects of surgical/medical care — required for RNC and applied to all rows.</small></div>
+          <label class="switch"><input type="checkbox" id="opt-dx" checked disabled><span class="slider"></span></label>
+        </div>
+        <div class="opt-row">
+          <div class="opt-txt"><b>Add U992A duplicate line per claim</b>
+            <small>On by default. Duplicates each A341A row with ServiceCode U992A, interleaved, all other fields identical.</small></div>
+          <label class="switch"><input type="checkbox" id="opt-u992" checked><span class="slider"></span></label>
+        </div>
+        <div class="opt-row">
+          <div class="opt-txt"><b>Exclude non-<i>Completed</i> appointments</b>
+            <small>Off by default — both Completed and Arrived visits are billed, matching current practice.</small></div>
+          <label class="switch"><input type="checkbox" id="opt-excl"><span class="slider"></span></label>
+        </div>
+        <div class="chiprow" id="fixed-chips"></div>
+      </div>
+    </div>
+
+    <!-- Export -->
+    <div class="card">
+      <div class="card-hd"><div><div class="ct">⚡ Review &amp; Export for CabMD</div>
+        <div class="cd" id="fname-hint"></div></div></div>
+      <div class="card-body">
+        <div class="sstrip" id="kpis"></div>
+        <div id="export-alert"></div>
+        <div class="tscroll" id="preview-wrap" style="margin:12px 0"></div>
+        <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap">
+          <button class="btn btn-gold" id="btn-download" onclick="downloadCSV()" disabled>⬇ Download CSV for CabMD</button>
+          <button class="btn btn-outline" onclick="startOver()">✕ Start Over</button>
+          <span id="gen-status" style="font-size:12px;color:var(--muted)"></span>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<footer>
+  <strong>OM Billing Inc.™</strong> &nbsp;|&nbsp; DMOH · Princess Margaret · RNC Processor — Radiation Nursing Clinic → CabMD<br>
+  Copyright © <script>document.write(new Date().getFullYear())</script> <strong>OM Billing Inc.™</strong> All rights reserved.<br>
+  Proprietary software. Patient data processed locally per PIPEDA.
+</footer>
+
+<datalist id="roster-list"></datalist>
+
+<script>
+'use strict';
+/* ================= RNC_CORE_START =================
+   Pure, DOM-free logic. Depends only on global XLSX (SheetJS) for
+   XLSX.SSF date parsing, so it can be extracted and run under Node
+   for QA against the shipped code. */
+
+var RNC_EXPECTED_HEADERS = [
+  "Visit Date","Time","Appt Status","Financial Class","Coverage ID","MRN",
+  "Last Name","First Name","DOB","Sex","Phone Number","Visit Type","Center",
+  "Department","Site","Attending Provider","Encounter Provider","Referring physician",
+  "Referring Doc Ohip billing #","DX / Diagnosis","Billing code(s)","Appt Notes",
+  "CSN","OHIP Billing Code","Diagnostic Code"
+];
+
+/* Source column indices (0-based) that feed the output */
+var COL = { visitDate:0, apptStatus:2, coverage:4, last:6, first:7, dob:8, sex:9, provider:21 };
+
+var RNC_OUT_HEADERS = ["ProviderNumber","GroupNumber","ProvinceCode","HealthNumber",
+  "VersionCode","FirstName","LastName","DateOfBirth","Gender","ReferringProviderNumber",
+  "DiagnosticCode","ServiceLocationType","MasterNumber","AdmissionDate","ServiceDate",
+  "ServiceCode","ServiceQty"];
+
+var RNC_CONST = { GroupNumber:"H297", ProvinceCode:"ON", ServiceLocationType:"HOP",
+  MasterNumber:"4406", ServiceCode:"A341A", ServiceQty:"1", DiagnosticCode:"994" };
+
+/* default roster transcribed verbatim from Module 1 VBA (name -> 6-digit) */
+var RNC_DEFAULT_PROVIDERS = {
+  "BAYLEY":"164046","BERLIN":"033998","BEZJAK":"071134","BRATMAN":"031992","CATTON":"212639",
+  "CHO":"017979","CHUNG":"017998","CONRAD":"031003","CROKE":"033806","CUMMINGS":"179572",
+  "DAWSON":"016456","FYLES":"233684","GIULIANI":"027861","GLICKSMAN":"044498","GUTIERREZ":"XXXXXX",
+  "HAHN":"041695","HAN":"028783","HODGSON":"013498","HOPE":"021723","HOSNI":"036654",
+  "ID SAID":"055174","KEILTY":"050023","KIM":"104828","KIRSCH":"048960","KOCH":"015995",
+  "KWAN":"049563","LAPERRIERE":"218925","LIU":"243584","LOK":"038219","LUKOVIC":"042449",
+  "MALIK":"049810","MCPARTLIN":"046818","MESCI":"044691","MILLAR":"018014","MILOSEVIC":"097709",
+  "RAMAN":"040591","RINGASH":"012730","RODIN":"039841","SHULTZ":"033851","SUN":"218552",
+  "TAREMI":"024395","TSAI":"048341","D TSANG":"036650","R TSANG":"250068","WALDRON":"161307",
+  "WARDE":"284166","WELLS":"251223","P WONG":"042212","R WONG":"285486","YAN":"046775"
+};
+
+function normName(s){ return String(s==null?'':s).trim().replace(/\s+/g,' ').toUpperCase(); }
+function isValidCode(c){ return /^\d{1,6}$/.test(String(c||'')); }
+function pad6(c){ c=String(c||''); return c.length>=6?c:('000000'+c).slice(-6); }
+
+function levenshtein(a,b){
+  a=a||''; b=b||'';
+  var m=a.length,n=b.length; if(!m)return n; if(!n)return m;
+  var prev=new Array(n+1),cur=new Array(n+1),i,j;
+  for(j=0;j<=n;j++)prev[j]=j;
+  for(i=1;i<=m;i++){ cur[0]=i;
+    for(j=1;j<=n;j++){
+      var cost=a.charCodeAt(i-1)===b.charCodeAt(j-1)?0:1;
+      cur[j]=Math.min(prev[j]+1,cur[j-1]+1,prev[j-1]+cost);
+    }
+    var t=prev;prev=cur;cur=t;
+  }
+  return prev[n];
+}
+
+/* closest roster key to an unmatched name (only valid-numbered providers) */
+function closestProvider(nameKey, roster){
+  var best=null,bd=1e9;
+  for(var k in roster){ if(!roster.hasOwnProperty(k))continue;
+    if(!isValidCode(roster[k]))continue;
+    var d=levenshtein(nameKey,k);
+    if(d<bd){bd=d;best=k;}
+  }
+  if(best===null)return null;
+  var maxAllow=Math.max(2, Math.floor(best.length*0.34));
+  return bd<=maxAllow ? {key:best,code:roster[best],dist:bd} : {key:best,code:roster[best],dist:bd,weak:true};
+}
+
+/* roster = default merged w/ overrides; aliases = {RAWKEY: "CANONICAL ROSTER KEY"} */
+function resolveProvider(rawName, roster, aliases){
+  var key=normName(rawName);
+  if(aliases && aliases[key]){
+    var canon=normName(aliases[key]);
+    if(roster[canon]!==undefined && isValidCode(roster[canon]))
+      return {raw:rawName,key:key,code:pad6(roster[canon]),status:'aliased',via:canon};
+  }
+  if(roster[key]!==undefined){
+    if(isValidCode(roster[key]))
+      return {raw:rawName,key:key,code:pad6(roster[key]),status:'matched'};
+    return {raw:rawName,key:key,code:'',status:'placeholder'}; /* e.g. Gutierrez XXXXXX */
+  }
+  var s=closestProvider(key,roster);
+  return {raw:rawName,key:key,code:'',status:'unmatched',suggestion:s};
+}
+
+/* ---- date handling: TZ-independent via Excel serial (SSF) ---- */
+function _dateParts(v){
+  if(v===null||v===undefined||v==='')return null;
+  var y,m,d;
+  if(typeof v==='number'){
+    var o=XLSX.SSF.parse_date_code(v); if(!o||!o.y)return null; y=o.y;m=o.m;d=o.d;
+  }else if(v instanceof Date){
+    y=v.getFullYear();m=v.getMonth()+1;d=v.getDate();
+  }else{
+    var s=String(v).trim();
+    var iso=s.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);
+    var us=s.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2,4})/);
+    if(iso){y=+iso[1];m=+iso[2];d=+iso[3];}
+    else if(us){m=+us[1];d=+us[2];y=+us[3]; if(y<100)y+=2000;}
+    else{ var t=Date.parse(s); if(isNaN(t))return null; var dt=new Date(t);
+      y=dt.getUTCFullYear();m=dt.getUTCMonth()+1;d=dt.getUTCDate(); }
+  }
+  if(!y||!m||!d||m<1||m>12||d<1||d>31)return null;
+  /* real-calendar-date check */
+  var chk=new Date(Date.UTC(y,m-1,d));
+  if(chk.getUTCFullYear()!==y||chk.getUTCMonth()!==m-1||chk.getUTCDate()!==d)return null;
+  return {y:y,m:m,d:d};
+}
+function fmtDateMMDDYYYY(v){
+  var p=_dateParts(v); if(!p)return '';
+  var z=function(n){return(n<10?'0':'')+n;};
+  return z(p.m)+'/'+z(p.d)+'/'+p.y;
+}
+function dateStamp(v){ /* MMDDYYYY for filename */
+  var p=_dateParts(v); if(!p)return '';
+  var z=function(n){return(n<10?'0':'')+n;};
+  return z(p.m)+z(p.d)+p.y;
+}
+
+/* signature check: compare header row against expected layout */
+function checkSignature(headerRow){
+  var got=(headerRow||[]).map(function(x){return String(x==null?'':x).trim();});
+  var diffs=[];
+  for(var i=0;i<RNC_EXPECTED_HEADERS.length;i++){
+    var exp=RNC_EXPECTED_HEADERS[i], act=got[i]!==undefined?got[i]:'(missing)';
+    if(exp.toLowerCase()!==String(act).toLowerCase()) diffs.push({col:i+1,expected:exp,actual:act});
+  }
+  var extra = got.length>RNC_EXPECTED_HEADERS.length ? got.length-RNC_EXPECTED_HEADERS.length : 0;
+  return {ok:diffs.length===0 && extra===0, diffs:diffs, extraCols:extra, gotCount:got.length};
+}
+
+/* build output rows. aoa = array-of-arrays incl header row 0.
+   opts={includeU992A, excludeNonCompleted}. Returns {rows, diag}. */
+function buildOutputRows(aoa, opts, roster, aliases){
+  opts=opts||{};
+  var rows=[], diag={ unmatched:{}, statusCounts:{}, skipped:0, coverageWarn:[], dateWarn:[], total:0 };
+  for(var r=1;r<aoa.length;r++){
+    var row=aoa[r];
+    if(!row) continue;
+    /* treat fully empty rows as end/blank */
+    var anyVal=row.some(function(c){return c!==null&&c!==undefined&&String(c).trim()!=='';});
+    if(!anyVal) continue;
+    diag.total++;
+
+    var status=String(row[COL.apptStatus]==null?'':row[COL.apptStatus]).trim();
+    diag.statusCounts[status]=(diag.statusCounts[status]||0)+1;
+    if(opts.excludeNonCompleted && status.toLowerCase()!=='completed'){ diag.skipped++; continue; }
+
+    var coverage=String(row[COL.coverage]==null?'':row[COL.coverage]).trim();
+    var health=coverage.slice(0,10);
+    var version=coverage.length>=2?coverage.slice(-2):coverage;
+    if(coverage.length!==12) diag.coverageWarn.push({row:r+1,coverage:coverage});
+
+    var svcDate=fmtDateMMDDYYYY(row[COL.visitDate]);
+    var dob=fmtDateMMDDYYYY(row[COL.dob]);
+    if(!svcDate) diag.dateWarn.push({row:r+1,field:'ServiceDate',raw:row[COL.visitDate]});
+    if(!dob) diag.dateWarn.push({row:r+1,field:'DateOfBirth',raw:row[COL.dob]});
+
+    var pr=resolveProvider(row[COL.provider], roster, aliases);
+    if(pr.status==='unmatched'||pr.status==='placeholder'){
+      var kk=pr.key||'(blank)';
+      if(!diag.unmatched[kk]) diag.unmatched[kk]={raw:pr.raw,key:kk,status:pr.status,count:0,suggestion:pr.suggestion||null};
+      diag.unmatched[kk].count++;
+    }
+
+    var out=[
+      pr.code||'',                    /* ProviderNumber */
+      RNC_CONST.GroupNumber,          /* GroupNumber */
+      RNC_CONST.ProvinceCode,         /* ProvinceCode */
+      health,                         /* HealthNumber */
+      version,                        /* VersionCode */
+      String(row[COL.first]==null?'':row[COL.first]).trim(),  /* FirstName */
+      String(row[COL.last]==null?'':row[COL.last]).trim(),    /* LastName */
+      dob,                            /* DateOfBirth */
+      String(row[COL.sex]==null?'':row[COL.sex]).trim(),      /* Gender */
+      "",                             /* ReferringProviderNumber */
+      RNC_CONST.DiagnosticCode,       /* DiagnosticCode = 994 */
+      RNC_CONST.ServiceLocationType,  /* HOP */
+      RNC_CONST.MasterNumber,         /* 4406 */
+      "",                             /* AdmissionDate */
+      svcDate,                        /* ServiceDate */
+      RNC_CONST.ServiceCode,          /* A341A */
+      RNC_CONST.ServiceQty            /* 1 */
+    ];
+    rows.push(out);
+    if(opts.includeU992A){
+      var dup=out.slice(); dup[15]="U992A"; rows.push(dup);
+    }
+  }
+  return {rows:rows, diag:diag};
+}
+
+/* manual CSV writer: preserves leading zeros; quotes fields with , " CR LF or edge spaces */
+function csvEscape(v){
+  var s=(v===null||v===undefined)?'':String(v);
+  if(/[",\r\n]/.test(s) || /^\s|\s$/.test(s)) return '"'+s.replace(/"/g,'""')+'"';
+  return s;
+}
+function rowsToCSV(rows){
+  var out=[RNC_OUT_HEADERS.map(csvEscape).join(',')];
+  for(var i=0;i<rows.length;i++) out.push(rows[i].map(csvEscape).join(','));
+  return out.join('\r\n')+'\r\n';
+}
+function computeFilename(rows){
+  var min=null,max=null;
+  for(var i=0;i<rows.length;i++){
+    var p=_dateParts(rows[i][14]); if(!p)continue;
+    var key=p.y*10000+p.m*100+p.d;
+    if(min===null||key<min.key){min={key:key,v:rows[i][14]};}
+    if(max===null||key>max.key){max={key:key,v:rows[i][14]};}
+  }
+  if(!min||!max) return 'RNC_output.csv';
+  return 'RNC_'+dateStamp(min.v)+'_to_'+dateStamp(max.v)+'.csv';
+}
+/* ================= RNC_CORE_END ================= */
+
+/* ===================== APP STATE ===================== */
+// Shared data keys — same union as IFHP/QC/MHDU, extended with RNC's own keys.
+// (Add the three om_rnc_* keys to the other modules' DATA_KEYS too, so their
+//  saves preserve RNC data — RNC's own save already merge-preserves every key.)
+const DATA_KEYS=['om_prov','om_diag','om_fees','om_prem','om_settings',
+                 'om_ledger','om_inv_ctr','om_qc_diag','om_qc_loc','om_qc_set',
+                 'om_rnc_roster','om_rnc_aliases','om_rnc_opts'];
+const ls=(k,d)=>{try{const s=localStorage.getItem(k);return s?JSON.parse(s):d}catch(e){return d}};
+const lsSet=(k,v)=>{try{localStorage.setItem(k,JSON.stringify(v));}catch(e){}};
+
+let aoa=null;                 // array-of-arrays from the workbook (incl header)
+let sig=null;                 // signature check result
+let out=null;                 // {rows, diag}
+let outFilename='';
+let overrides={};             // om_rnc_roster : {KEY: "code"}  (additions/edits)
+let aliases={};               // om_rnc_aliases: {RAWKEY: "CANONICAL ROSTER KEY"}
+let opts={includeU992A:true, excludeNonCompleted:false};
+let roster={};                // default merged with overrides
+
+function rebuildRoster(){ roster=Object.assign({}, RNC_DEFAULT_PROVIDERS, overrides); }
+
+/* ===================== FILE LOAD ===================== */
+async function loadRNCFile(input){
+  const file=input.files[0]; if(!file) return;
+  document.getElementById('rnc-fname').textContent='✓ '+file.name;
+  document.getElementById('rnc-fname').style.color='var(--ok)';
+  document.getElementById('zone-rnc').classList.add('loaded');
+  const alert=document.getElementById('load-alert');
+  try{
+    const buf=await file.arrayBuffer();
+    const wb=XLSX.read(buf,{type:'array',cellDates:false,raw:true}); // dates stay Excel serials
+    const ws=wb.Sheets[wb.SheetNames[0]];
+    aoa=XLSX.utils.sheet_to_json(ws,{header:1,defval:null,blankrows:false,raw:true});
+    const dataRows=aoa.length-1;
+    alert.innerHTML='<div class="alert a-ok"><span class="ai">✓</span><div>Loaded <b>'+esc(file.name)+
+      '</b> — sheet “'+esc(wb.SheetNames[0])+'”, '+dataRows+' data rows.</div></div>';
+    document.getElementById('post-load').classList.remove('hidden');
+    runSignature();
+    rebuild();
+  }catch(err){
+    alert.innerHTML='<div class="alert a-err"><span class="ai">!</span><div>Could not read the workbook: '+esc(err.message)+'</div></div>';
+  }
+}
+
+/* ===================== SIGNATURE ===================== */
+function runSignature(){
+  sig=checkSignature((aoa&&aoa[0])||[]);
+  const el=document.getElementById('sig-body');
+  if(sig.ok){
+    el.innerHTML='<div class="alert a-ok"><span class="ai">✓</span><div>Layout matches the expected RNC export ('+
+      RNC_EXPECTED_HEADERS.length+' columns). Provider name is read from column 22.</div></div>';
+  }else{
+    const rows=sig.diffs.map(d=>'<tr><td>'+d.col+'</td><td>'+esc(d.expected)+'</td><td class="mono">'+esc(d.actual)+'</td></tr>').join('');
+    el.innerHTML='<div class="alert a-err"><span class="ai">!</span><div><b>Column layout changed.</b> '+
+      'Fields are read by position, so a shifted column will silently corrupt output. Verify with Eleni before exporting.'+
+      (sig.extraCols?(' '+sig.extraCols+' unexpected extra column(s).'):'')+'</div></div>'+
+      '<div class="tscroll" style="margin-top:10px"><table class="date-table"><thead><tr><th>Col</th><th>Expected</th><th>Found</th></tr></thead><tbody>'+
+      rows+'</tbody></table></div>';
+  }
+}
+
+/* ===================== REBUILD ===================== */
+function rebuild(){
+  if(!aoa) return;
+  opts.includeU992A=document.getElementById('opt-u992').checked;
+  opts.excludeNonCompleted=document.getElementById('opt-excl').checked;
+  out=buildOutputRows(aoa, opts, roster, aliases);
+  outFilename=computeFilename(out.rows);
+  renderProviders(out.diag);
+  renderKpis(out);
+  renderPreview(out.rows);
+  updateExportGate(out.diag);
+  document.getElementById('fname-hint').textContent=outFilename;
+}
+
+/* ===================== PROVIDERS ===================== */
+function renderProviders(diag){
+  const el=document.getElementById('prov-body');
+  const distinct={};
+  for(let r=1;r<aoa.length;r++){ const row=aoa[r]; if(!row)continue;
+    const k=normName(row[COL.provider]); if(!k)continue; distinct[k]=(distinct[k]||0)+1; }
+  const keys=Object.keys(distinct).sort();
+  const unmatched=Object.keys(diag.unmatched||{});
+
+  document.getElementById('prov-stat').innerHTML= unmatched.length
+    ? '<span style="color:var(--err);font-weight:700">'+unmatched.length+' to fix</span>'
+    : '<span style="color:var(--ok);font-weight:700">all matched</span>';
+
+  const head= unmatched.length
+    ? '<div class="alert a-err"><span class="ai">!</span><div><b>'+unmatched.length+' provider name'+(unmatched.length>1?'s':'')+
+      ' unmatched.</b> Fix each below — the closest roster name is suggested. Fixes persist to your data file.</div></div>'
+    : '<div class="alert a-ok"><span class="ai">✓</span><div>All provider names matched to billing numbers.</div></div>';
+
+  const body=keys.map(k=>{
+    const pr=resolveProvider(k, roster, aliases);
+    const count=distinct[k];
+    let badge,fix='';
+    if(pr.status==='matched'){ badge='<span class="date-badge db-ok">matched</span>'; }
+    else if(pr.status==='aliased'){ badge='<span class="date-badge db-alias">fixed → '+esc(pr.via)+'</span>';
+      fix='<button class="btn btn-outline btn-sm" data-clear="'+esc(k)+'">undo</button>'; }
+    else if(pr.status==='placeholder'){ badge='<span class="date-badge db-bad">no number on file</span>'; fix=fixInput(k,null); }
+    else { badge='<span class="date-badge db-bad">unmatched</span>'; fix=fixInput(k,pr.suggestion); }
+    const code=pr.code?('<span class="mono">'+pr.code+'</span>'):'<span class="mono" style="color:var(--err)">—</span>';
+    return '<tr><td><strong>'+esc(k)+'</strong></td><td style="text-align:center">'+count+'</td><td>'+badge+
+      '</td><td>'+code+'</td><td>'+fix+'</td></tr>';
+  }).join('');
+
+  el.innerHTML=head+'<div class="tscroll" style="margin-top:10px"><table class="date-table"><thead><tr>'+
+    '<th>Name in file</th><th style="text-align:center">Rows</th><th>Status</th><th>Billing #</th><th>Fix</th></tr></thead><tbody>'+
+    body+'</tbody></table></div>';
+
+  el.querySelectorAll('[data-fix]').forEach(inp=>{
+    inp.addEventListener('change',()=>applyAlias(inp.getAttribute('data-fix'),inp.value));
+    inp.addEventListener('keydown',e=>{if(e.key==='Enter')applyAlias(inp.getAttribute('data-fix'),inp.value);});
+  });
+  el.querySelectorAll('[data-apply]').forEach(btn=>btn.addEventListener('click',()=>applyAlias(btn.getAttribute('data-apply'),btn.getAttribute('data-val'))));
+  el.querySelectorAll('[data-clear]').forEach(btn=>btn.addEventListener('click',()=>{delete aliases[normName(btn.getAttribute('data-clear'))];saveAliases();rebuild();}));
+}
+function fixInput(rawKey,suggestion){
+  const sug=(suggestion&&!suggestion.weak)
+    ? '<button class="btn btn-g btn-sm" data-apply="'+esc(rawKey)+'" data-val="'+esc(suggestion.key)+'">Use “'+esc(suggestion.key)+'”</button> '
+    : '';
+  return sug+'<input class="ta-input unassigned" data-fix="'+esc(rawKey)+'" placeholder="roster name…" list="roster-list" autocomplete="off">';
+}
+function applyAlias(rawKey,canonical){
+  const rk=normName(rawKey), cn=normName(canonical);
+  if(!cn){ delete aliases[rk]; }
+  else if(roster[cn]!==undefined && isValidCode(roster[cn])){ aliases[rk]=cn; }
+  else { _setPill('fallback','“'+cn+'” is not a roster name'); return; }
+  saveAliases(); rebuild();
+}
+
+/* ===================== KPIs / CHIPS ===================== */
+function renderFixedChips(){
+  document.getElementById('fixed-chips').innerHTML=
+    ['GroupNumber <b>H297</b>','ProvinceCode <b>ON</b>','ServiceLocationType <b>HOP</b>',
+     'MasterNumber <b>4406</b>','ServiceCode <b>A341A</b>','ServiceQty <b>1</b>']
+    .map(t=>'<span class="chip">'+t+'</span>').join('');
+}
+function renderKpis(res){
+  const diag=res.diag, sc=diag.statusCounts||{};
+  const breakdown=Object.keys(sc).map(k=>sc[k]+' '+k).join(' · ')||'—';
+  const unmatched=Object.keys(diag.unmatched||{}).length;
+  const ssi=(l,v,cls)=>'<div class="ssi"><div class="ssl">'+esc(l)+'</div><div class="ssv '+(cls||'')+'">'+v+'</div></div>';
+  document.getElementById('kpis').innerHTML=
+    ssi('Output rows', res.rows.length+(opts.includeU992A?' *':''), 'ok')+
+    ssi('Source used', diag.total-diag.skipped)+
+    ssi('Excluded', diag.skipped, diag.skipped?'warn':'')+
+    ssi('Unmatched', unmatched, unmatched?'warn':'ok')+
+    ssi('Status', esc(breakdown), 'sm');
+}
+
+/* ===================== PREVIEW ===================== */
+function renderPreview(rows){
+  const max=Math.min(rows.length,25);
+  const th=RNC_OUT_HEADERS.map(h=>'<th>'+esc(h)+'</th>').join('');
+  let body='';
+  for(let i=0;i<max;i++) body+='<tr>'+rows[i].map(c=>'<td class="mono">'+esc(c)+'</td>').join('')+'</tr>';
+  document.getElementById('preview-wrap').innerHTML='<table class="date-table"><thead><tr>'+th+'</tr></thead><tbody>'+body+'</tbody></table>';
+}
+
+/* ===================== EXPORT GATE ===================== */
+function updateExportGate(diag){
+  const unmatched=Object.keys(diag.unmatched||{}).length;
+  const btn=document.getElementById('btn-download'), msg=document.getElementById('export-alert');
+  const warns=[];
+  if(diag.coverageWarn.length) warns.push(diag.coverageWarn.length+' row(s) with a Coverage ID not 12 characters');
+  if(diag.dateWarn.length) warns.push(diag.dateWarn.length+' row(s) with an unreadable date');
+  if(unmatched>0){
+    btn.disabled=true;
+    msg.innerHTML='<div class="alert a-err"><span class="ai">!</span><div>Resolve the '+unmatched+
+      ' unmatched provider name(s) above before exporting.</div></div>';
+  }else{
+    btn.disabled=false;
+    msg.innerHTML= warns.length
+      ? '<div class="alert a-warn"><span class="ai">⚠</span><div>Ready to export, but check: '+esc(warns.join('; '))+'.</div></div>'
+      : '<div class="alert a-ok"><span class="ai">✓</span><div>Ready. '+out.rows.length+' rows will be written to <b>'+esc(outFilename)+'</b>.</div></div>';
+  }
+}
+
+/* ===================== DOWNLOAD ===================== */
+function downloadCSV(){
+  if(!out) return;
+  const csv=rowsToCSV(out.rows);
+  const blob=new Blob([csv],{type:'text/csv;charset=utf-8;'});
+  Object.assign(document.createElement('a'),{href:URL.createObjectURL(blob),download:outFilename}).click();
+  document.getElementById('gen-status').textContent='✅ '+out.rows.length+' rows · Downloaded as '+outFilename;
+}
+
+/* ===================== START OVER ===================== */
+function startOver(){
+  aoa=null;out=null;outFilename='';
+  document.getElementById('post-load').classList.add('hidden');
+  document.getElementById('zone-rnc').classList.remove('loaded');
+  document.getElementById('rnc-fname').textContent='';
+  document.getElementById('load-alert').innerHTML='';
+  document.getElementById('gen-status').textContent='';
+}
+
+/* ===================== OPTION TOGGLES ===================== */
+document.getElementById('opt-u992').addEventListener('change',function(){opts.includeU992A=this.checked;saveOpts();rebuild();});
+document.getElementById('opt-excl').addEventListener('change',function(){opts.excludeNonCompleted=this.checked;saveOpts();rebuild();});
+
+/* ===================== PERSISTENCE (module keys) ===================== */
+function saveAliases(){ lsSet('om_rnc_aliases',aliases); _scheduleSave(); }
+function saveOverrides(){ lsSet('om_rnc_roster',overrides); rebuildRoster(); _scheduleSave(); }
+function saveOpts(){ lsSet('om_rnc_opts',opts); _scheduleSave(); }
+
+/* datalist of roster names for the fix inputs */
+function populateRosterList(){
+  const dl=document.getElementById('roster-list'); dl.innerHTML='';
+  Object.keys(roster).forEach(k=>{ if(!isValidCode(roster[k]))return; const o=document.createElement('option'); o.value=k; dl.appendChild(o); });
+}
+
+/* helper */
+const esc=s=>String(s==null?'':s).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+
+/* ===================== FILE SYSTEM STORAGE (shared IDB — same contract as IFHP/QC/MHDU) ===================== */
+const FS_SUPPORTED=typeof window.showSaveFilePicker==='function';
+let _fileHandle=null,_usingFS=false,_saveTimer=null;
+
+function _idb(){return new Promise((res,rej)=>{const req=indexedDB.open('OM_Billing_FS',1);req.onupgradeneeded=e=>e.target.result.createObjectStore('handles');req.onsuccess=e=>res(e.target.result);req.onerror=rej;});}
+async function _saveHandle(h){const db=await _idb();return new Promise((res,rej)=>{const tx=db.transaction('handles','readwrite');tx.objectStore('handles').put(h,'dataFile');tx.oncomplete=res;tx.onerror=rej;});}
+async function _loadHandle(){const db=await _idb();return new Promise((res)=>{const tx=db.transaction('handles','readonly');const req=tx.objectStore('handles').get('dataFile');req.onsuccess=e=>res(e.target.result||null);req.onerror=()=>res(null);});}
+async function _clearHandle(){const db=await _idb();return new Promise((res,rej)=>{const tx=db.transaction('handles','readwrite');tx.objectStore('handles').delete('dataFile');tx.oncomplete=res;tx.onerror=rej;});}
+
+function _setPill(state,label){const pill=document.getElementById('file-status-pill');if(!pill)return;pill.style.display='flex';pill.className='';pill.id='file-status-pill';pill.classList.add(state);document.getElementById('fsp-label').textContent=label;}
+
+async function _activateHandle(handle,isNew){
+  _fileHandle=handle;_usingFS=true;await _saveHandle(handle);
+  if(!isNew){
+    try{
+      const file=await handle.getFile();
+      const data=JSON.parse(await file.text());
+      DATA_KEYS.forEach(k=>{if(data[k]!==undefined)localStorage.setItem(k,data[k]);});
+    }catch(e){}
+  }
+  const name=await handle.getFile().then(f=>f.name);
+  _setPill('saved','✓ '+name);
+}
+
+/* merge-preserving write: start from the file's current contents, then overlay
+   every DATA_KEY we have in localStorage. Never drops keys owned by other modules. */
+async function _persist(){
+  if(!(_usingFS&&_fileHandle)) return;
+  _setPill('saving','Saving…');
+  try{
+    let obj={};
+    try{const f=await _fileHandle.getFile();const t=await f.text();obj=t.trim()?JSON.parse(t):{};}catch(e){obj={};}
+    DATA_KEYS.forEach(k=>{const v=localStorage.getItem(k);if(v!==null)obj[k]=v;});
+    const w=await _fileHandle.createWritable();await w.write(JSON.stringify(obj));await w.close();
+    const name=await _fileHandle.getFile().then(f=>f.name);
+    _setPill('saved','✓ '+name);
+  }catch(e){_setPill('fallback','⚠ Save failed');}
+}
+function _scheduleSave(){clearTimeout(_saveTimer);_saveTimer=setTimeout(_persist,700);}
+
+async function _fsStartup(){
+  if(!_checkDomain())return;
+  if(!FS_SUPPORTED){_setPill('fallback','⚠ Browser storage');_initApp();return;}
+  const handle=await _loadHandle();
+  if(!handle){document.getElementById('fs-setup-modal').style.display='flex';return;}
+  try{
+    const perm=await handle.queryPermission({mode:'readwrite'});
+    if(perm==='granted'){await _activateHandle(handle,false);_initApp();return;}
+  }catch(e){}
+  document.getElementById('fs-permission-prompt').style.display='flex';
+}
+async function fsGrantPermission(){
+  document.getElementById('fs-permission-prompt').style.display='none';
+  const handle=await _loadHandle();if(!handle){document.getElementById('fs-setup-modal').style.display='flex';return;}
+  try{
+    const perm=await handle.requestPermission({mode:'readwrite'});
+    if(perm==='granted'){await _activateHandle(handle,false);_initApp();}
+    else{await _clearHandle();_usingFS=false;_setPill('fallback','⚠ Browser storage');_initApp();}
+  }catch(e){await _clearHandle();_usingFS=false;_setPill('fallback','⚠ Browser storage');_initApp();}
+}
+function fsSkipToLocalStorage(){document.getElementById('fs-permission-prompt').style.display='none';_usingFS=false;_setPill('fallback','⚠ Browser storage');_initApp();}
+function fsSetupSkip(){document.getElementById('fs-setup-modal').style.display='none';_usingFS=false;_setPill('fallback','⚠ Browser storage');_initApp();}
+async function fsSetupNew(){if(!FS_SUPPORTED)return;try{const handle=await window.showSaveFilePicker({suggestedName:'OM_Billing_Data.json',types:[{description:'OM Billing Data',accept:{'application/json':['.json']}}]});await _activateHandle(handle,true);document.getElementById('fs-setup-modal').style.display='none';await _persist();_initApp();}catch(e){if(e.name!=='AbortError')alert('Error: '+e.message);}}
+async function fsSetupOpen(){if(!FS_SUPPORTED)return;try{const[handle]=await window.showOpenFilePicker({types:[{description:'OM Billing Data',accept:{'application/json':['.json']}}]});await _activateHandle(handle,false);document.getElementById('fs-setup-modal').style.display='none';_initApp();}catch(e){if(e.name!=='AbortError')alert('Error: '+e.message);}}
+
+function _initApp(){
+  overrides=ls('om_rnc_roster',{});
+  aliases=ls('om_rnc_aliases',{});
+  opts=Object.assign({includeU992A:true,excludeNonCompleted:false}, ls('om_rnc_opts',{}));
+  rebuildRoster();
+  populateRosterList();
+  document.getElementById('opt-u992').checked=opts.includeU992A;
+  document.getElementById('opt-excl').checked=opts.excludeNonCompleted;
+  renderFixedChips();
+}
+
+_fsStartup();
+</script>
+<a href="https://tools.om-billing.com/index2.html" style="position:fixed;bottom:20px;right:20px;z-index:200;
+  display:flex;align-items:center;gap:6px;padding:8px 14px;
+  background:rgba(255,255,255,.92);backdrop-filter:blur(8px);
+  border:1px solid rgba(0,0,0,.1);border-radius:20px;
+  font-family:inherit;font-size:12px;font-weight:600;color:#444;
+  text-decoration:none;box-shadow:0 2px 12px rgba(0,0,0,.1);
+  transition:all .2s" onmouseover="this.style.boxShadow='0 4px 20px rgba(0,0,0,.18)'"
+  onmouseout="this.style.boxShadow='0 2px 12px rgba(0,0,0,.1)'"
+  title="Return to portal">← Portal</a>
+</body>
+</html>
