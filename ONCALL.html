@@ -143,7 +143,7 @@ footer strong{color:rgba(255,255,255,.65)}
     <div class="hdr-title">RMP — Princess Margaret</div>
     <div class="hdr-module">Weekend On-Call · In-Patient → CabMD</div>
   </div>
-  <div id="file-status-pill"><span class="fsp-dot"></span><span id="fsp-label">—</span></div>
+  <div id="file-status-pill" onclick="fsReopen()" title="Click to link or switch your data file" style="cursor:pointer"><span class="fsp-dot"></span><span id="fsp-label">—</span></div>
   <div class="hdr-brand">OM Billing Inc.<span class="hdr-tm">™</span></div>
 </header>
 
@@ -206,8 +206,8 @@ footer strong{color:rgba(255,255,255,.65)}
 
     <!-- Skipped rows -->
     <div class="card" id="card-skip">
-      <div class="card-hd"><div><div class="ct">⚠️ Rows Not Included</div>
-        <div class="cd">Handle these directly in CabMD — nothing is dropped silently</div></div>
+      <div class="card-hd"><div><div class="ct">⚠️ Rows to Review</div>
+        <div class="cd">Kept-but-flagged rows to check, plus anything a Drop switch excluded — nothing is dropped silently</div></div>
         <div id="skip-stat" style="margin-left:auto;font-size:12px"></div></div>
       <div class="card-body" id="skip-body"></div>
     </div>
@@ -216,20 +216,21 @@ footer strong{color:rgba(255,255,255,.65)}
     <div class="card">
       <div class="card-hd"><div><div class="ct">⚙️ Options</div></div></div>
       <div class="card-body">
+        <div class="note" style="margin-bottom:14px">By default every row is <b>kept and flagged</b> for review, so the clerk can fix or handle it in CabMD. Turn a switch <b>on</b> to drop those rows from the export instead.</div>
         <div class="opt-row">
-          <div class="opt-txt"><b>Skip non-OHIP coverage</b>
-            <small>Out-of-province and other financial classes need manual entry in CabMD.</small></div>
-          <label class="switch"><input type="checkbox" id="opt-nonohip" checked onchange="optChanged()"><span class="slider"></span></label>
+          <div class="opt-txt"><b>Drop non-OHIP coverage</b>
+            <small>Off (default): kept &amp; flagged. On: excluded — you'd enter these manually in CabMD.</small></div>
+          <label class="switch"><input type="checkbox" id="opt-nonohip" onchange="optChanged()"><span class="slider"></span></label>
         </div>
         <div class="opt-row">
-          <div class="opt-txt"><b>Skip invalid health numbers</b>
-            <small>Coverage ID without a usable 10-digit health number can't be billed.</small></div>
-          <label class="switch"><input type="checkbox" id="opt-badhcn" checked onchange="optChanged()"><span class="slider"></span></label>
+          <div class="opt-txt"><b>Drop invalid health numbers</b>
+            <small>Off (default): kept &amp; flagged. On: excluded — Coverage ID has no usable 10-digit number.</small></div>
+          <label class="switch"><input type="checkbox" id="opt-badhcn" onchange="optChanged()"><span class="slider"></span></label>
         </div>
         <div class="opt-row">
-          <div class="opt-txt"><b>Skip rows with no "Date Seen"</b>
-            <small>A blank date means the patient wasn't seen that day, so there's no service to bill.</small></div>
-          <label class="switch"><input type="checkbox" id="opt-nodate" checked onchange="optChanged()"><span class="slider"></span></label>
+          <div class="opt-txt"><b>Drop rows with no "Date Seen"</b>
+            <small>Off (default): kept &amp; flagged. On: excluded — no date means no service that day.</small></div>
+          <label class="switch"><input type="checkbox" id="opt-nodate" onchange="optChanged()"><span class="slider"></span></label>
         </div>
         <div class="chiprow" id="fixed-chips"></div>
       </div>
@@ -572,9 +573,10 @@ function oncBuildOutputRows(sheets, cfg){
   var aliases=cfg.aliases||{}, dxmap=cfg.dxmap||{}, grpByOhip=cfg.grpByOhip||{};
   var opts=cfg.opts||{};
   var plan=oncBuildDayPlan(sheets, cfg.dayCodes||{});
-  var rows=[], diag={ total:0, tabsUsed:[], tabsIgnored:[], days:plan.days,
-    skipped:{nonOhip:[],badHcn:[],noDate:[]}, provIssues:{}, dxTexts:{},
-    noVersion:[], dobWarn:[], kept:0 };
+  var rows=[], meta=[], diag={ total:0, tabsUsed:[], tabsIgnored:[], days:plan.days,
+    skipped:{nonOhip:[],badHcn:[],noDate:[]},
+    flagged:{nonOhip:[],badHcn:[],noDate:[],noVersion:[],noDob:[]},
+    provIssues:{}, dxTexts:{}, kept:0, flaggedRows:0 };
 
   var grp=function(ohip){ return (grpByOhip[ohip]!==undefined&&grpByOhip[ohip]!=='')?grpByOhip[ohip]:ONC_CONST.DefaultGroup; };
 
@@ -593,17 +595,18 @@ function oncBuildOutputRows(sheets, cfg){
         mrn:oncTrim(row[SRC.mrn]), finClass:oncTrim(row[SRC.finClass]),
         cov:oncTrim(row[SRC.coverage]), seen:oncTrim(row[SRC.dateSeen])};
 
-      /* --- exclusions (each flagged so nothing disappears silently) --- */
+      /* --- issues: skip only when that toggle is ON; otherwise keep the row and flag it
+             so the clerk can review / fix in CabMD. Nothing is ever dropped silently. --- */
       var fin=oncTrim(row[SRC.finClass]).toUpperCase();
-      if(opts.skipNonOhip!==false && fin && fin!=='OHIP'){ diag.skipped.nonOhip.push(who); continue; }
-
       var iso=oncIso(row[SRC.dateSeen]);
-      if(opts.skipNoDate!==false && !iso){ diag.skipped.noDate.push(who); continue; }
-
       var cov=oncTrim(row[SRC.coverage]).replace(/\s+/g,'');
       var hcn=cov.slice(0,10), ver=(cov.length>10)?cov.slice(10,12):'';
-      if(opts.skipBadHcn!==false && !/^\d{10}$/.test(hcn)){ diag.skipped.badHcn.push(who); continue; }
-      if(!ver) diag.noVersion.push(who);
+      var issues=[], skip=null;
+      if(fin && fin!=='OHIP'){ if(opts.skipNonOhip===true) skip=skip||'nonOhip'; else issues.push('nonOhip'); }
+      if(!iso){ if(opts.skipNoDate===true) skip=skip||'noDate'; else issues.push('noDate'); }
+      if(!/^\d{10}$/.test(hcn)){ if(opts.skipBadHcn===true) skip=skip||'badHcn'; else issues.push('badHcn'); }
+      if(skip){ diag.skipped[skip].push(who); continue; }
+      if(!ver) issues.push('noVersion');
 
       /* --- provider --- */
       var pv=oncResolveProvider(row[SRC.radonc], provIndex, aliases);
@@ -625,7 +628,11 @@ function oncBuildOutputRows(sheets, cfg){
       }
 
       var dobF=oncFmtDate(row[SRC.dob]);
-      if(!dobF) diag.dobWarn.push(who);
+      if(!dobF) issues.push('noDob');
+
+      who.issues=issues;
+      issues.forEach(function(k){ if(diag.flagged[k]) diag.flagged[k].push(who); });
+      if(issues.length) diag.flaggedRows++;
 
       diag.kept++;
       rows.push([ pv.code||'', grp(pv.code), ONC_CONST.ProvinceCode, hcn, ver,
@@ -633,25 +640,26 @@ function oncBuildOutputRows(sheets, cfg){
         '', dxr.code||'', ONC_CONST.ServiceLocationType, ONC_CONST.MasterNumber,
         oncFmtDate(row[SRC.admit]), oncFmtDate(row[SRC.dateSeen]),
         plan.codeByIso[iso]||ONC_CONST.OtherDayCode, ONC_CONST.ServiceQty ]);
+      meta.push({ issues:issues, who:who });
     }
   });
 
   /* --- duplication pass: first row of each distinct ServiceDate spawns
          C986A + C963A; every later row that date spawns one C987A --- */
-  var seenDates={}, dups=[];
+  var seenDates={}, dups=[], dupMeta=[];
   for(var i=0;i<rows.length;i++){
-    var sd=rows[i][14];
+    var sd=rows[i][14], m=meta[i];
     if(!seenDates[sd]){
-      var a=rows[i].slice(); a[15]=ONC_CONST.DupFirstA; dups.push(a);
-      var b=rows[i].slice(); b[15]=ONC_CONST.DupFirstB; dups.push(b);
+      var a=rows[i].slice(); a[15]=ONC_CONST.DupFirstA; dups.push(a); dupMeta.push(m);
+      var b=rows[i].slice(); b[15]=ONC_CONST.DupFirstB; dups.push(b); dupMeta.push(m);
       seenDates[sd]=1;
     } else {
-      var c=rows[i].slice(); c[15]=ONC_CONST.DupOther; dups.push(c);
+      var c=rows[i].slice(); c[15]=ONC_CONST.DupOther; dups.push(c); dupMeta.push(m);
     }
   }
   var all=rows.concat(dups);
   diag.originals=rows.length; diag.duplicates=dups.length;
-  return {rows:all, originals:rows, diag:diag, plan:plan};
+  return {rows:all, originals:rows, meta:meta.concat(dupMeta), diag:diag, plan:plan};
 }
 
 /* ---- CSV + filename ---- */
@@ -696,6 +704,12 @@ function oncGuessSurname(sheets){
 }
 /* ================= ONC_CORE_END ================= */
 /* ============================ ON-CALL APP ============================ */
+/* Fallback doctor roster, used ONLY to seed the registry when the data file has
+   no om_prov yet. Once a data file is linked, the file is the source of truth. */
+var EMBED_PROVNAMES = {"164046":"Andrew Bayley","033998":"Alejandro Berlin","071134":"Andrea Bezjak","031992":"Scott Bratman","045516":"Runting Cai","212639":"Charles Catton","017979":"John Cho","017998":"Peter Chung","031003":"Tatiana Conrad","033806":"Jennifer Croke","179572":"Bernard Cummings","016456":"Laura Dawson","999999":"Eman Duhaiby","027861":"Meredith Giuliani","044498":"Rachel Glicksman","041695":"Ezra Hahn","028783":"Kathy Han","013498":"David Hodgson","021723":"Andrew Hope","036654":"Ali Hosni Abdalaty","055174":"Badr Id Said","050023":"Dana Keilty","104828":"John Kim","048960":"David Kirsch","015995":"Christine Anne Koch","049563":"Jennifer Kwan","218925":"Norman Laperriere","243584":"Fei-Fei Liu","038219":"Benjamin Lok","042449":"Jelena Lukovic","049810":"Nauman Malik","046818":"Andrew Mcpartlin","044691":"Aruz Mesci","018014":"Barbara-Ann Millar","097709":"Michael Milosevic","217539":"David Payne","039841":"Danielle Rodin","033851":"David Shultz","218552":"Alex Sun","048341":"Chiaojung Jillian Tsai","250068":"Richard Tsang","036650":"Derek Tsang","161307":"John Waldron","284166":"Padraig Warde","038011":"Danielle Weidman","251223":"Woody Wells","285486":"Rebecca Wong","042212":"Philip Wong","046775":"Michael Yan"};
+function seedProviders(){ return Object.keys(EMBED_PROVNAMES).map(function(n){
+  return {num:n,name:EMBED_PROVNAMES[n],spec:'',cpso:'',grp:''}; }); }
+
 var ST = {
   sheets:null, srcName:'',
   providers:[], aliases:{}, dxmap:{}, dayCodes:{}, opts:{skipNonOhip:true,skipBadHcn:true,skipNoDate:true},
@@ -820,8 +834,8 @@ function scheduleSettle(){ clearTimeout(_settleTimer); _settleTimer=setTimeout(f
   if(ST.result){ renderMatch(); renderRegistry(); renderDx(); renderDays(); }
 },900); }
 function readOpts(){
-  if($('opt-nonohip')) ST.opts={ skipNonOhip:$('opt-nonohip').checked,
-    skipBadHcn:$('opt-badhcn').checked, skipNoDate:$('opt-nodate').checked };
+  if($('opt-nonohip')) ST.opts={ skipNonOhip:$('opt-nonohip').checked===true,
+    skipBadHcn:$('opt-badhcn').checked===true, skipNoDate:$('opt-nodate').checked===true };
 }
 function optChanged(){ readOpts(); persist('om_onc_opts',ST.opts); rebuild(); }
 
@@ -908,8 +922,8 @@ function renderRegistry(){
       '<td><button class="btn btn-outline btn-sm" onclick="delProv('+i+')">\u2715</button></td></tr>';
   }).join('');
   $('tab-reg').innerHTML =
-    '<div class="note" style="margin-bottom:12px">Shared doctor registry from your data file \u2014 the same list every module uses. <b>Billing Group</b> defaults to <b>'+ONC_CONST.DefaultGroup+'</b> when blank.'+
-    (ST.providers.length?'':' <b>Your registry is empty</b> \u2014 link your data file, or add doctors here.')+'</div>'+
+    '<div class="note" style="margin-bottom:12px">Shared doctor registry \u2014 the same list every module uses. <b>Billing Group</b> defaults to <b>'+ONC_CONST.DefaultGroup+'</b> when blank.'+
+    (_useLS?' <b>Not linked to a data file yet</b> \u2014 click the status pill (top-right) to open your <code>OM_Billing_Data.json</code> so this registry and your edits sync across every module. Until then this starter list is stored in this browser only.':' Edits save to your data file.')+'</div>'+
     '<div class="tscroll"><table class="dt"><thead><tr><th>OHIP #</th><th>Physician</th><th>Billing Group</th><th></th></tr></thead><tbody>'+rowsHtml+'</tbody></table></div>'+
     '<div style="margin-top:10px"><button class="btn btn-outline btn-sm" onclick="addProv()">+ Add Doctor</button></div>';
 }
@@ -998,33 +1012,49 @@ function applyBulk(){
     (unknown.length?' \u00b7 '+unknown.length+' didn\u2019t match a diagnosis in this report (saved anyway)':'');
 }
 
-/* ---- skipped rows panel ---- */
-function renderSkips(){
-  var s=ST.result.diag.skipped, d=ST.result.diag;
-  var groups=[
-    {k:'nonOhip', label:'Non-OHIP coverage \u2014 bill manually in CabMD', list:s.nonOhip, cls:'a-warn'},
-    {k:'badHcn',  label:'Invalid / missing health number', list:s.badHcn, cls:'a-err'},
-    {k:'noDate',  label:'No "Date Seen" \u2014 patient not seen that day', list:s.noDate, cls:'a-info'}
-  ].filter(function(g){return g.list.length;});
-  var total=groups.reduce(function(a,g){return a+g.list.length;},0);
-  if(!total && !d.noVersion.length && !d.dobWarn.length){
-    $('card-skip').classList.add('hidden'); return;
-  }
-  $('card-skip').classList.remove('hidden');
-  var html=groups.map(function(g){
-    var rows=g.list.map(function(w){
-      return '<tr><td class="nw">'+esc(w.tab)+'</td><td class="nw">'+w.row+'</td>'+
-        '<td>'+esc(w.name||'')+'</td><td class="nw mono">'+esc(w.mrn||'')+'</td>'+
-        '<td class="nw">'+esc(w.finClass||'')+'</td><td class="nw mono">'+esc(w.cov||'')+'</td>'+
-        '<td class="nw">'+esc(w.seen||'')+'</td></tr>';
-    }).join('');
-    return '<div class="alert '+g.cls+'"><span class="ai">\u26A0</span><span><b>'+g.list.length+'</b> row(s): '+g.label+'</span></div>'+
-      '<div class="tscroll" style="margin-bottom:14px"><table class="dt"><thead><tr><th>Tab</th><th>Row</th><th>Patient</th><th>MRN</th><th>Coverage</th><th>Coverage ID</th><th>Date Seen</th></tr></thead><tbody>'+rows+'</tbody></table></div>';
+/* ---- review panel: kept-but-flagged rows + (if any toggle on) excluded rows ---- */
+var ONC_ISSUE_LABEL={nonOhip:'Non-OHIP coverage',badHcn:'Invalid health number',
+  noDate:'No "Date Seen"',noVersion:'No version code',noDob:'Unreadable DOB'};
+function _uniqWho(list){ var seen={},out=[]; (list||[]).forEach(function(w){
+  var k=w.tab+'|'+w.row; if(!seen[k]){seen[k]=1;out.push(w);} }); return out; }
+function _whoTable(rows,withIssues){
+  var body=rows.map(function(w){
+    var tags=withIssues?('<td>'+ (w.issues||[]).map(function(k){
+      return '<span class="badge b-bad" style="margin:1px">'+esc(ONC_ISSUE_LABEL[k]||k)+'</span>';}).join(' ')+'</td>'):'';
+    return '<tr><td class="nw">'+esc(w.tab)+'</td><td class="nw">'+w.row+'</td>'+
+      '<td>'+esc(w.name||'')+'</td><td class="nw mono">'+esc(w.mrn||'')+'</td>'+
+      '<td class="nw">'+esc(w.finClass||'')+'</td><td class="nw mono">'+esc(w.cov||'')+'</td>'+
+      '<td class="nw">'+esc(w.seen||'')+'</td>'+tags+'</tr>';
   }).join('');
-  if(d.noVersion.length) html+='<div class="alert a-warn"><span class="ai">\u26A0</span><span><b>'+d.noVersion.length+'</b> included row(s) have no version code on the Coverage ID \u2014 CabMD may reject these.</span></div>';
-  if(d.dobWarn.length) html+='<div class="alert a-warn"><span class="ai">\u26A0</span><span><b>'+d.dobWarn.length+'</b> included row(s) have an unreadable date of birth.</span></div>';
+  return '<div class="tscroll" style="margin-bottom:14px"><table class="dt"><thead><tr><th>Tab</th><th>Row</th><th>Patient</th><th>MRN</th><th>Coverage</th><th>Coverage ID</th><th>Date Seen</th>'+
+    (withIssues?'<th>Issues</th>':'')+'</tr></thead><tbody>'+body+'</tbody></table></div>';
+}
+function renderSkips(){
+  var d=ST.result.diag, s=d.skipped, f=d.flagged;
+  var skippedTotal=s.nonOhip.length+s.badHcn.length+s.noDate.length;
+  /* union of kept rows that carry any issue */
+  var flaggedRows=_uniqWho([].concat(f.nonOhip,f.badHcn,f.noDate,f.noVersion,f.noDob));
+  if(!skippedTotal && !flaggedRows.length){ $('card-skip').classList.add('hidden'); return; }
+  $('card-skip').classList.remove('hidden');
+  var html='';
+  if(flaggedRows.length){
+    html+='<div class="alert a-warn"><span class="ai">\u26A0</span><span><b>'+flaggedRows.length+'</b> row(s) are included but have something to check \u2014 highlighted in the preview below. Review each, fix the source or edit/remove it in CabMD before submitting.</span></div>'+
+      _whoTable(flaggedRows,true);
+  }
+  var groups=[
+    {label:'Excluded \u2014 non-OHIP coverage', list:s.nonOhip},
+    {label:'Excluded \u2014 invalid health number', list:s.badHcn},
+    {label:'Excluded \u2014 no "Date Seen"', list:s.noDate}
+  ].filter(function(g){return g.list.length;});
+  groups.forEach(function(g){
+    html+='<div class="alert a-info"><span class="ai">\u2139</span><span><b>'+g.list.length+'</b> row(s) '+g.label+' \u2014 handle directly in CabMD.</span></div>'+
+      _whoTable(g.list,false);
+  });
   $('skip-body').innerHTML=html;
-  $('skip-stat').innerHTML='<span class="badge b-auto">'+total+' excluded</span>';
+  var bits=[];
+  if(flaggedRows.length) bits.push('<span class="badge b-auto">'+flaggedRows.length+' to review</span>');
+  if(skippedTotal) bits.push('<span class="badge b-bad">'+skippedTotal+' excluded</span>');
+  $('skip-stat').innerHTML=bits.join(' ');
 }
 
 function renderFixedChips(){
@@ -1045,18 +1075,31 @@ function renderKPIs(){
     ssi('Days',d.days.length)+
     ssi('Patient Visits',d.originals)+
     ssi('Premium Rows',d.duplicates)+
-    ssi('Excluded',skipped,skipped?'warn':'ok');
+    ssi('To Review',d.flaggedRows,d.flaggedRows?'warn':'ok')+
+    ssi('Excluded',skipped,skipped?'warn':'');
   $('fname-hint').textContent='File will be named '+currentFilename();
 }
 function currentFilename(){ return oncComputeFilename(ST.result.rows, ST.surname||oncGuessSurname(ST.sheets)); }
 function surnameChanged(){ ST.surname=$('fn-surname').value; ST.surnameEdited=true;
   $('fname-hint').textContent='File will be named '+currentFilename(); }
 function renderPreview(){
-  var rows=ST.result.rows.slice(0,12);
-  var head='<tr>'+ONC_OUT_HEADERS.map(function(h){return '<th>'+esc(h)+'</th>';}).join('')+'</tr>';
-  var body=rows.map(function(r){return '<tr>'+r.map(function(c,i){
-    return '<td class="nw '+((i===0||i===3)?'mono':'')+'">'+esc(c)+'</td>';}).join('')+'</tr>';}).join('');
-  $('preview-wrap').innerHTML='<table class="dt"><thead>'+head+'</thead><tbody>'+body+'</tbody></table>';
+  var meta=ST.result.meta||[];
+  var flaggedTotal=meta.filter(function(m){return m&&m.issues&&m.issues.length;}).length;
+  /* show flagged rows first so they're visible even past the 12-row window */
+  var idx=ST.result.rows.map(function(_,i){return i;});
+  idx.sort(function(a,b){ var fa=(meta[a]&&meta[a].issues&&meta[a].issues.length)?0:1,
+    fb=(meta[b]&&meta[b].issues&&meta[b].issues.length)?0:1; return fa-fb||a-b; });
+  var show=idx.slice(0,12);
+  var head='<tr><th></th>'+ONC_OUT_HEADERS.map(function(h){return '<th>'+esc(h)+'</th>';}).join('')+'</tr>';
+  var body=show.map(function(i){
+    var r=ST.result.rows[i], m=meta[i], flag=m&&m.issues&&m.issues.length;
+    var mark=flag?'<td class="nw" title="'+esc((m.issues||[]).map(function(k){return ONC_ISSUE_LABEL[k]||k;}).join(', '))+'" style="color:#b45309;font-weight:800">\u26A0</td>':'<td></td>';
+    return '<tr'+(flag?' style="background:#fdf3e0"':'')+'>'+mark+r.map(function(c,j){
+      return '<td class="nw '+((j===0||j===3)?'mono':'')+'">'+esc(c)+'</td>';}).join('')+'</tr>';
+  }).join('');
+  $('preview-wrap').innerHTML='<table class="dt"><thead>'+head+'</thead><tbody>'+body+'</tbody></table>'+
+    (flaggedTotal>show.filter(function(i){return meta[i]&&meta[i].issues&&meta[i].issues.length;}).length?
+      '<div style="padding:6px 4px;font-size:11.5px;color:var(--muted)">Showing 12 of '+ST.result.rows.length+' rows \u00b7 '+flaggedTotal+' flagged row(s) in total \u2014 all listed in \u201cRows to Review\u201d above.</div>':'');
 }
 function renderStatBadges(){
   var provBlocked=(ST.provRows||[]).filter(function(p){return p.status!=='ok'&&p.status!=='alias'&&p.status!=='auto';}).length;
@@ -1081,9 +1124,10 @@ function renderGate(){
   if(autos.length) msgs.push(['a-warn','\u26A0','<b>'+autos.length+'</b> physician name(s) were auto-matched to the closest registry entry \u2014 worth a glance before you submit.']);
   var mism=d.days.filter(function(x){return x.mismatch;});
   if(mism.length) msgs.push(['a-warn','\u26A0','<b>'+mism.length+'</b> day tab(s) don\u2019t match their "Date Seen" weekday.']);
+  if(d.flaggedRows) msgs.push(['a-warn','\u26A0','<b>'+d.flaggedRows+'</b> included row(s) need a look (missing data or non-OHIP) \u2014 highlighted in the preview and listed under \u201cRows to Review.\u201d Fix at source or edit/remove in CabMD.']);
   var skipped=d.skipped.nonOhip.length+d.skipped.badHcn.length+d.skipped.noDate.length;
-  if(skipped) msgs.push(['a-info','\u2139','<b>'+skipped+'</b> row(s) excluded and listed above \u2014 handle those directly in CabMD.']);
-  if(!block) msgs.unshift(['a-ok','\u2713','Ready to export \u2014 '+ST.result.rows.length+' CabMD rows ('+d.originals+' visits + '+d.duplicates+' premiums).']);
+  if(skipped) msgs.push(['a-info','\u2139','<b>'+skipped+'</b> row(s) excluded (a Drop switch is on) and listed above \u2014 handle those directly in CabMD.']);
+  if(!block) msgs.unshift(['a-ok','\u2713','Ready to export \u2014 '+ST.result.rows.length+' CabMD rows ('+d.originals+' visits + '+d.duplicates+' premiums).'+(d.flaggedRows?' Review the flagged rows first.':'')]);
   $('export-alert').innerHTML=msgs.map(function(m){
     return '<div class="alert '+m[0]+'"><span class="ai">'+m[1]+'</span><span>'+m[2]+'</span></div>';}).join('');
   $('btn-download').disabled=block;
@@ -1156,21 +1200,23 @@ function _ingestFileObject(obj){
 function _loadStateFromLS(){
   ST.aliases=lsGet('om_onc_aliases',{})||{};
   ST.dxmap=lsGet('om_onc_dxmap',{})||{};
-  ST.opts=lsGet('om_onc_opts',{skipNonOhip:true,skipBadHcn:true,skipNoDate:true})||
-          {skipNonOhip:true,skipBadHcn:true,skipNoDate:true};
+  ST.opts=lsGet('om_onc_opts',{skipNonOhip:false,skipBadHcn:false,skipNoDate:false})||
+          {skipNonOhip:false,skipBadHcn:false,skipNoDate:false};
   var prov=lsGet('om_prov',null);
-  ST.providers=Array.isArray(prov)?prov:[];
+  if(Array.isArray(prov)&&prov.length){ ST.providers=prov; ST.provSeeded=false; }
+  else { ST.providers=seedProviders(); ST.provSeeded=true; }  /* seeded fallback, not yet from a file */
   /* pick up billing groups saved by the RPR module's earlier per-OHIP map */
   var legacy=lsGet('om_prov_grp',{})||{}, changed=false;
   Object.keys(legacy).forEach(function(oh){ var pd=oncPad6(oh);
     ST.providers.forEach(function(p){ if(p&&oncPad6(p.num)===pd&&(!p.grp||!String(p.grp).trim())){
       p.grp=legacy[oh]; changed=true; } }); });
   if(changed) persist('om_prov',ST.providers);
+  else if(ST.provSeeded) lsSet('om_prov',ST.providers); /* make the seed available to other modules on this origin */
   rebuildProvIndexCache();
   if($('opt-nonohip')){
-    $('opt-nonohip').checked=ST.opts.skipNonOhip!==false;
-    $('opt-badhcn').checked=ST.opts.skipBadHcn!==false;
-    $('opt-nodate').checked=ST.opts.skipNoDate!==false;
+    $('opt-nonohip').checked=ST.opts.skipNonOhip===true;
+    $('opt-badhcn').checked=ST.opts.skipBadHcn===true;
+    $('opt-nodate').checked=ST.opts.skipNoDate===true;
   }
   if(ST.sheets) rebuild();
 }
@@ -1210,6 +1256,11 @@ function fsSetupOpen(){
   }).catch(function(){});
 }
 function fsSetupSkip(){ fsSkipToLocalStorage(); }
+/* allow linking / switching the data file at any time (click the status pill) */
+function fsReopen(){
+  if(!('showOpenFilePicker'in window)){ alert('This browser can\u2019t link to a file. Use Chrome or Edge on desktop.'); return; }
+  $('fs-setup-modal').style.display='flex';
+}
 function _fsStartup(){
   if(!('showOpenFilePicker'in window)||!window.indexedDB){
     _useLS=true; _setPill('fallback','Browser storage'); _loadStateFromLS(); return; }
