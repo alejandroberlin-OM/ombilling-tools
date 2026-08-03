@@ -756,7 +756,10 @@ async function loadExcel(input){
   document.getElementById('zone-xl').classList.add('loaded');
   document.getElementById('dot-u').classList.add('ok');
   const buf=await file.arrayBuffer();
-  const wb=XLSX.read(buf,{type:'array',cellDates:false});
+  // raw:true keeps CSV text as text — otherwise SheetJS turns "07/23/2026"
+  // into the serial 46226 (and preserves leading zeros on provider numbers).
+  // .xlsx date cells still arrive as serials; parseDate handles both.
+  const wb=XLSX.read(buf,{type:'array',cellDates:false,raw:true});
   patients=XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]],{defval:'',raw:true});
   setTimeout(()=>document.getElementById('nbtn-gen').click(),400);
 }
@@ -771,14 +774,92 @@ function fDiag(c){const s=String(c||'').replace(/\.0$/,'').trim();return diagnos
 function fFee(c){const s=String(c||'').trim();return fees.find(f=>String(f.code||'').trim()===s)||null;}
 
 // ── Date helpers ───────────────────────────────────────────────────────
+//  parseDate returns {d,m,y} as zero-padded strings ('' when unparseable).
+//  Handles, in order:
+//    1. real Date objects (xlsx read with cellDates:true)
+//    2. Excel/Sheets serial numbers  e.g. 17565 -> 02/02/1948   ← was the bug:
+//       String(17565) fell through to new Date("17565"), which JS reads as
+//       the YEAR 17565, producing 01/01/17565 on the form.
+//    3. M/D/YYYY, M/D/YY, D-M-YYYY, YYYY-MM-DD, and 23-Jul-2026 style strings
+//  All arithmetic is done in UTC so results never shift by a day on
+//  timezone boundaries.
+const MONTH_ABBR={jan:1,feb:2,mar:3,apr:4,may:5,jun:6,jul:7,aug:8,sep:9,oct:10,nov:11,dec:12};
+const EXCEL_EPOCH_UTC=Date.UTC(1899,11,30);   // serial 1 = 1900-01-01
+function _ymd(y,m,d){
+  if(!y||!m||!d)return{d:'',m:'',y:''};
+  if(m<1||m>12||d<1||d>31)return{d:'',m:'',y:''};
+  return{d:String(d).padStart(2,'0'),m:String(m).padStart(2,'0'),y:String(y)};
+}
+function serialToYMD(n){
+  // Excel's phantom 1900-02-29: serials >= 61 are already correct against the
+  // 1899-12-30 epoch; serials 1-59 need no shift either. 60 is the fake day.
+  if(n===60)return _ymd(1900,2,28);
+  const dt=new Date(EXCEL_EPOCH_UTC+Math.floor(n)*86400000);
+  if(isNaN(dt.getTime()))return{d:'',m:'',y:''};
+  return _ymd(dt.getUTCFullYear(),dt.getUTCMonth()+1,dt.getUTCDate());
+}
 function parseDate(val){
-  if(!val&&val!==0)return{d:'',m:'',y:''};
-  let dt;if(val instanceof Date){dt=val;}
-  else{const s=String(val).trim();
-    const mx=s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
-    if(mx)return{d:mx[2].padStart(2,'0'),m:mx[1].padStart(2,'0'),y:mx[3]};dt=new Date(s);}
-  if(!dt||isNaN(dt.getTime()))return{d:'',m:'',y:''};
-  return{d:String(dt.getDate()).padStart(2,'0'),m:String(dt.getMonth()+1).padStart(2,'0'),y:String(dt.getFullYear())};}
+  if(val===null||val===undefined||val==='')return{d:'',m:'',y:''};
+
+  // 1. Date object
+  if(val instanceof Date){
+    if(isNaN(val.getTime()))return{d:'',m:'',y:''};
+    return _ymd(val.getFullYear(),val.getMonth()+1,val.getDate());
+  }
+
+  // 2. Excel serial (numeric value, or a string that is nothing but digits)
+  if(typeof val==='number'&&isFinite(val))
+    return (val>=1&&val<=2958465)?serialToYMD(val):{d:'',m:'',y:''};
+
+  const s=String(val).trim();
+  if(!s)return{d:'',m:'',y:''};
+  if(/^\d+(\.0+)?$/.test(s)){
+    const n=parseFloat(s);
+    return (n>=1&&n<=2958465)?serialToYMD(n):{d:'',m:'',y:''};
+  }
+
+  // 3a. ISO  YYYY-MM-DD  /  YYYY/MM/DD
+  let mx=s.match(/^(\d{4})[-\/.](\d{1,2})[-\/.](\d{1,2})/);
+  if(mx)return _ymd(+mx[1],+mx[2],+mx[3]);
+
+  // 3b. 23-Jul-2026 / Jul-23-2026
+  mx=s.match(/^(\d{1,2})[-\/\s]([A-Za-z]{3,})[-\/\s](\d{2,4})$/);
+  if(mx){const mo=MONTH_ABBR[mx[2].slice(0,3).toLowerCase()];
+    if(mo)return _ymd(_fullYear(mx[3]),mo,+mx[1]);}
+  mx=s.match(/^([A-Za-z]{3,})[-\/\s](\d{1,2}),?[-\/\s](\d{2,4})$/);
+  if(mx){const mo=MONTH_ABBR[mx[1].slice(0,3).toLowerCase()];
+    if(mo)return _ymd(_fullYear(mx[3]),mo,+mx[2]);}
+
+  // 3c. Numeric M/D/Y (the DMOH export format) — with a safety swap so a
+  //     DD/MM/YYYY file (e.g. 23/07/2026) is still read correctly.
+  mx=s.match(/^(\d{1,2})[-\/.](\d{1,2})[-\/.](\d{2,4})$/);
+  if(mx){
+    let a=+mx[1],b=+mx[2];
+    let mo=a,day=b;
+    if(a>12&&b<=12){mo=b;day=a;}           // clearly D/M/Y
+    return _ymd(_fullYear(mx[3]),mo,day);
+  }
+
+  // Last resort — a named format JS itself understands (never a bare number)
+  const dt=new Date(s);
+  if(!isNaN(dt.getTime()))return _ymd(dt.getFullYear(),dt.getMonth()+1,dt.getDate());
+  return{d:'',m:'',y:''};
+}
+function _fullYear(y){
+  const n=parseInt(y,10);
+  // Excel's pivot: 00-29 → 2000s, 30-99 → 1900s. Keeps DOBs like "48" in
+  // 1948 while still reading a service date of "26" as 2026.
+  if(String(y).trim().length<=2)return n<=29?2000+n:1900+n;
+  return n;
+}
+// Canonical YYYY-MM-DD key — used for same-date premium matching and for
+// comparing a service date against today. '' when the date can't be read.
+function dateKey(val){const p=parseDate(val);return p.y?p.y+'-'+p.m+'-'+p.d:'';}
+function todayKey(){const n=new Date();
+  return n.getFullYear()+'-'+String(n.getMonth()+1).padStart(2,'0')+'-'+String(n.getDate()).padStart(2,'0');}
+// True only when the date is readable AND strictly after today.
+function isFutureDate(val){const k=dateKey(val);return !!k&&k>todayKey();}
+function ddmmyyyy(val){const p=parseDate(val);return p.y?p.d+'/'+p.m+'/'+p.y:'';}
 function todayStr(){const n=new Date();return String(n.getDate()).padStart(2,'0')+'/'+String(n.getMonth()+1).padStart(2,'0')+'/'+n.getFullYear();}
 function safeStr(val){
   if(val===null||val===undefined||val==='')return '';
@@ -793,8 +874,13 @@ function safeInt(val,def=1){
 
 // ══════════════════════════════════════════════════════════════════════
 //  GROUPING LOGIC
-//  Groups patient rows by full name, splits into chunks of ≤4
-//  Returns: [{name, key, rows[], chunkIdx, totalChunks}]
+//  Groups patient rows by full name + provider.
+//   • Services dated today or earlier  → consolidated, up to 4 rows per PDF
+//   • Services dated AFTER today       → ONE PDF per service, a single claim
+//     line each, so the form can be held and submitted on/after its service
+//     date without tripping a future-date rejection.
+//  Returns: [{name, key, rows[], allRows[], chunkIdx, totalChunks,
+//             future, svcDateKey, holdUntil, suffix}]
 // ══════════════════════════════════════════════════════════════════════
 function groupPatients(rows){
   // Group by name + provider — same patient with different providers → separate PDFs
@@ -820,14 +906,38 @@ function groupPatients(rows){
     const multiProv=provsByName.get(name).size>1;
     // Suffix with provider number only when patient has >1 provider
     const provSuffix=multiProv?'_P'+String(prov).padStart(6,'0'):'';
-    // Then chunk into groups of 4
+
+    // Separate future-dated services from billable-now services.
+    // Unreadable dates stay in the "now" bucket so nothing is silently held.
+    const nowRows=[],futureRows=[];
+    pRows.forEach(p=>{(isFutureDate(p.ServiceDate)?futureRows:nowRows).push(p);});
+    futureRows.sort((a,b)=>dateKey(a.ServiceDate).localeCompare(dateKey(b.ServiceDate)));
+
+    // Current services → chunk into groups of 4 as before
     const chunks=[];
-    for(let i=0;i<pRows.length;i+=4)chunks.push(pRows.slice(i,i+4));
+    for(let i=0;i<nowRows.length;i+=4)chunks.push(nowRows.slice(i,i+4));
     chunks.forEach((chunk,ci)=>{
       jobs.push({
         name, prov, key:baseKey+provSuffix,
-        rows:chunk, chunkIdx:ci, totalChunks:chunks.length,
-        multiProv
+        rows:chunk, allRows:pRows, chunkIdx:ci, totalChunks:chunks.length,
+        multiProv, future:false, suffix:null
+      });
+    });
+
+    // Future services → one single-line PDF each, filename stamped with the
+    // service date so the biller can see exactly when to send it.
+    const seen={};
+    futureRows.forEach(p=>{
+      const k=dateKey(p.ServiceDate);
+      const stamp=k.replace(/-/g,'');
+      seen[stamp]=(seen[stamp]||0)+1;
+      // Two services on the same future date each get their own PDF (…_b, _c)
+      const dup=seen[stamp]>1?'_'+String.fromCharCode(96+seen[stamp]):'';
+      jobs.push({
+        name, prov, key:baseKey+provSuffix,
+        rows:[p], allRows:pRows, chunkIdx:0, totalChunks:1,
+        multiProv, future:true, svcDateKey:k, holdUntil:ddmmyyyy(p.ServiceDate),
+        suffix:'_FUTURE_'+stamp+dup
       });
     });
   });
@@ -878,9 +988,11 @@ async function fillWithFormFields(doc, job, invoiceNum){
     let feeAmt=0;
     const prem=getPremium(p.ServiceCode);
     if(prem){
-      // Premium: find base visit on same date in this job
-      const baseRow=job.rows.find(r=>r!==p&&!isPremium(r.ServiceCode)&&
-        safeStr(r.ServiceDate)===safeStr(p.ServiceDate)&&
+      // Premium: find the base visit on the same date. Searched across ALL of
+      // this patient's rows, not just this PDF, so a premium still prices
+      // correctly when the base sits in another chunk or PDF.
+      const baseRow=(job.allRows||job.rows).find(r=>r!==p&&!isPremium(r.ServiceCode)&&
+        dateKey(r.ServiceDate)===dateKey(p.ServiceDate)&&
         premiumAppliesToCode(prem,r.ServiceCode));
       if(baseRow){
         const baseFeeE=fFee(baseRow.ServiceCode);
@@ -953,8 +1065,8 @@ async function fillWithCoordinates(doc, job, invoiceNum){
     let feeAmt=0;
     const prem=getPremium(p.ServiceCode);
     if(prem){
-      const baseRow=job.rows.find(r=>r!==p&&!isPremium(r.ServiceCode)&&
-        safeStr(r.ServiceDate)===safeStr(p.ServiceDate)&&premiumAppliesToCode(prem,r.ServiceCode));
+      const baseRow=(job.allRows||job.rows).find(r=>r!==p&&!isPremium(r.ServiceCode)&&
+        dateKey(r.ServiceDate)===dateKey(p.ServiceDate)&&premiumAppliesToCode(prem,r.ServiceCode));
       if(baseRow){const baseFeeE=fFee(baseRow.ServiceCode);const baseUnits=safeInt(baseRow.ServiceQty,1);
         if(baseFeeE)feeAmt=(parseFloat(baseFeeE.fee)*baseUnits)*(parseFloat(prem.pct)/100);}
     }else{const feeE=fFee(p.ServiceCode);feeAmt=feeE?parseFloat(feeE.fee)*units:0;}
@@ -1005,8 +1117,8 @@ function refreshGen(){
       let amt=null;
       const prem=getPremium(p.ServiceCode);
       if(prem){
-        const baseRow=job.rows.find(r=>r!==p&&!isPremium(r.ServiceCode)&&
-          safeStr(r.ServiceDate)===safeStr(p.ServiceDate)&&premiumAppliesToCode(prem,r.ServiceCode));
+        const baseRow=(job.allRows||job.rows).find(r=>r!==p&&!isPremium(r.ServiceCode)&&
+          dateKey(r.ServiceDate)===dateKey(p.ServiceDate)&&premiumAppliesToCode(prem,r.ServiceCode));
         if(baseRow){const bFee=fFee(baseRow.ServiceCode);const bU=safeInt(baseRow.ServiceQty,1);
           if(bFee)amt=(parseFloat(bFee.fee)*bU)*(parseFloat(prem.pct)/100);}
         else amt=0;
@@ -1025,14 +1137,17 @@ function refreshGen(){
     const multiLabel=isMulti?'<span class="badge b-multi">'+job.rows.length+' rows</span>':'';
     const chunkLabel=job.totalChunks>1?'<span class="badge b-multi">PDF '+(job.chunkIdx+1)+'/'+job.totalChunks+'</span>':'';
     const provLabel=job.multiProv?'<span class="badge" style="background:#ede9fe;color:#5b21b6">Dr. '+job.prov+'</span>':'';
+    const futureLabel=job.future?'<span class="badge" style="background:#fef3c7;color:#92400e">🗓 hold to '+job.holdUntil+'</span>':'';
     const badge=iss.length?'<span class="badge b-warn">⚠ '+(new Set(iss)).size+'</span>':'<span class="badge b-ok">✓</span>';
     const services=[...new Set(job.rows.map(p=>p.ServiceCode))].join(', ');
     return '<div class="pt-row">'+
       '<div class="ava '+(isMulti?'multi':'')+'" style="background:'+(doc_?'var(--g3)':'var(--g1)')+'">'+ini+'</div>'+
-      '<div class="pi"><div class="pn">'+job.name+' '+chunkLabel+'</div>'+
+      '<div class="pi"><div class="pn">'+job.name+' '+chunkLabel+' '+futureLabel+'</div>'+
       '<div class="pm">'+services+(jobTotal?' · $'+jobTotal.toFixed(2):'')+'</div></div>'+
       multiLabel+badge+'</div>';
   });
+
+  const futureJobs=jobs.filter(j=>j.future);
 
   const uniquePts=new Set(patients.map(p=>[p.FirstName,p.LastName].filter(Boolean).join(' '))).size;
   document.getElementById('gen-count').textContent=uniquePts+' Patient'+(uniquePts!==1?'s':'')+', '+jobs.length+' PDF'+(jobs.length!==1?'s':'');
@@ -1041,12 +1156,26 @@ function refreshGen(){
     '<div class="ssi"><div class="ssl">Patients</div><div class="ssv">'+uniquePts+'</div></div>'+
     '<div class="ssi"><div class="ssl">PDFs</div><div class="ssv">'+jobs.length+'</div></div>'+
     '<div class="ssi"><div class="ssl">Total Billed</div><div class="ssv ok">'+(missFee<patients.length?'$'+totalAmt.toFixed(2):'—')+'</div></div>'+
+    '<div class="ssi"><div class="ssl">Future-dated</div><div class="ssv">'+futureJobs.length+'</div></div>'+
     '<div class="ssi"><div class="ssl">Warnings</div><div class="ssv '+(warns.length?'warn':'ok')+'">'+warns.length+'</div></div>';
 
+  let notice='';
+  if(futureJobs.length){
+    const byDate={};
+    futureJobs.forEach(j=>{(byDate[j.holdUntil]=byDate[j.holdUntil]||[]).push(j.name);});
+    const lines=Object.keys(byDate).sort((a,b)=>
+      a.split('/').reverse().join('').localeCompare(b.split('/').reverse().join('')))
+      .map(d=>'<li><strong>'+d+'</strong> — '+byDate[d].length+' claim'+(byDate[d].length!==1?'s':'')+': '+[...new Set(byDate[d])].join(', ')+'</li>');
+    notice='<div class="alert a-warn"><strong>🗓 '+futureJobs.length+' future-dated service'+(futureJobs.length!==1?'s':'')+
+      ' → separate single-line PDF'+(futureJobs.length!==1?'s':'')+'</strong>'+
+      '<div style="margin:6px 0 4px">Each is its own form with one claim line, filename stamped <code>_FUTURE_YYYYMMDD</code>. '+
+      'Submit each on or after its service date so it is not rejected as future-dated.</div><ul>'+lines.join('')+'</ul></div>';
+  }
   if(warns.length){
     const items=warns.flatMap(w=>w.iss.map(iss=>'<li><strong>'+w.name+':</strong> '+iss+'</li>'));
-    document.getElementById('gen-warns').innerHTML='<div class="alert a-warn"><strong>⚠ Lookup gaps:</strong><ul>'+items.join('')+'</ul></div>';
-  }else document.getElementById('gen-warns').innerHTML='';
+    notice+='<div class="alert a-warn"><strong>⚠ Lookup gaps:</strong><ul>'+items.join('')+'</ul></div>';
+  }
+  document.getElementById('gen-warns').innerHTML=notice;
 }
 
 // ── Batch generate ────────────────────────────────────────────────────
@@ -1061,7 +1190,8 @@ async function genAll(){
 
   for(let i=0;i<jobs.length;i++){
     const job=jobs[i];
-    const suffix=job.totalChunks>1?'_'+String.fromCharCode(64+job.chunkIdx+1):'';
+    const suffix=job.suffix?job.suffix
+      :(job.totalChunks>1?'_'+String.fromCharCode(64+job.chunkIdx+1):'');
     const key=job.key+suffix;
     pgf.style.width=Math.round(i/jobs.length*100)+'%';
     pgl.textContent='Generating '+(i+1)+' of '+jobs.length+': '+job.name+(job.multiProv?' [Prov '+job.prov+']':'')+(suffix?' ('+suffix.slice(1)+')':'');
@@ -1076,7 +1206,8 @@ async function genAll(){
       const isMulti=job.rows.length>1;
       resultRows.push('<div class="pt-row">'+
         '<div class="ava '+(isMulti?'multi':'')+'" style="background:var(--g3)">'+ini+'</div>'+
-        '<div class="pi"><div class="pn">'+job.name+'</div>'+
+        '<div class="pi"><div class="pn">'+job.name+
+          (job.future?' <span class="badge" style="background:#fef3c7;color:#92400e">🗓 send on/after '+job.holdUntil+'</span>':'')+'</div>'+
         '<div class="pm">'+fname+' · '+invoiceNum+(isMulti?' · '+job.rows.length+' services':'')+'</div></div>'+
         '<span class="badge b-ok">✓ Done</span>'+
         '<a class="btn-dl" href="'+url+'" download="'+fname+'">⬇ Download</a></div>');
@@ -1085,7 +1216,8 @@ async function genAll(){
       const services=job.rows.map(p=>p.ServiceCode).filter(Boolean).join(', ');
       const entry={
         id:invoiceNum,invNums:[invoiceNum],patient:job.name,module:'IFHP',
-        provider:job.prov||'',date:today,services,total:totalAmt,paid:false
+        provider:job.prov||'',date:today,services,total:totalAmt,paid:false,
+        hold:job.future?job.holdUntil:''
       };
       ledger.unshift(entry);lsp('om_ledger',ledger);
       document.getElementById('dot-bk').classList.add('ok');
@@ -1336,7 +1468,8 @@ function renderLedger(){
     return '<tr class="'+(isDeleted?'deleted':e.paid?'paid':'')+'">'+
       '<td><span class="inv-num">'+e.id+'</span></td>'+
       '<td>'+e.patient+'</td>'+
-      '<td style="white-space:nowrap;color:var(--muted)">'+e.date+'</td>'+
+      '<td style="white-space:nowrap;color:var(--muted)">'+e.date+
+        (e.hold?'<br><span style="font-size:11px;color:#92400e">🗓 send '+e.hold+'</span>':'')+'</td>'+
       '<td style="color:var(--muted);white-space:nowrap">'+_provDisplay(e.provider)+'</td>'+
       '<td style="color:var(--muted)">'+e.services+'</td>'+
       '<td style="text-align:right;font-weight:700">$'+(e.total||0).toFixed(2)+'</td>'+
