@@ -773,6 +773,32 @@ function fProv(num){
 function fDiag(c){const s=String(c||'').replace(/\.0$/,'').trim();return diagnoses.find(d=>String(d.ohip||'').trim()===s)||null;}
 function fFee(c){const s=String(c||'').trim();return fees.find(f=>String(f.code||'').trim()===s)||null;}
 
+// ── Provider number → CPSO ─────────────────────────────────────────────
+// The IFHP form's "Provider Number" box takes the CPSO registration number.
+// Falls back to the MOH billing number if no CPSO is on file, so the field is
+// never left blank — the preview flags any provider missing a CPSO #.
+function provNumberFor(doc_,billingNum){
+  const cpso=doc_?String(doc_.cpso||'').trim():'';
+  return cpso||String(billingNum||'').trim();
+}
+function hasCpso(doc_){return !!(doc_&&String(doc_.cpso||'').trim());}
+
+// ── Diagnosis → ICD-10 code ────────────────────────────────────────────
+// The form wants the ICD-10 code, not the written-out diagnosis.
+// ICD-10 shape: letter + 2 alphanumerics, optional .subcode  (I10, C50.919).
+// Both the icd and desc columns are checked, so a registry with the code and
+// description entered in the wrong order still yields the code.
+const ICD10_RE=/^[A-TV-Z][0-9][0-9A-Z](\.[0-9A-Z]{1,4})?$/;
+function icd10Of(diag,fallback){
+  if(!diag)return String(fallback||'').trim();
+  for(const c of [diag.icd,diag.icd10,diag.code,diag.desc]){
+    const s=String(c||'').trim().toUpperCase();
+    if(ICD10_RE.test(s))return s;
+  }
+  return String(diag.icd||fallback||'').trim();
+}
+function hasIcd10(diag){return !!diag&&icd10Of(diag,'')!==''&&ICD10_RE.test(icd10Of(diag,'').toUpperCase());}
+
 // ── Date helpers ───────────────────────────────────────────────────────
 //  parseDate returns {d,m,y} as zero-padded strings ('' when unparseable).
 //  Handles, in order:
@@ -971,7 +997,7 @@ async function fillWithFormFields(doc, job, invoiceNum){
 
   // Section 2
   if(doc_){sf('specialty',doc_.spec);sf('prov_name','Dr. '+doc_.name);}
-  sf('prov_number',prov6);
+  sf('prov_number',provNumberFor(doc_,prov6));   // CPSO # (falls back to billing #)
   sf('address',settings.addr);sf('city',settings.city);sf('province',settings.prov);
   sf('postal',settings.post);sf('phone',settings.phone);sf('fax',settings.fax);
 
@@ -984,7 +1010,7 @@ async function fillWithFormFields(doc, job, invoiceNum){
     const diag=fDiag(diagCode);
     const svc=parseDate(p.ServiceDate);
     const svcDate=svc.d&&svc.m&&svc.y?svc.d+'/'+svc.m+'/'+svc.y:'';
-    const icd=diag?diag.icd:diagCode;
+    const icd=icd10Of(diag,diagCode);   // ICD-10 code, not the description
     let feeAmt=0;
     const prem=getPremium(p.ServiceCode);
     if(prem){
@@ -1047,7 +1073,7 @@ async function fillWithCoordinates(doc, job, invoiceNum){
   for(let i=0;i<9;i++)draw(cid[i]||'',110+i*15,158);
   draw(dob.d,418,158);draw(dob.m,468,158);draw(dob.y,521,158);
   if(doc_){draw(doc_.spec,130,201.5);draw('Dr. '+doc_.name,75,239.2);}
-  draw(prov6,432,239.2);
+  draw(provNumberFor(doc_,prov6),432,239.2);   // CPSO # (falls back to billing #)
   draw(settings.addr,75,257.7);draw(settings.city,70,278);
   draw(settings.prov,312,278);draw(settings.post,455,278);
   draw(settings.phone,125,297);draw(settings.fax,367,297);
@@ -1061,7 +1087,7 @@ async function fillWithCoordinates(doc, job, invoiceNum){
     const diag=fDiag(diagCode);
     const svc=parseDate(p.ServiceDate);
     const svcDate=svc.d&&svc.m&&svc.y?svc.d+'/'+svc.m+'/'+svc.y:'';
-    const icd=diag?diag.icd:diagCode;
+    const icd=icd10Of(diag,diagCode);   // ICD-10 code, not the description
     let feeAmt=0;
     const prem=getPremium(p.ServiceCode);
     if(prem){
@@ -1110,6 +1136,7 @@ function refreshGen(){
     let jobTotal=0,jobMiss=0;
     const iss=[];
     if(!doc_)iss.push('Provider #'+p0.ProviderNumber+' → not found');
+    else if(!hasCpso(doc_))iss.push('Dr. '+doc_.name+' → no CPSO # on file (billing # used instead)');
     job.rows.forEach(p=>{
       const diagCode=safeStr(p.DiagnosticCode);
       const diag=fDiag(diagCode);
@@ -1127,7 +1154,8 @@ function refreshGen(){
         if(!fee)iss.push('Code '+p.ServiceCode+' → no fee');
       }
       if(amt!==null)jobTotal+=amt;else jobMiss++;
-      if(!diag)iss.push('OHIP '+diagCode+' → no ICD');
+      if(!diag)iss.push('OHIP '+diagCode+' → not in diagnosis registry');
+      else if(!hasIcd10(diag))iss.push('OHIP '+diagCode+' → no ICD-10 code (registry has "'+String(diag.icd||diag.desc||'').slice(0,40)+'")');
     });
     totalAmt+=jobTotal;missFee+=jobMiss;
     if(iss.length)warns.push({name:job.name+(job.totalChunks>1?' (PDF '+(job.chunkIdx+1)+'/'+job.totalChunks+')':''),iss:[...new Set(iss)]});
@@ -1555,7 +1583,7 @@ const CSV_TEMPLATES = {
     filename: 'OM_Providers_Template.csv',
     headers:  ['billing_number','doctor_name','specialty','cpso_number'],
     example:  [['027549','Amir, Eitan','Medical Oncology','123456'],['021325','Bedard, Philippe','Medical Oncology','654321']],
-    note:     '# OM Billing Inc. — Doctor Registry Template\n# billing_number: 6-digit MOH billing number (will be zero-padded)\n# doctor_name: Last, First format preferred\n# specialty: e.g. Medical Oncology / Internal Medicine\n# cpso_number: CPSO registration number (for Quebec OOP forms)\n'
+    note:     '# OM Billing Inc. — Doctor Registry Template\n# billing_number: 6-digit MOH billing number (will be zero-padded)\n# doctor_name: Last, First format preferred\n# specialty: e.g. Medical Oncology / Internal Medicine\n# cpso_number: CPSO registration number — printed in the Provider Number box on IFHP claims\n'
   },
   diag: {
     filename: 'OM_Diagnoses_Template.csv',
@@ -1599,10 +1627,10 @@ async function ulCSV(type, input){
   let count=0;
   if(type==='prov'){
     const newRows=dataLines.map(l=>{
-      const[num,name,spec]=l.split(',').map(s=>s.trim().replace(/^"|"$/g,''));
+      const[num,name,spec,cpso]=l.split(',').map(s=>s.trim().replace(/^"|"$/g,''));
       return{num:String(num||'').padStart(6,'0'),name:name||'',spec:spec||'',cpso:cpso||''};
     }).filter(r=>r.num&&r.name);
-    if(!newRows.length){alert('No valid rows found. Check column order: billing_number, doctor_name, specialty');return;}
+    if(!newRows.length){alert('No valid rows found. Check column order: billing_number, doctor_name, specialty, cpso_number');return;}
     if(confirm('Replace '+providers.length+' existing doctors with '+newRows.length+' from CSV?')){
       providers=newRows;lsp('om_prov',providers);rProv();count=newRows.length;
     }
