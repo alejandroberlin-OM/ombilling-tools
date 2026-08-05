@@ -361,6 +361,20 @@ body{font-family:"Source Sans 3",sans-serif;background:var(--bg);color:var(--ink
     </div>
   </div>
   <div class="card" style="margin-top:12px">
+    <div class="card-hd"><div class="ct">🩺 Diagnosis Column</div></div>
+    <div class="card-body">
+      <div class="fg"><label class="fl">What to print in the form's diagnosis column</label>
+        <select class="fi" id="s-diagfmt">
+          <option value="icd10">ICD-10 code, falling back to the OHIP/ICD-9 code (recommended)</option>
+          <option value="icd9">Always the OHIP 3-digit code (ICD-9)</option>
+          <option value="desc">Written-out diagnosis</option>
+        </select>
+      </div>
+      <div class="note" style="margin-top:8px">The form accepts &ldquo;ICD 9, ICD 10 Code, or Medical Diagnosis&rdquo;, so all three are valid.
+        OHIP&rsquo;s 3-digit diagnostic codes are ICD-8/9-based, which is why they work as an ICD-9 entry.</div>
+    </div>
+  </div>
+  <div class="card" style="margin-top:12px">
     <div class="card-hd"><div class="ct">🧾 Invoice Numbering</div></div>
     <div class="card-body">
       <div class="fg-grid">
@@ -597,16 +611,88 @@ let patients=[], generatedPdfs={};
 // ── Defaults ─────────────────────────────────────────────────────────
 const D_PROV=[];
 const D_DIAG=[
-  {ohip:"042",icd:"B20",desc:"HIV disease"},{ohip:"140",icd:"C00.9",desc:"Malignant neoplasm of lip"},
-  {ohip:"153",icd:"C18.9",desc:"Malignant neoplasm of colon"},{ohip:"160",icd:"C30.0",desc:"Malignant neoplasm, nasal cavity"},
-  {ohip:"162",icd:"C34.90",desc:"Malignant neoplasm of lung"},{ohip:"174",icd:"C50.919",desc:"Malignant neoplasm of breast"},
-  {ohip:"185",icd:"C61",desc:"Malignant neoplasm of prostate"},{ohip:"195",icd:"C80.1",desc:"Malignant neoplasm, unspecified"},
-  {ohip:"200",icd:"C85.90",desc:"Non-Hodgkin lymphoma"},{ohip:"203",icd:"C90.00",desc:"Multiple myeloma"},
-  {ohip:"204",icd:"C91.10",desc:"Chronic lymphocytic leukemia"},{ohip:"205",icd:"C92.10",desc:"Chronic myelogenous leukemia"},
-  {ohip:"250",icd:"E11.9",desc:"Type 2 diabetes"},{ohip:"272",icd:"E78.5",desc:"Hyperlipidemia"},
-  {ohip:"296",icd:"F33.9",desc:"Major depressive disorder"},{ohip:"401",icd:"I10",desc:"Essential hypertension"},
-  {ohip:"414",icd:"I25.10",desc:"Atherosclerotic heart disease"},{ohip:"493",icd:"J45.909",desc:"Asthma"},
+  // OHIP 3-digit diagnostic code → ICD-10. OHIP's list is ICD-8/9-based, so the
+  // OHIP code doubles as a valid ICD-9 entry on the form when no ICD-10 is set.
+  // ⚠ These ICD-10 mappings are convenience defaults — verify against your own
+  // coding standard before submitting claims.
+  // ── Neoplasms ──
+  {ohip:"140",icd:"C00.9",desc:"Malignant neoplasm: Lip"},
+  {ohip:"141",icd:"C02.9",desc:"Malignant neoplasm: Tongue"},
+  {ohip:"151",icd:"C16.9",desc:"Malignant neoplasm: Stomach"},
+  {ohip:"153",icd:"C18.9",desc:"Malignant neoplasm: Colon"},
+  {ohip:"154",icd:"C20",desc:"Malignant neoplasm: Rectum"},
+  {ohip:"155",icd:"C22.8",desc:"Malignant neoplasm: Liver"},
+  {ohip:"157",icd:"C25.9",desc:"Malignant neoplasm: Pancreas"},
+  {ohip:"160",icd:"C30.0",desc:"Malignant neoplasm: Nasal cavity"},
+  {ohip:"161",icd:"C32.9",desc:"Malignant neoplasm: Larynx"},
+  {ohip:"162",icd:"C34.90",desc:"Malignant neoplasm: Bronchus and lung"},
+  {ohip:"172",icd:"C43.9",desc:"Malignant melanoma of skin"},
+  {ohip:"174",icd:"C50.919",desc:"Malignant neoplasm: Female breast"},
+  {ohip:"180",icd:"C53.9",desc:"Malignant neoplasm: Cervix uteri"},
+  {ohip:"182",icd:"C54.1",desc:"Malignant neoplasm: Body of uterus"},
+  {ohip:"183",icd:"C56.9",desc:"Malignant neoplasm: Ovary"},
+  {ohip:"185",icd:"C61",desc:"Malignant neoplasm: Prostate"},
+  {ohip:"188",icd:"C67.9",desc:"Malignant neoplasm: Bladder"},
+  {ohip:"189",icd:"C64.9",desc:"Malignant neoplasm: Kidney"},
+  {ohip:"191",icd:"C71.9",desc:"Malignant neoplasm: Brain"},
+  {ohip:"193",icd:"C73",desc:"Malignant neoplasm: Thyroid gland"},
+  {ohip:"195",icd:"C76.8",desc:"Malignant neoplasm: Other ill-defined sites"},
+  {ohip:"196",icd:"C77.9",desc:"Secondary malignant neoplasm: Lymph nodes"},
+  {ohip:"197",icd:"C78.00",desc:"Secondary malignant neoplasm: Respiratory/digestive"},
+  {ohip:"198",icd:"C79.9",desc:"Secondary malignant neoplasm: Other sites"},
+  {ohip:"199",icd:"C80.1",desc:"Malignant neoplasm without specification of site"},
+  {ohip:"200",icd:"C85.90",desc:"Non-Hodgkin lymphoma"},
+  {ohip:"201",icd:"C81.90",desc:"Hodgkin lymphoma"},
+  {ohip:"203",icd:"C90.00",desc:"Multiple myeloma"},
+  {ohip:"204",icd:"C91.10",desc:"Chronic lymphocytic leukemia"},
+  {ohip:"205",icd:"C92.10",desc:"Chronic myelogenous leukemia"},
+  {ohip:"208",icd:"C95.90",desc:"Leukemia, unspecified cell type"},
+  {ohip:"238",icd:"D47.1",desc:"Neoplasm of uncertain behaviour"},
+  // ── Blood / endocrine / metabolic ──
+  {ohip:"244",icd:"E03.9",desc:"Hypothyroidism"},
+  {ohip:"250",icd:"E11.9",desc:"Diabetes mellitus"},
+  {ohip:"272",icd:"E78.5",desc:"Hyperlipidemia"},
+  {ohip:"280",icd:"D50.9",desc:"Iron deficiency anemia"},
+  {ohip:"285",icd:"D64.9",desc:"Anemia, unspecified"},
+  {ohip:"287",icd:"D69.6",desc:"Thrombocytopenia / purpura"},
+  {ohip:"288",icd:"D70.9",desc:"Neutropenia / disorders of white blood cells"},
+  // ── Mental health ──
+  {ohip:"296",icd:"F33.9",desc:"Major depressive / affective disorder"},
+  {ohip:"300",icd:"F41.9",desc:"Anxiety and neurotic disorders"},
+  {ohip:"311",icd:"F32.9",desc:"Depressive disorder, not elsewhere classified"},
+  // ── Circulatory ──
+  {ohip:"401",icd:"I10",desc:"Essential hypertension"},
+  {ohip:"402",icd:"I11.9",desc:"Hypertensive heart disease"},
+  {ohip:"403",icd:"I12.9",desc:"Hypertensive renal disease"},
+  {ohip:"410",icd:"I21.9",desc:"Acute myocardial infarction"},
+  {ohip:"414",icd:"I25.10",desc:"Chronic ischemic heart disease"},
+  {ohip:"427",icd:"I49.9",desc:"Cardiac dysrhythmias"},
+  {ohip:"428",icd:"I50.9",desc:"Heart failure"},
+  {ohip:"453",icd:"I82.90",desc:"Venous thrombosis / embolism"},
+  // ── Respiratory ──
+  {ohip:"465",icd:"J06.9",desc:"Acute upper respiratory infection"},
+  {ohip:"486",icd:"J18.9",desc:"Pneumonia, organism unspecified"},
+  {ohip:"493",icd:"J45.909",desc:"Asthma"},
+  {ohip:"496",icd:"J44.9",desc:"Chronic obstructive pulmonary disease"},
+  // ── Digestive / renal ──
+  {ohip:"530",icd:"K21.9",desc:"Diseases of esophagus / GERD"},
+  {ohip:"535",icd:"K29.70",desc:"Gastritis and duodenitis"},
+  {ohip:"564",icd:"K58.9",desc:"Functional digestive disorders / IBS"},
+  {ohip:"578",icd:"K92.2",desc:"Gastrointestinal hemorrhage"},
+  {ohip:"585",icd:"N18.9",desc:"Chronic kidney disease"},
+  {ohip:"599",icd:"N39.0",desc:"Urinary tract infection"},
+  // ── Musculoskeletal ──
   {ohip:"715",icd:"M19.90",desc:"Osteoarthritis"},
+  {ohip:"724",icd:"M54.9",desc:"Back pain / dorsopathy"},
+  {ohip:"733",icd:"M81.0",desc:"Osteoporosis"},
+  // ── Symptoms / other ──
+  {ohip:"042",icd:"B20",desc:"HIV disease"},
+  {ohip:"780",icd:"R68.89",desc:"General symptoms"},
+  {ohip:"783",icd:"R63.4",desc:"Symptoms concerning nutrition / weight loss"},
+  {ohip:"786",icd:"R07.9",desc:"Respiratory symptoms / chest pain"},
+  {ohip:"787",icd:"R19.8",desc:"Gastrointestinal symptoms"},
+  {ohip:"788",icd:"R39.9",desc:"Urinary system symptoms"},
+  {ohip:"799",icd:"R53.83",desc:"Other ill-defined conditions / fatigue"},
 ];
 const D_FEES=[
   {code:"A001A",fee:"22.15",desc:"Minor assessment"},{code:"A003A",fee:"67.35",desc:"General assessment"},
@@ -619,7 +705,7 @@ const D_PREM=[
   {code:"E082",pct:"15",applies:"all",desc:"After-hours premium (weekend/holiday)"},
   {code:"E083",pct:"15",applies:"all",desc:"After-hours premium (night)"},
 ];
-const D_SET={cn:"",addr:"",city:"",prov:"",post:"",phone:"",fax:"",invPrefix:"INV"};
+const D_SET={cn:"",addr:"",city:"",prov:"",post:"",phone:"",fax:"",invPrefix:"INV",diagFmt:"icd10"};
 
 // ── Persistence ───────────────────────────────────────────────────────
 const ls=(k,d)=>{try{const s=localStorage.getItem(k);return s?JSON.parse(s):d}catch(e){return d}};
@@ -632,6 +718,7 @@ const lsp=(k,v)=>{
 
 let providers=ls('om_prov',JSON.parse(JSON.stringify(D_PROV)));
 let diagnoses=ls('om_diag',JSON.parse(JSON.stringify(D_DIAG)));
+let diagRepaired=0;   // set on boot by normalizeDiagnoses()
 let fees=ls('om_fees',JSON.parse(JSON.stringify(D_FEES)));
 let premiums=ls('om_prem',JSON.parse(JSON.stringify(D_PREM)));
 let settings=ls('om_settings',JSON.parse(JSON.stringify(D_SET)));
@@ -677,11 +764,13 @@ function go(name,btn){
 function loadSettingsUI(){
   ['cn','addr','city','prov','post','phone','fax'].forEach(k=>document.getElementById('s-'+k).value=settings[k]||'');
   const pfx=document.getElementById('s-invprefix');if(pfx){pfx.value=settings.invPrefix||'';_updateInvPreview();}
+  const df=document.getElementById('s-diagfmt');if(df)df.value=settings.diagFmt||'icd10';
 }
 function saveSettings(){
   settings={cn:g('s-cn'),addr:g('s-addr'),city:g('s-city'),prov:g('s-prov'),
             post:g('s-post'),phone:g('s-phone'),fax:g('s-fax'),
-            invPrefix:(g('s-invprefix')||'INV').replace(/[-\s]+$/,'').replace(/\s+/g,'').toUpperCase().slice(0,6)};
+            invPrefix:(g('s-invprefix')||'INV').replace(/[-\s]+$/,'').replace(/\s+/g,'').toUpperCase().slice(0,6),
+            diagFmt:(document.getElementById('s-diagfmt')||{}).value||'icd10'};
   lsp('om_settings',settings);document.getElementById('dot-s').classList.add('ok');alert('✅ Saved!');
 }
 const g=id=>document.getElementById(id).value.trim();
@@ -697,10 +786,10 @@ function rProv(){document.getElementById('tb-prov').innerHTML=providers.map((r,i
 function addProv(){providers.push({num:'000000',name:'',spec:'',cpso:''});lsp('om_prov',providers);rProv();}
 function rDiag(){document.getElementById('tb-diag').innerHTML=diagnoses.map((r,i)=>`<tr>
   <td><input value="${esc(r.ohip)}" oninput="diagnoses[${i}].ohip=this.value;lsp('om_diag',diagnoses)"></td>
-  <td><input value="${esc(r.icd)}" oninput="diagnoses[${i}].icd=this.value;lsp('om_diag',diagnoses)"></td>
+  <td><input value="${esc(r.icd||r.icd10||'')}" placeholder="e.g. C50.919" oninput="diagnoses[${i}].icd=this.value;diagnoses[${i}].icd10=this.value;lsp('om_diag',diagnoses)" style="font-family:monospace"></td>
   <td><input value="${esc(r.desc)}" oninput="diagnoses[${i}].desc=this.value;lsp('om_diag',diagnoses)"></td>
   <td><button class="bdel" onclick="diagnoses.splice(${i},1);lsp('om_diag',diagnoses);rDiag()">✕</button></td></tr>`).join('');}
-function addDiag(){diagnoses.push({ohip:'',icd:'',desc:''});lsp('om_diag',diagnoses);rDiag();}
+function addDiag(){diagnoses.push({ohip:'',icd:'',icd10:'',desc:''});lsp('om_diag',diagnoses);rDiag();}
 function rFees(){document.getElementById('tb-fees').innerHTML=fees.map((r,i)=>`<tr>
   <td><input value="${esc(r.code)}" oninput="fees[${i}].code=this.value;lsp('om_fees',fees)"></td>
   <td><input type="number" step="0.01" min="0" value="${esc(r.fee)}" oninput="fees[${i}].fee=this.value;lsp('om_fees',fees)"></td>
@@ -783,21 +872,68 @@ function provNumberFor(doc_,billingNum){
 }
 function hasCpso(doc_){return !!(doc_&&String(doc_.cpso||'').trim());}
 
-// ── Diagnosis → ICD-10 code ────────────────────────────────────────────
-// The form wants the ICD-10 code, not the written-out diagnosis.
+// ── Diagnosis → what goes in the claim form's diagnosis column ─────────
+// The form's column is labelled "ICD 9, ICD 10 Code, or Medical Diagnosis",
+// so all three are acceptable entries. OHIP's own 3-digit diagnostic codes
+// are ICD-8/9-based and are used directly as ICD-9 codes in Ontario health
+// data (e.g. OHIP 401-405 == ICD-9 401-405), so the OHIP code itself is a
+// valid ICD-9 entry. That makes it a safe last-resort fallback: it is the
+// code the clinic actually recorded, never a guess.
+//
+// Resolution order (settings.diagFmt='icd10', the default):
+//   1. a real ICD-10 code in the registry row (any column)
+//   2. the built-in OHIP → ICD-10 crosswalk
+//   3. the OHIP/ICD-9 3-digit code itself      ← always succeeds
 // ICD-10 shape: letter + 2 alphanumerics, optional .subcode  (I10, C50.919).
-// Both the icd and desc columns are checked, so a registry with the code and
-// description entered in the wrong order still yields the code.
 const ICD10_RE=/^[A-TV-Z][0-9][0-9A-Z](\.[0-9A-Z]{1,4})?$/;
+function isIcd10(v){return ICD10_RE.test(String(v||'').trim().toUpperCase());}
+
+// Built-in crosswalk, keyed by OHIP 3-digit code. Seeded from D_DIAG so the
+// shipped defaults double as the fallback map. Verify before relying on it.
+let OHIP_ICD10={};
+function buildIcd10Map(){
+  OHIP_ICD10={};
+  D_DIAG.forEach(d=>{if(isIcd10(d.icd))OHIP_ICD10[String(d.ohip).trim()]=String(d.icd).trim().toUpperCase();});
+}
+
+// Pull whichever field on a registry row actually looks like an ICD-10 code.
 function icd10Of(diag,fallback){
-  if(!diag)return String(fallback||'').trim();
-  for(const c of [diag.icd,diag.icd10,diag.code,diag.desc]){
+  if(diag)for(const c of [diag.icd10,diag.icd,diag.code,diag.desc]){
     const s=String(c||'').trim().toUpperCase();
     if(ICD10_RE.test(s))return s;
   }
-  return String(diag.icd||fallback||'').trim();
+  return String(fallback||'').trim();
 }
-function hasIcd10(diag){return !!diag&&icd10Of(diag,'')!==''&&ICD10_RE.test(icd10Of(diag,'').toUpperCase());}
+function hasIcd10(diag){return !!diag&&isIcd10(icd10Of(diag,''));}
+
+// Returns {text, src} — src is 'icd10' | 'icd10map' | 'icd9' | 'desc'
+function resolveDiagText(diagCode,diag){
+  const ohip=String(diagCode||'').replace(/\.0$/,'').trim();
+  const fmt=(settings&&settings.diagFmt)||'icd10';
+  const desc=diag?String(diag.desc||diag.icd||'').trim():'';
+  if(fmt==='desc'&&desc)return{text:desc,src:'desc'};
+  if(fmt==='icd9'&&ohip)return{text:ohip,src:'icd9'};
+  const own=icd10Of(diag,'');
+  if(isIcd10(own))return{text:own,src:'icd10'};
+  if(OHIP_ICD10[ohip])return{text:OHIP_ICD10[ohip],src:'icd10map'};
+  if(ohip)return{text:ohip,src:'icd9'};          // valid ICD-9 entry
+  return{text:desc,src:'desc'};
+}
+
+// One-time repair for registries where the ICD-10 and Description columns were
+// filled in the wrong order (or where ICD-10 was never populated at all).
+function normalizeDiagnoses(){
+  let moved=0;
+  diagnoses=diagnoses.map(d=>{
+    const vals=[d.icd10,d.icd,d.desc].map(v=>String(v||'').trim());
+    const code=vals.find(isIcd10)||'';
+    const text=vals.find(v=>v&&!isIcd10(v))||'';
+    if(code&&String(d.icd||'').trim()!==code)moved++;
+    return{ohip:String(d.ohip||'').trim(),icd:code,icd10:code,desc:text};
+  });
+  return moved;
+}
+
 
 // ── Date helpers ───────────────────────────────────────────────────────
 //  parseDate returns {d,m,y} as zero-padded strings ('' when unparseable).
@@ -1010,7 +1146,7 @@ async function fillWithFormFields(doc, job, invoiceNum){
     const diag=fDiag(diagCode);
     const svc=parseDate(p.ServiceDate);
     const svcDate=svc.d&&svc.m&&svc.y?svc.d+'/'+svc.m+'/'+svc.y:'';
-    const icd=icd10Of(diag,diagCode);   // ICD-10 code, not the description
+    const icd=resolveDiagText(diagCode,diag).text;   // ICD-10, else ICD-9/OHIP code
     let feeAmt=0;
     const prem=getPremium(p.ServiceCode);
     if(prem){
@@ -1087,7 +1223,7 @@ async function fillWithCoordinates(doc, job, invoiceNum){
     const diag=fDiag(diagCode);
     const svc=parseDate(p.ServiceDate);
     const svcDate=svc.d&&svc.m&&svc.y?svc.d+'/'+svc.m+'/'+svc.y:'';
-    const icd=icd10Of(diag,diagCode);   // ICD-10 code, not the description
+    const icd=resolveDiagText(diagCode,diag).text;   // ICD-10, else ICD-9/OHIP code
     let feeAmt=0;
     const prem=getPremium(p.ServiceCode);
     if(prem){
@@ -1128,6 +1264,7 @@ function refreshGen(){
   document.getElementById('btn-gen').style.display='';
 
   const jobs=groupPatients(patients);
+  const icd9Fallbacks=new Set();   // OHIP codes with no ICD-10 mapping yet
   let warns=[],totalAmt=0,missFee=0;
 
   const rows=jobs.map(job=>{
@@ -1154,8 +1291,9 @@ function refreshGen(){
         if(!fee)iss.push('Code '+p.ServiceCode+' → no fee');
       }
       if(amt!==null)jobTotal+=amt;else jobMiss++;
-      if(!diag)iss.push('OHIP '+diagCode+' → not in diagnosis registry');
-      else if(!hasIcd10(diag))iss.push('OHIP '+diagCode+' → no ICD-10 code (registry has "'+String(diag.icd||diag.desc||'').slice(0,40)+'")');
+      const dres=resolveDiagText(diagCode,diag);
+      if(!dres.text)iss.push('OHIP '+diagCode+' → no diagnosis code available');
+      else if(dres.src==='icd9')icd9Fallbacks.add(String(diagCode).trim());
     });
     totalAmt+=jobTotal;missFee+=jobMiss;
     if(iss.length)warns.push({name:job.name+(job.totalChunks>1?' (PDF '+(job.chunkIdx+1)+'/'+job.totalChunks+')':''),iss:[...new Set(iss)]});
@@ -1199,9 +1337,23 @@ function refreshGen(){
       '<div style="margin:6px 0 4px">Each is its own form with one claim line, filename stamped <code>_FUTURE_YYYYMMDD</code>. '+
       'Submit each on or after its service date so it is not rejected as future-dated.</div><ul>'+lines.join('')+'</ul></div>';
   }
+  if(icd9Fallbacks.size){
+    const codes=[...icd9Fallbacks].sort().map(c=>{
+      const d=fDiag(c);return '<code>'+c+'</code>'+(d&&d.desc?' ('+d.desc+')':'');}).join(', ');
+    notice+='<div class="alert a-info"><strong>\u2139 ICD-9 used for '+icd9Fallbacks.size+
+      ' diagnosis code'+(icd9Fallbacks.size!==1?'s':'')+'</strong>'+
+      '<div style="margin-top:6px">No ICD-10 mapping on file, so the OHIP 3-digit code was used instead. '+
+      'The form accepts \u201CICD 9, ICD 10 Code, or Medical Diagnosis\u201D, so these are valid as submitted. '+
+      'Add an ICD-10 in <strong>Registries \u2192 Diagnoses</strong> to switch them over.</div>'+
+      '<div style="margin-top:6px">'+codes+'</div></div>';
+  }
+  if(diagRepaired){
+    notice+='<div class="alert a-info">\u2139 Auto-corrected <strong>'+diagRepaired+
+      '</strong> diagnosis row(s) where the ICD-10 and Description columns were swapped.</div>';
+  }
   if(warns.length){
     const items=warns.flatMap(w=>w.iss.map(iss=>'<li><strong>'+w.name+':</strong> '+iss+'</li>'));
-    notice+='<div class="alert a-warn"><strong>⚠ Lookup gaps:</strong><ul>'+items.join('')+'</ul></div>';
+    notice+='<div class="alert a-warn"><strong>\u26a0 Lookup gaps:</strong><ul>'+items.join('')+'</ul></div>';
   }
   document.getElementById('gen-warns').innerHTML=notice;
 }
@@ -1537,7 +1689,7 @@ function importData(input){
       applyAllData(backup);
       // Reload in-memory state
       providers=ls('om_prov',JSON.parse(JSON.stringify(D_PROV)));
-      diagnoses=ls('om_diag',JSON.parse(JSON.stringify(D_DIAG)));
+      diagnoses=ls('om_diag',JSON.parse(JSON.stringify(D_DIAG)));buildIcd10Map();diagRepaired=normalizeDiagnoses();
       fees=ls('om_fees',JSON.parse(JSON.stringify(D_FEES)));
       premiums=ls('om_prem',JSON.parse(JSON.stringify(D_PREM)));
       settings=ls('om_settings',JSON.parse(JSON.stringify(D_SET)));
@@ -1636,9 +1788,12 @@ async function ulCSV(type, input){
     }
   } else if(type==='diag'){
     const newRows=dataLines.map(l=>{
-      const[ohip,icd,desc]=l.split(',').map(s=>s.trim().replace(/^"|"$/g,''));
-      return{ohip:ohip||'',icd:icd||'',desc:desc||''};
-    }).filter(r=>r.ohip&&r.icd);
+      const[ohip,c2,c3]=l.split(',').map(s=>s.trim().replace(/^"|"$/g,''));
+      // Accept either column order: the ICD-10-shaped value is the code.
+      const code=[c2,c3].find(isIcd10)||'';
+      const text=[c2,c3].find(v=>v&&!isIcd10(v))||'';
+      return{ohip:ohip||'',icd:code,icd10:code,desc:text};
+    }).filter(r=>r.ohip&&(r.icd||r.desc));
     if(!newRows.length){alert('No valid rows found. Check column order: ohip_code, icd10_code, description');return;}
     if(confirm('Replace '+diagnoses.length+' existing diagnoses with '+newRows.length+' from CSV?')){
       diagnoses=newRows;lsp('om_diag',diagnoses);rDiag();count=newRows.length;
@@ -1785,7 +1940,7 @@ async function _activateHandle(handle,isNew){
       applyAllData(data);
       // Reload in-memory state
       providers=ls('om_prov',JSON.parse(JSON.stringify(D_PROV)));
-      diagnoses=ls('om_diag',JSON.parse(JSON.stringify(D_DIAG)));
+      diagnoses=ls('om_diag',JSON.parse(JSON.stringify(D_DIAG)));buildIcd10Map();diagRepaired=normalizeDiagnoses();
       fees=ls('om_fees',JSON.parse(JSON.stringify(D_FEES)));
       premiums=ls('om_prem',JSON.parse(JSON.stringify(D_PREM)));
       settings=ls('om_settings',JSON.parse(JSON.stringify(D_SET)));
@@ -1982,6 +2137,9 @@ function resetTesting(){
 
 // ── _initApp: called after FS startup completes ──────────────────────
 function _initApp(){
+  buildIcd10Map();                       // OHIP → ICD-10 crosswalk from D_DIAG
+  diagRepaired=normalizeDiagnoses();     // repair swapped ICD-10/Description cols
+  if(diagRepaired)lsp('om_diag',diagnoses);
   rProv();rDiag();rFees();rPrem();loadSettingsUI();
 }
 
