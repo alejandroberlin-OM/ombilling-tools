@@ -383,15 +383,15 @@ const SECTIONS = {
    ROLES — salted SHA-256 of each access code. To add or rotate a
    code, sign in as superuser and use the "Access codes" box, then
    paste the new hash here.
-   Shipped codes:  OM-ADMIN-2026 · PM-RADONC-2026 · PM-MEDONC-2026
+   Shipped codes:  OMADMIN · PMSLRO · DMOH
    ══════════════════════════════════════════════════════════════════ */
 const SALT = 'om-billing-suite-v3::';
 const ROLES = {
-  '002ae915c928229e42f216d9f1b480b062a0ccf74ccc8ef91de1ce666967ae83':
+  '449198f012fb69db1abd4080448a955ae9c856227bf6ee5736991741fe75f850':
     { role:'superuser', label:'Superuser · All practices', sections:['radonc','medonc'] },
-  '540f4a5b8f46aaafe77bb21f652d036cc657f4dc5716f6992ef43e33e061c7e3':
+  '0cbaa9df9591a7f13a7343a7cb4c7987ab219504ed724eae8af9fb51355d87af':
     { role:'radonc',    label:'Radiation Oncology',        sections:['radonc'] },
-  '9aedc3af3bb307fcd114de82487729fa39cb522fdf2c6e82b3f9bd6ebd7e88ba':
+  '31ed3826d64125645b44608c5bd960870e197d67449e758d45ef843b9847c39e':
     { role:'medonc',    label:'Medical Oncology',           sections:['medonc'] }
 };
 
