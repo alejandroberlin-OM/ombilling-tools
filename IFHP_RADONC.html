@@ -361,6 +361,24 @@ body{font-family:"Source Sans 3",sans-serif;background:var(--bg);color:var(--ink
     </div>
   </div>
   <div class="card" style="margin-top:12px">
+    <div class="card-hd"><div class="ct">🏥 Group Billing</div></div>
+    <div class="card-body">
+      <div class="fg-grid">
+        <div class="fg"><label class="fl">Group / Hospital Name</label>
+          <input class="fi" id="s-groupname" placeholder="Princess Margaret Hospital"></div>
+        <div class="fg"><label class="fl">Group Provider Number</label>
+          <input class="fi" id="s-groupnum" placeholder="1431A" style="font-family:monospace"></div>
+      </div>
+      <div class="fg" style="margin-top:10px"><label class="fl">Fallback doctor (used when the input file has no provider number)</label>
+        <select class="fi" id="s-defaultprov"></select></div>
+      <div class="note" style="margin-top:8px">The claim form receives<br>
+        &nbsp;&nbsp;<strong>Name</strong> &rarr; <code>Group Name / Dr. Surname</code><br>
+        &nbsp;&nbsp;<strong>Provider Number</strong> &rarr; <code>Group # / that doctor&rsquo;s CPSO #</code><br>
+        Add each doctor with their MOH billing number and CPSO under <strong>Registries &rarr; Doctors</strong>.
+        The billing number is what the input file&rsquo;s ProviderNumber column is matched against.</div>
+    </div>
+  </div>
+  <div class="card" style="margin-top:12px">
     <div class="card-hd"><div class="ct">🩺 Diagnosis Column</div></div>
     <div class="card-body">
       <div class="fg"><label class="fl">What to print in the form's diagnosis column</label>
@@ -700,7 +718,10 @@ const D_PREM=[
   {code:"E082",pct:"15",applies:"all",desc:"After-hours premium (weekend/holiday)"},
   {code:"E083",pct:"15",applies:"all",desc:"After-hours premium (night)"},
 ];
-const D_SET={cn:"",addr:"",city:"",prov:"",post:"",phone:"",fax:"",invPrefix:"INV",diagFmt:"short"};
+const D_SET={cn:"Princess Margaret Hospital / Group Provider #1431A",
+  addr:"Radiation Oncologists PM&SL, 700 University Ave, 7th Floor",city:"Toronto",prov:"ON",
+  post:"M5G 1Z5",phone:"416-946-2936",fax:"416-946-6561",invPrefix:"PMSL",diagFmt:"short",
+  groupName:"Princess Margaret Hospital",groupNum:"1431A",defaultProv:""};
 
 // ── Persistence ───────────────────────────────────────────────────────
 // Reads a JSON value from localStorage. Detects the "[object Object],..."
@@ -778,12 +799,23 @@ function loadSettingsUI(){
   ['cn','addr','city','prov','post','phone','fax'].forEach(k=>document.getElementById('s-'+k).value=settings[k]||'');
   const pfx=document.getElementById('s-invprefix');if(pfx){pfx.value=settings.invPrefix||'';_updateInvPreview();}
   const df=document.getElementById('s-diagfmt');if(df)df.value=settings.diagFmt||'short';
+  const gn=document.getElementById('s-groupname');if(gn)gn.value=settings.groupName||'';
+  const gm=document.getElementById('s-groupnum');if(gm)gm.value=settings.groupNum||'';
+  const dp=document.getElementById('s-defaultprov');
+  if(dp){
+    dp.innerHTML='<option value="">— none (warn instead) —</option>'+
+      providers.filter(x=>x.name).map(x=>'<option value="'+esc(x.num)+'">'+esc(x.name)+
+        (x.cpso?' (CPSO '+esc(x.cpso)+')':' (no CPSO)')+'</option>').join('');
+    dp.value=settings.defaultProv||'';
+  }
 }
 function saveSettings(){
   settings={cn:g('s-cn'),addr:g('s-addr'),city:g('s-city'),prov:g('s-prov'),
             post:g('s-post'),phone:g('s-phone'),fax:g('s-fax'),
             invPrefix:(g('s-invprefix')||'INV').replace(/[-\s]+$/,'').replace(/\s+/g,'').toUpperCase().slice(0,6),
-            diagFmt:(document.getElementById('s-diagfmt')||{}).value||'short'};
+            diagFmt:(document.getElementById('s-diagfmt')||{}).value||'short',
+            groupName:g('s-groupname'),groupNum:g('s-groupnum'),
+            defaultProv:(document.getElementById('s-defaultprov')||{}).value||''};
   lsp('om_settings',settings);document.getElementById('dot-s').classList.add('ok');alert('✅ Saved!');
 }
 const g=id=>document.getElementById(id).value.trim();
@@ -875,6 +907,34 @@ function fProv(num){
 }
 function fDiag(c){const s=String(c||'').replace(/\.0$/,'').trim();return diagnoses.find(d=>String(d.ohip||'').trim()===s)||null;}
 function fFee(c){const s=String(c||'').trim();return fees.find(f=>String(f.code||'').trim()===s)||null;}
+
+// ── Group billing (Radiation Oncology) ─────────────────────────────────
+// Princess Margaret bills as a group: the form carries BOTH the group and the
+// individual doctor.
+//   Name           →  "Princess Margaret Hospital / Dr. Jane Smith"
+//   Provider Number →  "1431A / 78542"        (group # / that doctor's CPSO)
+// Group values come from Settings; the doctor is matched from the input file's
+// ProviderNumber column against the Doctors registry.
+function groupName(){return String((settings&&settings.groupName)||'').trim();}
+function groupNum(){return String((settings&&settings.groupNum)||'').trim();}
+// The doctor to use when the input file carries no usable provider number.
+function defaultDoctor(){
+  const d=String((settings&&settings.defaultProv)||'').trim();
+  if(d){const p=fProv(d);if(p)return p;}
+  return null;
+}
+function radoncProvName(doc_){
+  const g=groupName();
+  const dr=doc_&&doc_.name?('Dr. '+String(doc_.name).replace(/^Dr\.?\s*/i,'').trim()):'';
+  if(g&&dr)return g+' / '+dr;
+  return g||dr;
+}
+function radoncProvNumber(doc_){
+  const g=groupNum();
+  const c=doc_?String(doc_.cpso||'').trim():'';
+  if(g&&c)return g+' / '+c;
+  return g||c;
+}
 
 // ── Provider number → CPSO ─────────────────────────────────────────────
 // The IFHP form's "Provider Number" box takes the CPSO registration number.
@@ -1176,8 +1236,10 @@ async function fillWithFormFields(doc, job, invoiceNum){
   sf('dob_day',dob.d);sf('dob_month',dob.m);sf('dob_year',dob.y);
 
   // Section 2
-  if(doc_){sf('specialty',doc_.spec);sf('prov_name','Dr. '+doc_.name);}
-  sf('prov_number',provNumberFor(doc_,prov6));   // CPSO # (falls back to billing #)
+  if(!doc_)doc_=defaultDoctor();
+  if(doc_)sf('specialty',doc_.spec);
+  sf('prov_name',radoncProvName(doc_));
+  sf('prov_number',radoncProvNumber(doc_));      // group # / doctor's CPSO
   sf('address',settings.addr);sf('city',settings.city);sf('province',settings.prov);
   sf('postal',settings.post);sf('phone',settings.phone);sf('fax',settings.fax);
 
@@ -1258,8 +1320,10 @@ async function fillWithCoordinates(doc, job, invoiceNum){
   draw(job.name,75,131.6);
   for(let i=0;i<9;i++)draw(cid[i]||'',110+i*15,158);
   draw(dob.d,418,158);draw(dob.m,468,158);draw(dob.y,521,158);
-  if(doc_){draw(doc_.spec,130,201.5);draw('Dr. '+doc_.name,75,239.2);}
-  draw(provNumberFor(doc_,prov6),432,239.2);   // CPSO # (falls back to billing #)
+  if(!doc_)doc_=defaultDoctor();
+  if(doc_)draw(doc_.spec,130,201.5);
+  drawFit(radoncProvName(doc_),75,239.2,281);   // stop short of the "Provider Number" label at x=360
+  drawFit(radoncProvNumber(doc_),432,239.2,120);   // group # / doctor's CPSO
   draw(settings.addr,75,257.7);draw(settings.city,70,278);
   draw(settings.prov,312,278);draw(settings.post,455,278);
   draw(settings.phone,125,297);draw(settings.fax,367,297);
@@ -1324,8 +1388,10 @@ function refreshGen(){
     const doc_=fProv(p0.ProviderNumber);
     let jobTotal=0,jobMiss=0;
     const iss=[];
-    if(!doc_)iss.push('Provider #'+p0.ProviderNumber+' → not found');
-    else if(!hasCpso(doc_))iss.push('Dr. '+doc_.name+' → no CPSO # on file (billing # used instead)');
+    if(!doc_)doc_=defaultDoctor();
+    if(!doc_)iss.push('Provider #'+(p0.ProviderNumber||'(blank)')+' → no matching doctor, and no fallback doctor set in Settings');
+    else if(!hasCpso(doc_))iss.push('Dr. '+doc_.name+' → no CPSO # on file (Provider Number will show the group # only)');
+    if(!groupName()||!groupNum())iss.push('Group name / number not set in Settings → Group Billing');
     job.rows.forEach(p=>{
       const diagCode=safeStr(p.DiagnosticCode);
       const diag=fDiag(diagCode);
