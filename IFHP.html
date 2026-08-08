@@ -1883,6 +1883,35 @@ async function ulCSV(type, input){
 //  FILE SYSTEM STORAGE — File System Access API with localStorage fallback
 // ══════════════════════════════════════════════════════════════════════
 const FS_SUPPORTED = typeof window.showSaveFilePicker === 'function';
+// ── Module identity ───────────────────────────────────────────────────
+// Both IFHP modules are served from the same origin, so they share one
+// localStorage bucket and the same key names. That is harmless for the
+// registries (loading a data file overwrites them) but NOT for
+// om_inv_ctr: a shared counter can hand out an invoice number the other
+// practice has already submitted. Rather than rename every key, each
+// module stamps its identity and refuses to inherit the other's state.
+const MODULE_ID    = 'IFHP-GENERAL';
+const MODULE_LABEL = 'DMOH';
+const OTHER_LABEL  = 'Radiation Oncology';
+const MODULE_KEY   = 'om_module';
+
+// Wipe state left behind by the sibling module. Safe because the data
+// file is the source of truth — nothing is lost that the file doesn't hold.
+function _clearForeignState(){
+  let owner=null;
+  try{ owner=localStorage.getItem(MODULE_KEY); }catch(e){}
+  if(owner===MODULE_ID)return false;
+  if(owner!==null){
+    try{
+      DATA_KEYS.forEach(k=>localStorage.removeItem(k));
+      localStorage.setItem(MODULE_KEY,MODULE_ID);
+    }catch(e){}
+    return true;                        // caller tells the user
+  }
+  try{ localStorage.setItem(MODULE_KEY,MODULE_ID); }catch(e){}
+  return false;
+}
+
 const DATA_KEYS = ['om_prov','om_diag','om_fees','om_prem','om_settings',
                    'om_ledger','om_inv_ctr','om_lic'];
 
@@ -1927,7 +1956,7 @@ async function _clearHandle(){
 
 // ── Collect / apply all app data ──────────────────────────────────────
 function collectAllData(){
-  const d={_saved:new Date().toISOString(),_version:'OM-v1'};
+  const d={_saved:new Date().toISOString(),_version:'OM-v1',_module:MODULE_ID};
   DATA_KEYS.forEach(k=>{const v=localStorage.getItem(k);if(v!==null)d[k]=v;});
   return d;
 }
@@ -2001,6 +2030,17 @@ async function _activateHandle(handle,isNew){
     // Read existing data
     try{
       const data=await _readFile(handle);
+      // Guard against opening the sibling module's data file. Files saved
+      // before this check carry no _module stamp — accept those and stamp
+      // them on the next save.
+      if(data._module&&data._module!==MODULE_ID){
+        _setPill('error','\u26a0 Wrong data file');
+        alert('This file belongs to the '+(data._module==='IFHP-RADONC'?'Radiation Oncology':data._module)+
+              ' module, not '+MODULE_LABEL+'.\n\nNothing was loaded and the file was left untouched. '+
+              'Open the '+MODULE_LABEL+' data file instead.');
+        _usingFS=false;_fileHandle=null;
+        return;
+      }
       applyAllData(data);
       // Reload in-memory state
       providers=ls('om_prov',JSON.parse(JSON.stringify(D_PROV)));
@@ -2210,10 +2250,16 @@ function resetTesting(){
 
 // ── _initApp: called after FS startup completes ──────────────────────
 function _initApp(){
+  const wasForeign=_clearForeignState();
   buildIcd10Map();                       // OHIP → ICD-10 crosswalk from D_DIAG
   diagRepaired=normalizeDiagnoses();     // repair swapped ICD-10/Description cols
   if(diagRepaired)lsp('om_diag',diagnoses);
   rProv();rDiag();rFees();rPrem();loadSettingsUI();
+  if(wasForeign){
+    alert('This browser was last used for the '+OTHER_LABEL+' module.\n\n'+
+          'That data was cleared so the two practices cannot mix invoice numbers. '+
+          'Open your '+MODULE_LABEL+' data file to continue.');
+  }
   if(_corruptKeys.length){
     const names={om_prov:'Doctors',om_diag:'Diagnoses',om_fees:'Fee Codes',
                  om_prem:'Premiums',om_settings:'Settings',om_ledger:'Ledger'};
