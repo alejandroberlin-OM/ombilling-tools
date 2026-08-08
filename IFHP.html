@@ -365,13 +365,15 @@ body{font-family:"Source Sans 3",sans-serif;background:var(--bg);color:var(--ink
     <div class="card-body">
       <div class="fg"><label class="fl">What to print in the form's diagnosis column</label>
         <select class="fi" id="s-diagfmt">
-          <option value="icd10">ICD-10 code, falling back to the OHIP/ICD-9 code (recommended)</option>
-          <option value="icd9">Always the OHIP 3-digit code (ICD-9)</option>
-          <option value="desc">Written-out diagnosis</option>
+          <option value="short">Short diagnosis label &mdash; e.g. &ldquo;Breast Cancer&rdquo; (recommended)</option>
+          <option value="icd10">ICD-10 code &mdash; e.g. &ldquo;C50.919&rdquo;, falling back to the short label</option>
+          <option value="icd9">OHIP 3-digit code &mdash; e.g. &ldquo;174&rdquo; (valid as an ICD-9 entry)</option>
+          <option value="desc">Full MOH wording &mdash; e.g. &ldquo;Malignant neoplasm: Female breast&rdquo;</option>
         </select>
       </div>
-      <div class="note" style="margin-top:8px">The form accepts &ldquo;ICD 9, ICD 10 Code, or Medical Diagnosis&rdquo;, so all three are valid.
-        OHIP&rsquo;s 3-digit diagnostic codes are ICD-8/9-based, which is why they work as an ICD-9 entry.</div>
+      <div class="note" style="margin-top:8px">The form accepts &ldquo;ICD 9, ICD 10 Code, or Medical Diagnosis&rdquo;, so every option here is valid.
+        Short labels are the default: they read clearly, fit the column, and involve no ICD-10 guesswork.
+        Edit any label per code under <strong>Registries &rarr; Diagnoses</strong>.</div>
     </div>
   </div>
   <div class="card" style="margin-top:12px">
@@ -455,7 +457,7 @@ body{font-family:"Source Sans 3",sans-serif;background:var(--bg);color:var(--ink
 <!-- Diagnoses -->
 <div class="panel" id="panel-diagnoses">
   <div class="pg-title">Diagnosis Lookup</div>
-  <div class="pg-sub">OHIP 3-digit code (col K in export) → ICD-10 on the claim form. Bulk-manage via CSV.</div>
+  <div class="pg-sub">OHIP 3-digit code (col K in export) → what prints in the form's diagnosis column. The <strong>Short Label</strong> is used by default; switch formats in Settings. Bulk-manage via CSV.</div>
   <div class="batch-bar">
     <span>📥 Bulk import — download the template, fill it in, upload back</span>
     <button class="btn-csv-dl" onclick="dlCSV('diag')">⬇ Download Template</button>
@@ -463,7 +465,7 @@ body{font-family:"Source Sans 3",sans-serif;background:var(--bg);color:var(--ink
   </div>
   <div class="card" style="margin-top:12px"><div class="card-body" style="padding:0">
     <table class="dtbl"><thead><tr>
-      <th style="width:100px">OHIP Code</th><th style="width:120px">ICD-10</th><th>Description</th><th></th>
+      <th style="width:90px">OHIP Code</th><th style="width:190px">Short Label (prints on form)</th><th style="width:110px">ICD-10</th><th>Full MOH Wording</th><th></th>
     </tr></thead><tbody id="tb-diag"></tbody></table>
   </div></div>
   <button class="badd" onclick="addDiag()">+ Add Diagnosis</button>
@@ -611,88 +613,81 @@ let patients=[], generatedPdfs={};
 // ── Defaults ─────────────────────────────────────────────────────────
 const D_PROV=[];
 const D_DIAG=[
-  // OHIP 3-digit diagnostic code → ICD-10. OHIP's list is ICD-8/9-based, so the
-  // OHIP code doubles as a valid ICD-9 entry on the form when no ICD-10 is set.
-  // ⚠ These ICD-10 mappings are convenience defaults — verify against your own
-  // coding standard before submitting claims.
-  // ── Neoplasms ──
-  {ohip:"140",icd:"C00.9",desc:"Malignant neoplasm: Lip"},
-  {ohip:"141",icd:"C02.9",desc:"Malignant neoplasm: Tongue"},
-  {ohip:"151",icd:"C16.9",desc:"Malignant neoplasm: Stomach"},
-  {ohip:"153",icd:"C18.9",desc:"Malignant neoplasm: Colon"},
-  {ohip:"154",icd:"C20",desc:"Malignant neoplasm: Rectum"},
-  {ohip:"155",icd:"C22.8",desc:"Malignant neoplasm: Liver"},
-  {ohip:"157",icd:"C25.9",desc:"Malignant neoplasm: Pancreas"},
-  {ohip:"160",icd:"C30.0",desc:"Malignant neoplasm: Nasal cavity"},
-  {ohip:"161",icd:"C32.9",desc:"Malignant neoplasm: Larynx"},
-  {ohip:"162",icd:"C34.90",desc:"Malignant neoplasm: Bronchus and lung"},
-  {ohip:"172",icd:"C43.9",desc:"Malignant melanoma of skin"},
-  {ohip:"174",icd:"C50.919",desc:"Malignant neoplasm: Female breast"},
-  {ohip:"180",icd:"C53.9",desc:"Malignant neoplasm: Cervix uteri"},
-  {ohip:"182",icd:"C54.1",desc:"Malignant neoplasm: Body of uterus"},
-  {ohip:"183",icd:"C56.9",desc:"Malignant neoplasm: Ovary"},
-  {ohip:"185",icd:"C61",desc:"Malignant neoplasm: Prostate"},
-  {ohip:"188",icd:"C67.9",desc:"Malignant neoplasm: Bladder"},
-  {ohip:"189",icd:"C64.9",desc:"Malignant neoplasm: Kidney"},
-  {ohip:"191",icd:"C71.9",desc:"Malignant neoplasm: Brain"},
-  {ohip:"193",icd:"C73",desc:"Malignant neoplasm: Thyroid gland"},
-  {ohip:"195",icd:"C76.8",desc:"Malignant neoplasm: Other ill-defined sites"},
-  {ohip:"196",icd:"C77.9",desc:"Secondary malignant neoplasm: Lymph nodes"},
-  {ohip:"197",icd:"C78.00",desc:"Secondary malignant neoplasm: Respiratory/digestive"},
-  {ohip:"198",icd:"C79.9",desc:"Secondary malignant neoplasm: Other sites"},
-  {ohip:"199",icd:"C80.1",desc:"Malignant neoplasm without specification of site"},
-  {ohip:"200",icd:"C85.90",desc:"Non-Hodgkin lymphoma"},
-  {ohip:"201",icd:"C81.90",desc:"Hodgkin lymphoma"},
-  {ohip:"203",icd:"C90.00",desc:"Multiple myeloma"},
-  {ohip:"204",icd:"C91.10",desc:"Chronic lymphocytic leukemia"},
-  {ohip:"205",icd:"C92.10",desc:"Chronic myelogenous leukemia"},
-  {ohip:"208",icd:"C95.90",desc:"Leukemia, unspecified cell type"},
-  {ohip:"238",icd:"D47.1",desc:"Neoplasm of uncertain behaviour"},
-  // ── Blood / endocrine / metabolic ──
-  {ohip:"244",icd:"E03.9",desc:"Hypothyroidism"},
-  {ohip:"250",icd:"E11.9",desc:"Diabetes mellitus"},
-  {ohip:"272",icd:"E78.5",desc:"Hyperlipidemia"},
-  {ohip:"280",icd:"D50.9",desc:"Iron deficiency anemia"},
-  {ohip:"285",icd:"D64.9",desc:"Anemia, unspecified"},
-  {ohip:"287",icd:"D69.6",desc:"Thrombocytopenia / purpura"},
-  {ohip:"288",icd:"D70.9",desc:"Neutropenia / disorders of white blood cells"},
-  // ── Mental health ──
-  {ohip:"296",icd:"F33.9",desc:"Major depressive / affective disorder"},
-  {ohip:"300",icd:"F41.9",desc:"Anxiety and neurotic disorders"},
-  {ohip:"311",icd:"F32.9",desc:"Depressive disorder, not elsewhere classified"},
-  // ── Circulatory ──
-  {ohip:"401",icd:"I10",desc:"Essential hypertension"},
-  {ohip:"402",icd:"I11.9",desc:"Hypertensive heart disease"},
-  {ohip:"403",icd:"I12.9",desc:"Hypertensive renal disease"},
-  {ohip:"410",icd:"I21.9",desc:"Acute myocardial infarction"},
-  {ohip:"414",icd:"I25.10",desc:"Chronic ischemic heart disease"},
-  {ohip:"427",icd:"I49.9",desc:"Cardiac dysrhythmias"},
-  {ohip:"428",icd:"I50.9",desc:"Heart failure"},
-  {ohip:"453",icd:"I82.90",desc:"Venous thrombosis / embolism"},
-  // ── Respiratory ──
-  {ohip:"465",icd:"J06.9",desc:"Acute upper respiratory infection"},
-  {ohip:"486",icd:"J18.9",desc:"Pneumonia, organism unspecified"},
-  {ohip:"493",icd:"J45.909",desc:"Asthma"},
-  {ohip:"496",icd:"J44.9",desc:"Chronic obstructive pulmonary disease"},
-  // ── Digestive / renal ──
-  {ohip:"530",icd:"K21.9",desc:"Diseases of esophagus / GERD"},
-  {ohip:"535",icd:"K29.70",desc:"Gastritis and duodenitis"},
-  {ohip:"564",icd:"K58.9",desc:"Functional digestive disorders / IBS"},
-  {ohip:"578",icd:"K92.2",desc:"Gastrointestinal hemorrhage"},
-  {ohip:"585",icd:"N18.9",desc:"Chronic kidney disease"},
-  {ohip:"599",icd:"N39.0",desc:"Urinary tract infection"},
-  // ── Musculoskeletal ──
-  {ohip:"715",icd:"M19.90",desc:"Osteoarthritis"},
-  {ohip:"724",icd:"M54.9",desc:"Back pain / dorsopathy"},
-  {ohip:"733",icd:"M81.0",desc:"Osteoporosis"},
-  // ── Symptoms / other ──
-  {ohip:"042",icd:"B20",desc:"HIV disease"},
-  {ohip:"780",icd:"R68.89",desc:"General symptoms"},
-  {ohip:"783",icd:"R63.4",desc:"Symptoms concerning nutrition / weight loss"},
-  {ohip:"786",icd:"R07.9",desc:"Respiratory symptoms / chest pain"},
-  {ohip:"787",icd:"R19.8",desc:"Gastrointestinal symptoms"},
-  {ohip:"788",icd:"R39.9",desc:"Urinary system symptoms"},
-  {ohip:"799",icd:"R53.83",desc:"Other ill-defined conditions / fatigue"},
+  // OHIP 3-digit diagnostic code → short plain-language label (what prints on
+  // the form by default), plus an ICD-10 code and the full MOH wording.
+  // The form accepts "ICD 9, ICD 10 Code, or Medical Diagnosis", so the short
+  // label is a valid entry and needs no cross-taxonomy inference.
+  // ⚠ ICD-10 values are convenience defaults — verify before relying on them.
+  {ohip:"042",icd:"B20",short:"HIV",desc:"HIV disease"},
+  {ohip:"140",icd:"C00.9",short:"Lip Cancer",desc:"Malignant neoplasm: Lip"},
+  {ohip:"141",icd:"C02.9",short:"Tongue Cancer",desc:"Malignant neoplasm: Tongue"},
+  {ohip:"151",icd:"C16.9",short:"Stomach Cancer",desc:"Malignant neoplasm: Stomach"},
+  {ohip:"153",icd:"C18.9",short:"Colon Cancer",desc:"Malignant neoplasm: Colon"},
+  {ohip:"154",icd:"C20",short:"Rectal Cancer",desc:"Malignant neoplasm: Rectum"},
+  {ohip:"155",icd:"C22.8",short:"Liver Cancer",desc:"Malignant neoplasm: Liver"},
+  {ohip:"157",icd:"C25.9",short:"Pancreatic Cancer",desc:"Malignant neoplasm: Pancreas"},
+  {ohip:"160",icd:"C30.0",short:"Nasal Cavity Cancer",desc:"Malignant neoplasm: Nasal cavity"},
+  {ohip:"161",icd:"C32.9",short:"Laryngeal Cancer",desc:"Malignant neoplasm: Larynx"},
+  {ohip:"162",icd:"C34.90",short:"Lung Cancer",desc:"Malignant neoplasm: Bronchus and lung"},
+  {ohip:"172",icd:"C43.9",short:"Melanoma",desc:"Malignant melanoma of skin"},
+  {ohip:"174",icd:"C50.919",short:"Breast Cancer",desc:"Malignant neoplasm: Female breast"},
+  {ohip:"180",icd:"C53.9",short:"Cervical Cancer",desc:"Malignant neoplasm: Cervix uteri"},
+  {ohip:"182",icd:"C54.1",short:"Uterine Cancer",desc:"Malignant neoplasm: Body of uterus"},
+  {ohip:"183",icd:"C56.9",short:"Ovarian Cancer",desc:"Malignant neoplasm: Ovary"},
+  {ohip:"185",icd:"C61",short:"Prostate Cancer",desc:"Malignant neoplasm: Prostate"},
+  {ohip:"188",icd:"C67.9",short:"Bladder Cancer",desc:"Malignant neoplasm: Bladder"},
+  {ohip:"189",icd:"C64.9",short:"Kidney Cancer",desc:"Malignant neoplasm: Kidney"},
+  {ohip:"191",icd:"C71.9",short:"Brain Cancer",desc:"Malignant neoplasm: Brain"},
+  {ohip:"193",icd:"C73",short:"Thyroid Cancer",desc:"Malignant neoplasm: Thyroid gland"},
+  {ohip:"195",icd:"C76.8",short:"Cancer, Ill-Defined Site",desc:"Malignant neoplasm: Other ill-defined sites"},
+  {ohip:"196",icd:"C77.9",short:"Cancer, Lymph Node Mets",desc:"Secondary malignant neoplasm: Lymph nodes"},
+  {ohip:"197",icd:"C78.00",short:"Cancer, Resp/GI Mets",desc:"Secondary malignant neoplasm: Respiratory/digestive"},
+  {ohip:"198",icd:"C79.9",short:"Cancer, Other Mets",desc:"Secondary malignant neoplasm: Other sites"},
+  {ohip:"199",icd:"C80.1",short:"Cancer, Unknown Primary",desc:"Malignant neoplasm without specification of site"},
+  {ohip:"200",icd:"C85.90",short:"Non-Hodgkin Lymphoma",desc:"Non-Hodgkin lymphoma"},
+  {ohip:"201",icd:"C81.90",short:"Hodgkin Lymphoma",desc:"Hodgkin lymphoma"},
+  {ohip:"203",icd:"C90.00",short:"Multiple Myeloma",desc:"Multiple myeloma"},
+  {ohip:"204",icd:"C91.10",short:"Chronic Lymph. Leukemia",desc:"Chronic lymphocytic leukemia"},
+  {ohip:"205",icd:"C92.10",short:"Chronic Myeloid Leukemia",desc:"Chronic myelogenous leukemia"},
+  {ohip:"208",icd:"C95.90",short:"Leukemia",desc:"Leukemia, unspecified cell type"},
+  {ohip:"238",icd:"D47.1",short:"Neoplasm, Uncertain",desc:"Neoplasm of uncertain behaviour"},
+  {ohip:"244",icd:"E03.9",short:"Hypothyroidism",desc:"Hypothyroidism"},
+  {ohip:"250",icd:"E11.9",short:"Diabetes",desc:"Diabetes mellitus"},
+  {ohip:"272",icd:"E78.5",short:"Hyperlipidemia",desc:"Hyperlipidemia"},
+  {ohip:"280",icd:"D50.9",short:"Iron Deficiency Anemia",desc:"Iron deficiency anemia"},
+  {ohip:"285",icd:"D64.9",short:"Anemia",desc:"Anemia, unspecified"},
+  {ohip:"287",icd:"D69.6",short:"Thrombocytopenia",desc:"Thrombocytopenia / purpura"},
+  {ohip:"288",icd:"D70.9",short:"Neutropenia",desc:"Neutropenia / white blood cell disorder"},
+  {ohip:"296",icd:"F33.9",short:"Depression",desc:"Major depressive / affective disorder"},
+  {ohip:"300",icd:"F41.9",short:"Anxiety",desc:"Anxiety and neurotic disorders"},
+  {ohip:"311",icd:"F32.9",short:"Depression",desc:"Depressive disorder, not elsewhere classified"},
+  {ohip:"401",icd:"I10",short:"Hypertension",desc:"Essential hypertension"},
+  {ohip:"402",icd:"I11.9",short:"Hypertensive Heart Dis.",desc:"Hypertensive heart disease"},
+  {ohip:"403",icd:"I12.9",short:"Hypertensive Kidney Dis.",desc:"Hypertensive renal disease"},
+  {ohip:"410",icd:"I21.9",short:"Heart Attack (MI)",desc:"Acute myocardial infarction"},
+  {ohip:"414",icd:"I25.10",short:"Coronary Artery Disease",desc:"Chronic ischemic heart disease"},
+  {ohip:"427",icd:"I49.9",short:"Arrhythmia",desc:"Cardiac dysrhythmias"},
+  {ohip:"428",icd:"I50.9",short:"Heart Failure",desc:"Heart failure"},
+  {ohip:"453",icd:"I82.90",short:"Blood Clot (DVT/VTE)",desc:"Venous thrombosis / embolism"},
+  {ohip:"465",icd:"J06.9",short:"Upper Resp. Infection",desc:"Acute upper respiratory infection"},
+  {ohip:"486",icd:"J18.9",short:"Pneumonia",desc:"Pneumonia, organism unspecified"},
+  {ohip:"493",icd:"J45.909",short:"Asthma",desc:"Asthma"},
+  {ohip:"496",icd:"J44.9",short:"COPD",desc:"Chronic obstructive pulmonary disease"},
+  {ohip:"530",icd:"K21.9",short:"Reflux (GERD)",desc:"Diseases of esophagus / GERD"},
+  {ohip:"535",icd:"K29.70",short:"Gastritis",desc:"Gastritis and duodenitis"},
+  {ohip:"564",icd:"K58.9",short:"IBS",desc:"Functional digestive disorders / IBS"},
+  {ohip:"578",icd:"K92.2",short:"GI Bleed",desc:"Gastrointestinal hemorrhage"},
+  {ohip:"585",icd:"N18.9",short:"Chronic Kidney Disease",desc:"Chronic kidney disease"},
+  {ohip:"599",icd:"N39.0",short:"Urinary Tract Infection",desc:"Urinary tract infection"},
+  {ohip:"715",icd:"M19.90",short:"Osteoarthritis",desc:"Osteoarthritis"},
+  {ohip:"724",icd:"M54.9",short:"Back Pain",desc:"Back pain / dorsopathy"},
+  {ohip:"733",icd:"M81.0",short:"Osteoporosis",desc:"Osteoporosis"},
+  {ohip:"780",icd:"R68.89",short:"General Symptoms",desc:"General symptoms"},
+  {ohip:"783",icd:"R63.4",short:"Weight Loss",desc:"Symptoms concerning nutrition / weight loss"},
+  {ohip:"786",icd:"R07.9",short:"Chest Pain / Dyspnea",desc:"Respiratory symptoms / chest pain"},
+  {ohip:"787",icd:"R19.8",short:"GI Symptoms",desc:"Gastrointestinal symptoms"},
+  {ohip:"788",icd:"R39.9",short:"Urinary Symptoms",desc:"Urinary system symptoms"},
+  {ohip:"799",icd:"R53.83",short:"Fatigue",desc:"Other ill-defined conditions / fatigue"},
 ];
 const D_FEES=[
   {code:"A001A",fee:"22.15",desc:"Minor assessment"},{code:"A003A",fee:"67.35",desc:"General assessment"},
@@ -705,7 +700,7 @@ const D_PREM=[
   {code:"E082",pct:"15",applies:"all",desc:"After-hours premium (weekend/holiday)"},
   {code:"E083",pct:"15",applies:"all",desc:"After-hours premium (night)"},
 ];
-const D_SET={cn:"",addr:"",city:"",prov:"",post:"",phone:"",fax:"",invPrefix:"INV",diagFmt:"icd10"};
+const D_SET={cn:"",addr:"",city:"",prov:"",post:"",phone:"",fax:"",invPrefix:"INV",diagFmt:"short"};
 
 // ── Persistence ───────────────────────────────────────────────────────
 const ls=(k,d)=>{try{const s=localStorage.getItem(k);return s?JSON.parse(s):d}catch(e){return d}};
@@ -764,13 +759,13 @@ function go(name,btn){
 function loadSettingsUI(){
   ['cn','addr','city','prov','post','phone','fax'].forEach(k=>document.getElementById('s-'+k).value=settings[k]||'');
   const pfx=document.getElementById('s-invprefix');if(pfx){pfx.value=settings.invPrefix||'';_updateInvPreview();}
-  const df=document.getElementById('s-diagfmt');if(df)df.value=settings.diagFmt||'icd10';
+  const df=document.getElementById('s-diagfmt');if(df)df.value=settings.diagFmt||'short';
 }
 function saveSettings(){
   settings={cn:g('s-cn'),addr:g('s-addr'),city:g('s-city'),prov:g('s-prov'),
             post:g('s-post'),phone:g('s-phone'),fax:g('s-fax'),
             invPrefix:(g('s-invprefix')||'INV').replace(/[-\s]+$/,'').replace(/\s+/g,'').toUpperCase().slice(0,6),
-            diagFmt:(document.getElementById('s-diagfmt')||{}).value||'icd10'};
+            diagFmt:(document.getElementById('s-diagfmt')||{}).value||'short'};
   lsp('om_settings',settings);document.getElementById('dot-s').classList.add('ok');alert('✅ Saved!');
 }
 const g=id=>document.getElementById(id).value.trim();
@@ -786,10 +781,11 @@ function rProv(){document.getElementById('tb-prov').innerHTML=providers.map((r,i
 function addProv(){providers.push({num:'000000',name:'',spec:'',cpso:''});lsp('om_prov',providers);rProv();}
 function rDiag(){document.getElementById('tb-diag').innerHTML=diagnoses.map((r,i)=>`<tr>
   <td><input value="${esc(r.ohip)}" oninput="diagnoses[${i}].ohip=this.value;lsp('om_diag',diagnoses)"></td>
+  <td><input value="${esc(r.short||'')}" placeholder="e.g. Breast Cancer" maxlength="26" oninput="diagnoses[${i}].short=this.value;lsp('om_diag',diagnoses)"></td>
   <td><input value="${esc(r.icd||r.icd10||'')}" placeholder="e.g. C50.919" oninput="diagnoses[${i}].icd=this.value;diagnoses[${i}].icd10=this.value;lsp('om_diag',diagnoses)" style="font-family:monospace"></td>
   <td><input value="${esc(r.desc)}" oninput="diagnoses[${i}].desc=this.value;lsp('om_diag',diagnoses)"></td>
   <td><button class="bdel" onclick="diagnoses.splice(${i},1);lsp('om_diag',diagnoses);rDiag()">✕</button></td></tr>`).join('');}
-function addDiag(){diagnoses.push({ohip:'',icd:'',icd10:'',desc:''});lsp('om_diag',diagnoses);rDiag();}
+function addDiag(){diagnoses.push({ohip:'',icd:'',icd10:'',short:'',desc:''});lsp('om_diag',diagnoses);rDiag();}
 function rFees(){document.getElementById('tb-fees').innerHTML=fees.map((r,i)=>`<tr>
   <td><input value="${esc(r.code)}" oninput="fees[${i}].code=this.value;lsp('om_fees',fees)"></td>
   <td><input type="number" step="0.01" min="0" value="${esc(r.fee)}" oninput="fees[${i}].fee=this.value;lsp('om_fees',fees)"></td>
@@ -890,10 +886,14 @@ function isIcd10(v){return ICD10_RE.test(String(v||'').trim().toUpperCase());}
 
 // Built-in crosswalk, keyed by OHIP 3-digit code. Seeded from D_DIAG so the
 // shipped defaults double as the fallback map. Verify before relying on it.
-let OHIP_ICD10={};
+let OHIP_ICD10={},OHIP_SHORT={};
 function buildIcd10Map(){
-  OHIP_ICD10={};
-  D_DIAG.forEach(d=>{if(isIcd10(d.icd))OHIP_ICD10[String(d.ohip).trim()]=String(d.icd).trim().toUpperCase();});
+  OHIP_ICD10={};OHIP_SHORT={};
+  D_DIAG.forEach(d=>{
+    const k=String(d.ohip).trim();
+    if(isIcd10(d.icd))OHIP_ICD10[k]=String(d.icd).trim().toUpperCase();
+    if(d.short)OHIP_SHORT[k]=String(d.short).trim();
+  });
 }
 
 // Pull whichever field on a registry row actually looks like an ICD-10 code.
@@ -906,18 +906,42 @@ function icd10Of(diag,fallback){
 }
 function hasIcd10(diag){return !!diag&&isIcd10(icd10Of(diag,''));}
 
-// Returns {text, src} — src is 'icd10' | 'icd10map' | 'icd9' | 'desc'
+// Returns {text, src}
+//   src: 'short' | 'shortmap' | 'icd10' | 'icd10map' | 'icd9' | 'desc'
 function resolveDiagText(diagCode,diag){
   const ohip=String(diagCode||'').replace(/\.0$/,'').trim();
-  const fmt=(settings&&settings.diagFmt)||'icd10';
-  const desc=diag?String(diag.desc||diag.icd||'').trim():'';
-  if(fmt==='desc'&&desc)return{text:desc,src:'desc'};
+  const fmt=(settings&&settings.diagFmt)||'short';
+  const desc=diag?String(diag.desc||'').trim():'';
+  const short=diag?String(diag.short||'').trim():'';
+
+  if(fmt==='desc')return{text:desc||short||OHIP_SHORT[ohip]||ohip,src:'desc'};
   if(fmt==='icd9'&&ohip)return{text:ohip,src:'icd9'};
-  const own=icd10Of(diag,'');
-  if(isIcd10(own))return{text:own,src:'icd10'};
-  if(OHIP_ICD10[ohip])return{text:OHIP_ICD10[ohip],src:'icd10map'};
+
+  if(fmt==='icd10'){
+    const own=icd10Of(diag,'');
+    if(isIcd10(own))return{text:own,src:'icd10'};
+    if(OHIP_ICD10[ohip])return{text:OHIP_ICD10[ohip],src:'icd10map'};
+  }
+
+  // Default: short plain-language label
+  if(short)return{text:short,src:'short'};
+  if(OHIP_SHORT[ohip])return{text:OHIP_SHORT[ohip],src:'shortmap'};
+  if(desc)return{text:shortenDesc(desc),src:'desc'};
   if(ohip)return{text:ohip,src:'icd9'};          // valid ICD-9 entry
-  return{text:desc,src:'desc'};
+  return{text:'',src:'desc'};
+}
+
+// Trim MOH's long 1970s wording down to something that fits the column:
+// "Malignant neoplasm: Female breast" → "Malignant neoplasm"
+function shortenDesc(d,max=26){
+  let t=String(d||'').trim();
+  if(t.length<=max)return t;
+  for(const sep of [':',' - ',' / ',',',';','(']){
+    const i=t.indexOf(sep);
+    if(i>0&&i<=max)return t.slice(0,i).trim();
+  }
+  const cut=t.slice(0,max);const sp=cut.lastIndexOf(' ');
+  return (sp>10?cut.slice(0,sp):cut).trim();
 }
 
 // One-time repair for registries where the ICD-10 and Description columns were
@@ -929,7 +953,9 @@ function normalizeDiagnoses(){
     const code=vals.find(isIcd10)||'';
     const text=vals.find(v=>v&&!isIcd10(v))||'';
     if(code&&String(d.icd||'').trim()!==code)moved++;
-    return{ohip:String(d.ohip||'').trim(),icd:code,icd10:code,desc:text};
+    const ohip=String(d.ohip||'').trim();
+    const short=String(d.short||'').trim()||OHIP_SHORT[ohip]||(text?shortenDesc(text):'');
+    return{ohip,icd:code,icd10:code,short,desc:text};
   });
   return moved;
 }
@@ -1195,6 +1221,12 @@ async function fillWithCoordinates(doc, job, invoiceNum){
     const s=String(text||'').trim();if(!s)return;
     page.drawText(s,{x,y:H-yLine+size/2+2,size,font,color:BLACK});
   }
+  // Same as draw(), but steps the font down until the text fits maxW points.
+  function drawFit(text,x,yLine,maxW,size=9){
+    const s=String(text||'').trim();if(!s)return;
+    while(size>6&&font.widthOfTextAtSize(s,size)>maxW)size-=0.5;
+    page.drawText(s,{x,y:H-yLine+size/2+2,size,font,color:BLACK});
+  }
 
   const p0=job.rows[0];
   const hn=String(p0.HealthNumber||'').replace(/\.0$/,'').replace(/\D/g,'');
@@ -1234,7 +1266,9 @@ async function fillWithCoordinates(doc, job, invoiceNum){
     }else{const feeE=fFee(p.ServiceCode);feeAmt=feeE?parseFloat(feeE.fee)*units:0;}
     totalAmt+=feeAmt;
     draw(invoiceNum,43,ry,8);draw(svcDate,138,ry);draw(String(p.ServiceCode||''),233,ry);
-    draw(String(units),285,ry);draw(icd,329,ry);draw('MD',479,ry);
+    draw(String(units),285,ry);
+    drawFit(icd,329,ry,144);                 // keep clear of the P* column at x=477
+    draw('MD',479,ry);
     if(feeAmt>0)draw(feeAmt.toFixed(2),499,ry);
   });
   if(totalAmt>0)draw(totalAmt.toFixed(2),499,415);
@@ -1293,7 +1327,7 @@ function refreshGen(){
       if(amt!==null)jobTotal+=amt;else jobMiss++;
       const dres=resolveDiagText(diagCode,diag);
       if(!dres.text)iss.push('OHIP '+diagCode+' → no diagnosis code available');
-      else if(dres.src==='icd9')icd9Fallbacks.add(String(diagCode).trim());
+      else if(dres.src==='icd9'||dres.src==='desc')icd9Fallbacks.add(String(diagCode).trim());
     });
     totalAmt+=jobTotal;missFee+=jobMiss;
     if(iss.length)warns.push({name:job.name+(job.totalChunks>1?' (PDF '+(job.chunkIdx+1)+'/'+job.totalChunks+')':''),iss:[...new Set(iss)]});
@@ -1339,12 +1373,13 @@ function refreshGen(){
   }
   if(icd9Fallbacks.size){
     const codes=[...icd9Fallbacks].sort().map(c=>{
-      const d=fDiag(c);return '<code>'+c+'</code>'+(d&&d.desc?' ('+d.desc+')':'');}).join(', ');
-    notice+='<div class="alert a-info"><strong>\u2139 ICD-9 used for '+icd9Fallbacks.size+
-      ' diagnosis code'+(icd9Fallbacks.size!==1?'s':'')+'</strong>'+
-      '<div style="margin-top:6px">No ICD-10 mapping on file, so the OHIP 3-digit code was used instead. '+
-      'The form accepts \u201CICD 9, ICD 10 Code, or Medical Diagnosis\u201D, so these are valid as submitted. '+
-      'Add an ICD-10 in <strong>Registries \u2192 Diagnoses</strong> to switch them over.</div>'+
+      const d=fDiag(c);const t=d?(d.short||d.desc||''):'';
+      return '<code>'+c+'</code>'+(t?' ('+t+')':'');}).join(', ');
+    notice+='<div class="alert a-info"><strong>\u2139 '+icd9Fallbacks.size+
+      ' diagnosis code'+(icd9Fallbacks.size!==1?'s have':' has')+' no short label yet</strong>'+
+      '<div style="margin-top:6px">A trimmed description or the OHIP code was used instead \u2014 valid, since the form '+
+      'accepts \u201CICD 9, ICD 10 Code, or Medical Diagnosis\u201D. Add a label under '+
+      '<strong>Registries \u2192 Diagnoses</strong> to control exactly what prints.</div>'+
       '<div style="margin-top:6px">'+codes+'</div></div>';
   }
   if(diagRepaired){
@@ -1739,9 +1774,9 @@ const CSV_TEMPLATES = {
   },
   diag: {
     filename: 'OM_Diagnoses_Template.csv',
-    headers:  ['ohip_code','icd10_code','description'],
-    example:  [['195','C80.1','Malignant neoplasm, unspecified'],['401','I10','Essential hypertension']],
-    note:     '# OM Billing Inc. — Diagnosis Lookup Template\n# ohip_code: 3-digit OHIP diagnostic code (col K in export)\n# icd10_code: corresponding ICD-10 code for claim form\n# description: human-readable label\n'
+    headers:  ['ohip_code','short_label','icd10_code','description'],
+    example:  [['174','Breast Cancer','C50.919','Malignant neoplasm: Female breast'],['402','Hypertensive Heart Dis.','I11.9','Hypertensive heart disease']],
+    note:     '# OM Billing Inc. — Diagnosis Lookup Template\n# ohip_code: 3-digit OHIP diagnostic code (col K in export)\n# short_label: short plain-language label printed on the claim form (max 26 chars)\n# icd10_code: optional ICD-10 code, used only if Settings is set to ICD-10 output\n# description: full MOH wording, for reference\n'
   },
   fees: {
     filename: 'OM_FeeSchedule_Template.csv',
@@ -1788,13 +1823,17 @@ async function ulCSV(type, input){
     }
   } else if(type==='diag'){
     const newRows=dataLines.map(l=>{
-      const[ohip,c2,c3]=l.split(',').map(s=>s.trim().replace(/^"|"$/g,''));
-      // Accept either column order: the ICD-10-shaped value is the code.
-      const code=[c2,c3].find(isIcd10)||'';
-      const text=[c2,c3].find(v=>v&&!isIcd10(v))||'';
-      return{ohip:ohip||'',icd:code,icd10:code,desc:text};
-    }).filter(r=>r.ohip&&(r.icd||r.desc));
-    if(!newRows.length){alert('No valid rows found. Check column order: ohip_code, icd10_code, description');return;}
+      const[ohip,c2,c3,c4]=l.split(',').map(s=>s.trim().replace(/^"|"$/g,''));
+      // Column order is flexible: the ICD-10-shaped value is the code, the
+      // shortest remaining text is the label, the longest is the full wording.
+      const cells=[c2,c3,c4].filter(v=>v);
+      const code=cells.find(isIcd10)||'';
+      const texts=cells.filter(v=>!isIcd10(v)).sort((a,b)=>a.length-b.length);
+      const short=(texts[0]||'').slice(0,26);
+      const text=texts.length>1?texts[texts.length-1]:(texts[0]||'');
+      return{ohip:ohip||'',icd:code,icd10:code,short,desc:text};
+    }).filter(r=>r.ohip&&(r.short||r.icd||r.desc));
+    if(!newRows.length){alert('No valid rows found. Check column order: ohip_code, short_label, icd10_code, description');return;}
     if(confirm('Replace '+diagnoses.length+' existing diagnoses with '+newRows.length+' from CSV?')){
       diagnoses=newRows;lsp('om_diag',diagnoses);rDiag();count=newRows.length;
     }
