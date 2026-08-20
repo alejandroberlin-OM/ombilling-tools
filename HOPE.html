@@ -303,11 +303,21 @@ const DX_RULES = [
   [/\b(adenocarcinoma|carcinoma|squamous|scc|cancer|tumor|tumour|neoplasm)/i,
                                            '199','Malignant neoplasm, site unspecified']
 ];
+// Key a diagnosis for the override table. Rows with no diagnosis (empty, or the
+// literal "None" the export writes) collapse to one BLANK_DX key so they can be
+// given a code like any other value — an empty string would be an unusable key.
+const BLANK_DX='\u0000blank';
+function dxKey(text){
+  const s=String(text==null?'':text).trim().toLowerCase();
+  return (!s||s==='none') ? BLANK_DX : s;
+}
 function mapDx(text, overrides){
   const s = String(text==null?'':text).trim();
+  const key = dxKey(s);
+  // Overrides win over everything, including the blank case. This ordering
+  // matters: checking "is it blank" first made blank rows impossible to fill in.
+  if(overrides && overrides[key]) return {code:overrides[key], label:'manual entry', src:'override'};
   if(!s || s.toLowerCase()==='none') return {code:'', label:'', src:'blank'};
-  const key = s.toLowerCase();
-  if(overrides && overrides[key]) return {code:overrides[key], label:'manual override', src:'override'};
   for(const [re,code,label] of DX_RULES){ if(re.test(s)) return {code, label, src:'rule'}; }
   return {code:'', label:'', src:'unmatched'};
 }
@@ -585,6 +595,8 @@ const esc=s=>String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;',
 
 let CONST = ls('const',{...HOPE_CONST, VirtualCode:'K301A', SelfRef:'blank'});
 let dxOverrides = ls('dxover',{});
+// Overrides saved before the blank-diagnosis fix landed under an '' key.
+if(dxOverrides['']){dxOverrides['\u0000blank']=dxOverrides['']; delete dxOverrides[''];}
 let srcRows=[], outRows=[], outIssues=[], dxList=[];
 
 /* ── nav ── */
@@ -632,12 +644,15 @@ function loadXL(input){
 }
 
 /* ── run the transform and repaint ── */
-function rebuild(){
+function applyConst(){
   HOPE_CONST.ProviderNumber = CONST.ProviderNumber;
   HOPE_CONST.GroupNumber    = CONST.GroupNumber;
   HOPE_CONST.ProvinceCode   = CONST.ProvinceCode;
   HOPE_CONST.ServiceLocationType = CONST.ServiceLocationType;
   HOPE_CONST.MasterNumber   = CONST.MasterNumber;
+}
+function rebuild(){
+  applyConst();
   const r=transform(srcRows,{dxOverrides, virtualCode:CONST.VirtualCode,
                              blankSelfRef:CONST.SelfRef==='blank'});
   outRows=r.rows; outIssues=r.issues;
@@ -657,47 +672,80 @@ function renderDx(){
   document.getElementById('dx-body').style.display=dxList.length?'':'none';
   if(!dxList.length)return;
 
-  let mapped=0,manual=0,blank=0,unmatched=0;
   const rowsHtml=dxList.map(d=>{
     const m=mapDx(d.text,dxOverrides);
-    if(m.src==='override')manual++; else if(m.src==='rule')mapped++;
-    else if(m.src==='blank')blank++; else unmatched++;
-    const badge = m.src==='override' ? '<span class="badge b-ok">manual</span>'
-                : m.src==='rule'     ? '<span class="badge b-ok">auto</span>'
-                : m.src==='blank'    ? '<span class="badge b-err">blank</span>'
-                :                      '<span class="badge b-err">no match</span>';
-    return '<tr><td style="width:44%">'+(d.text?esc(d.text):'<em style="color:var(--muted)">(blank)</em>')+'</td>'+
+    const k=dxKey(d.text);
+    const shown = d.text ? esc(d.text)
+      : '<em style="color:var(--muted)">(no diagnosis in the file)</em>';
+    return '<tr data-dxkey="'+esc(k)+'"><td style="width:44%">'+shown+'</td>'+
       '<td style="width:70px;text-align:center">'+d.n+'</td>'+
       '<td style="width:110px"><input value="'+esc(m.code)+'" placeholder="OHIP" maxlength="4" '+
-        'style="font-family:monospace;width:74px" oninput="setOverride('+JSON.stringify(d.text).replace(/"/g,'&quot;')+',this.value)"></td>'+
-      '<td style="color:var(--muted);font-size:12px">'+esc(m.label||'')+'</td>'+
-      '<td style="width:92px;text-align:right">'+badge+'</td></tr>';
+        'inputmode="numeric" style="font-family:monospace;width:74px" '+
+        'oninput="setOverride(this.closest(\'tr\').dataset.dxkey===\''+BLANK_DX+'\'?\'\':'+
+          JSON.stringify(d.text).replace(/"/g,'&quot;')+',this.value)"></td>'+
+      '<td data-role="label" style="color:var(--muted);font-size:12px">'+esc(m.label||'')+'</td>'+
+      '<td data-role="badge" style="width:92px;text-align:right">'+dxBadge(m)+'</td></tr>';
   }).join('');
   document.getElementById('dx-table').innerHTML=
     '<thead><tr><th>Diagnosis as written</th><th style="text-align:center">Rows</th>'+
     '<th>OHIP</th><th>Matched to</th><th style="text-align:right">Source</th></tr></thead><tbody>'+rowsHtml+'</tbody>';
+  renderDxStats();
+}
 
+function dxBadge(m){
+  return m.src==='override' ? '<span class="badge b-ok">manual</span>'
+       : m.src==='rule'     ? '<span class="badge b-ok">auto</span>'
+       : m.src==='blank'    ? '<span class="badge b-err">needs code</span>'
+       :                      '<span class="badge b-err">no match</span>';
+}
+
+// Stats + warning banner. Safe to call on every keystroke; touches no inputs.
+function renderDxStats(){
+  if(!dxList.length)return;
+  let mapped=0,manual=0,gaps=0;
+  dxList.forEach(d=>{const m=mapDx(d.text,dxOverrides);
+    if(m.src==='override')manual++; else if(m.src==='rule')mapped++; else gaps++;});
   document.getElementById('dx-stats').innerHTML=
     stat('Distinct diagnoses',dxList.length)+stat('Auto-mapped',mapped)+
-    stat('Manual',manual)+stat('Unmapped',unmatched+blank,(unmatched+blank)?'warn':'ok');
-
-  const gaps=dxList.filter(d=>{const m=mapDx(d.text,dxOverrides);return m.src==='unmatched'||m.src==='blank';});
-  document.getElementById('dx-warn').innerHTML = gaps.length
-    ? '<div class="alert a-warn"><strong>⚠ '+gaps.length+' diagnosis value'+(gaps.length!==1?'s':'')+
+    stat('Manual',manual)+stat('Unmapped',gaps,gaps?'warn':'ok');
+  document.getElementById('dx-warn').innerHTML = gaps
+    ? '<div class="alert a-warn"><strong>\u26a0 '+gaps+' diagnosis value'+(gaps!==1?'s':'')+
       ' without an OHIP code</strong><div style="margin-top:6px">These lines will export with an empty '+
-      'DiagnosticCode, which the ministry will reject. Type a code beside each one below.</div></div>'
-    : '<div class="alert a-ok"><strong>✓ Every diagnosis has an OHIP code.</strong></div>';
-  document.getElementById('dot-d').className='dot '+(gaps.length?'warn':'ok');
+      'DiagnosticCode, which the ministry will reject. Type a code in the OHIP box beside each one.</div></div>'
+    : '<div class="alert a-ok"><strong>\u2713 Every diagnosis has an OHIP code.</strong></div>';
+  document.getElementById('dot-d').className='dot '+(gaps?'warn':'ok');
 }
 function stat(l,v,cls){return '<div class="ssi"><div class="ssl">'+l+'</div><div class="ssv '+(cls||'')+'">'+v+'</div></div>';}
 
 function setOverride(text,val){
-  const k=String(text).trim().toLowerCase();
+  const k=dxKey(text);
   const v=String(val).trim();
   if(v)dxOverrides[k]=v; else delete dxOverrides[k];
   lsp('dxover',dxOverrides);
-  clearTimeout(window._dxT);
-  window._dxT=setTimeout(()=>{rebuild();},400);
+  // Recompute the claim lines and refresh the badge/stats for this row only.
+  // Rebuilding the whole table here would replace the <input> being typed in
+  // and drop the caret, which read as "the box won't take my code".
+  rebuildQuiet();
+  touchDxRow(k);
+}
+// Everything rebuild() does except repainting the diagnosis table.
+function rebuildQuiet(){
+  applyConst();
+  const r=transform(srcRows,{dxOverrides, virtualCode:CONST.VirtualCode,
+                             blankSelfRef:CONST.SelfRef==='blank'});
+  outRows=r.rows; outIssues=r.issues;
+  renderDxStats(); renderReview();
+}
+// Repaint just one row's "Matched to" and badge cells.
+function touchDxRow(key){
+  const row=document.querySelector('tr[data-dxkey="'+CSS.escape(key)+'"]');
+  if(!row)return;
+  const entry=dxList.find(d=>dxKey(d.text)===key);
+  const m=mapDx(entry?entry.text:'',dxOverrides);
+  const lab=row.querySelector('[data-role="label"]');
+  const bdg=row.querySelector('[data-role="badge"]');
+  if(lab)lab.textContent=m.label||'';
+  if(bdg)bdg.innerHTML=dxBadge(m);
 }
 function clearOverrides(){
   if(!confirm('Remove all manual diagnosis overrides?'))return;
