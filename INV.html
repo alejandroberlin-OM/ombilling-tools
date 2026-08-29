@@ -1,0 +1,796 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>OM Billing Inc.™ — INV Claims Report PDFs</title>
+<link href="https://fonts.googleapis.com/css2?family=Libre+Baskerville:ital,wght@0,400;0,700;1,400&family=Source+Sans+3:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --g1:#1a4070;--g2:#1e5494;--g3:#4080c0;--g4:#d0e4f5;--g5:#f0f5fb;
+  --gold:#c8a84b;--gold2:#e0bc60;
+  --ink:#12271b;--ink2:#1a3060;--muted:#4a6080;
+  --bg:#eef3fa;--card:#fff;--border:#c8d8ec;
+  --ok:#1a7a4a;--ok-bg:#e3f5ed;
+  --warn:#7a5010;--warn-bg:#fdf3e0;
+  --err:#991b1b;--err-bg:#fef2f2;
+  --r:11px;--rs:6px;--sh:0 1px 3px rgba(0,0,0,.06),0 4px 14px rgba(0,0,0,.05);
+}
+body{font-family:"Source Sans 3",sans-serif;background:var(--bg);color:var(--ink);min-height:100vh;font-size:14px}
+.hdr{background:var(--g1);color:#fff;height:68px;display:flex;align-items:center;gap:18px;padding:0 28px;
+     position:sticky;top:0;z-index:300;box-shadow:0 2px 16px rgba(0,0,0,.3)}
+.hdr-title{font-family:"Libre Baskerville",serif;font-size:17px;font-weight:700;color:#fff;letter-spacing:-.2px;line-height:1.2}
+.hdr-module{font-size:11px;color:rgba(255,255,255,.6);margin-top:2px;letter-spacing:.03em}
+.hdr-brand{font-family:"Libre Baskerville",serif;font-size:13px;font-weight:700;color:rgba(255,255,255,.55);margin-left:auto;white-space:nowrap}
+.hdr-tm{font-size:9px;vertical-align:super;color:var(--gold2)}
+.hdr-prop{margin-left:auto;font-size:10.5px;color:rgba(255,255,255,.45);font-weight:600;text-align:right;line-height:1.4}
+.hdr-prop strong{color:rgba(255,255,255,.7)}
+.form-tabs{background:var(--g2);display:flex;padding:0 28px;border-bottom:1px solid rgba(255,255,255,.15)}
+.form-tab{padding:11px 22px;font-size:13px;font-weight:700;color:rgba(255,255,255,.55);cursor:pointer;
+          border-bottom:3px solid transparent;margin-bottom:-1px;background:none;
+          border-top:none;border-left:none;border-right:none;font-family:inherit;transition:all .15s}
+.form-tab:hover{color:rgba(255,255,255,.85)}
+.form-tab.active{color:#fff;border-bottom-color:var(--gold2)}
+.tab-badge{font-size:10px;padding:1px 6px;border-radius:8px;margin-left:7px;background:rgba(255,255,255,.15);font-weight:600}
+.form-tab.active .tab-badge{background:var(--gold);color:var(--g1)}
+.form-section{display:none}
+.form-section.active{display:grid;grid-template-columns:230px 1fr;min-height:calc(100vh - 68px)}
+.sidebar{background:var(--card);border-right:1px solid var(--border);padding:20px 12px;
+         position:sticky;top:68px;height:calc(100vh - 68px);overflow-y:auto;display:flex;flex-direction:column}
+.nav-sec{font-size:9.5px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);
+         margin:0 8px 8px;padding-top:4px}
+.nav-btn{display:flex;align-items:center;gap:9px;padding:9px 10px;border-radius:var(--rs);cursor:pointer;
+         color:var(--ink2);font-size:13px;font-weight:500;transition:all .15s;border:none;background:none;
+         width:100%;text-align:left;font-family:inherit;margin-bottom:2px}
+.nav-btn:hover{background:var(--g5)}
+.nav-btn.active{background:var(--g1);color:#fff}
+.ni{font-size:14px;width:18px;text-align:center;flex-shrink:0}
+.dot{width:7px;height:7px;border-radius:50%;background:var(--border);flex-shrink:0;margin-left:auto;transition:background .15s}
+.dot.ok{background:#3aaa7a}.dot.warn{background:#f59e0b}
+.nav-gap{flex:1}
+.sb-note{font-size:11px;color:var(--muted);padding:10px 12px;background:var(--g5);border-radius:var(--rs);
+         line-height:1.65;border-left:3px solid var(--g3);margin-top:4px}
+.content{padding:28px 32px 40px;max-width:900px;flex:1}
+.panel{display:none}.panel.active{display:block}
+.pg-title{font-family:"Libre Baskerville",serif;font-size:22px;font-weight:700;color:var(--g1);margin-bottom:4px}
+.pg-sub{font-size:13px;color:var(--muted);margin-bottom:24px}
+.card{background:var(--card);border:1px solid var(--border);border-radius:var(--r);
+      margin-bottom:16px;overflow:hidden;box-shadow:var(--sh)}
+.card-hd{padding:13px 18px;border-bottom:1px solid var(--border);display:flex;align-items:center;
+         gap:10px;background:#fafdfb}
+.ct{font-size:14px;font-weight:700;color:var(--g1)}.cd{font-size:12px;color:var(--muted);margin-top:1px}
+.card-body{padding:16px 18px}
+.fg{display:flex;flex-direction:column;gap:4px}
+.fg-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.fg-grid.c3{grid-template-columns:1fr 1fr 1fr}
+.fg-grid.full,.fg.full{grid-column:1/-1}
+.fl{font-size:10.5px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--muted)}
+.fi{padding:8px 10px;border:1px solid var(--border);border-radius:var(--rs);font-size:13px;
+    font-family:inherit;color:var(--ink);background:#fff;transition:all .15s}
+.fi:focus{outline:none;border-color:var(--g3);box-shadow:0 0 0 3px rgba(58,170,122,.12)}
+.upg{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px}
+.upz{border:2px dashed var(--border);border-radius:var(--r);padding:26px 14px;text-align:center;
+     cursor:pointer;position:relative;transition:all .2s}
+.upz:hover{border-color:var(--g3);background:var(--g5)}
+.upz.loaded{border-style:solid;border-color:var(--ok);background:var(--ok-bg)}
+.upz.form-loaded{border-style:solid;border-color:var(--gold);background:#fdf8ec}
+.upz input[type=file]{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%}
+.uz-icon{font-size:28px;margin-bottom:7px;opacity:.7}
+.uz-lbl{font-size:13px;font-weight:700;color:var(--g1);margin-bottom:3px}
+.uz-hint{font-size:11px;color:var(--muted)}
+.uz-file{font-size:11px;font-weight:700;margin-top:6px;word-break:break-all}
+.mode-banner{display:flex;align-items:center;gap:10px;padding:8px 16px;border-radius:var(--rs);
+             font-size:12.5px;font-weight:600;margin-bottom:14px}
+.mode-form{background:var(--ok-bg);color:var(--ok);border:1px solid #a3d9bc}
+.mode-flat{background:var(--warn-bg);color:var(--warn);border:1px solid #f6d88a}
+.mode-dot{width:9px;height:9px;border-radius:50%;flex-shrink:0}
+.mode-form .mode-dot{background:var(--ok)}.mode-flat .mode-dot{background:#d97706}
+.dtbl{width:100%;border-collapse:collapse;font-size:12.5px}
+.dtbl thead tr{background:var(--g1)}
+.dtbl th{padding:7px 10px;text-align:left;color:#fff;font-size:10px;font-weight:700;letter-spacing:.07em;text-transform:uppercase}
+.dtbl th:first-child{border-radius:5px 0 0 0}.dtbl th:last-child{border-radius:0 5px 0 0;width:38px}
+.dtbl td{padding:4px 5px;border-bottom:1px solid var(--border);vertical-align:middle}
+.dtbl tr:last-child td{border-bottom:none}
+.dtbl tr:nth-child(even) td{background:#fafdfb}
+.dtbl input,.dtbl input[type=number]{width:100%;border:1px solid transparent;padding:4px 6px;border-radius:4px;
+  font-size:12px;font-family:inherit;background:transparent;transition:all .15s;color:var(--ink)}
+.dtbl input:focus{outline:none;border-color:var(--g3);background:#fff;box-shadow:0 0 0 2px rgba(58,170,122,.1)}
+.bdel{background:none;border:none;color:#e05252;cursor:pointer;font-size:14px;padding:2px 6px;
+      border-radius:4px;transition:background .15s;line-height:1}
+.bdel:hover{background:var(--err-bg)}
+.badd{display:inline-flex;align-items:center;gap:5px;margin-top:10px;padding:6px 13px;background:none;
+      border:1.5px dashed var(--g3);color:var(--g3);border-radius:var(--rs);font-size:12px;font-weight:700;
+      cursor:pointer;font-family:inherit;transition:all .15s}
+.badd:hover{background:var(--g5)}
+.sstrip{display:flex;gap:0;background:var(--g1);border-radius:var(--rs);overflow:hidden;margin-bottom:14px}
+.ssi{flex:1;padding:11px 14px;border-right:1px solid rgba(255,255,255,.1)}
+.ssi:last-child{border-right:none}
+.ssl{font-size:9.5px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:rgba(255,255,255,.5);margin-bottom:2px}
+.ssv{font-size:17px;font-weight:800;color:#fff;font-family:"Libre Baskerville",serif}
+.ssv.warn{color:#fbbf24}.ssv.ok{color:#6ee7b7}
+.pt-row{display:flex;align-items:center;gap:11px;padding:10px 0;border-bottom:1px solid var(--border)}
+.pt-row:last-child{border-bottom:none}
+.ava{width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;
+     font-weight:800;font-size:12px;color:#fff;flex-shrink:0;background:var(--g1)}
+.ava.multi{background:var(--gold)}
+.pi{flex:1;min-width:0}.pn{font-size:13px;font-weight:700}.pm{font-size:11.5px;color:var(--muted);margin-top:1px}
+.badge{font-size:10px;font-weight:700;padding:3px 8px;border-radius:10px;letter-spacing:.03em;white-space:nowrap}
+.b-ok{background:var(--ok-bg);color:var(--ok)}.b-warn{background:var(--warn-bg);color:var(--warn)}
+.b-err{background:var(--err-bg);color:var(--err)}.b-multi{background:#fdf3e0;color:#92400e}
+.alert{border-radius:var(--rs);padding:10px 13px;font-size:13px;margin-bottom:12px}
+.a-warn{background:var(--warn-bg);color:var(--warn);border:1px solid #f6d88a}
+.a-info{background:#eff6ff;color:#1e40af;border:1px solid #bfdbfe}
+.a-ok{background:var(--ok-bg);color:var(--ok);border:1px solid #b8e2ce}
+.alert ul{margin-top:5px;padding-left:15px}.alert li{margin-top:3px}
+.note{background:var(--g5);border-left:3px solid var(--g3);padding:9px 13px;
+      border-radius:0 var(--rs) var(--rs) 0;font-size:12px;color:var(--ink2);margin-top:12px;line-height:1.6}
+.btn{display:inline-flex;align-items:center;gap:7px;padding:9px 18px;border:none;border-radius:var(--rs);
+     font-size:13.5px;font-weight:700;cursor:pointer;font-family:inherit;transition:all .15s}
+.btn-g{background:var(--g1);color:#fff}.btn-g:hover{background:var(--g2)}
+.btn-g:disabled{opacity:.45;cursor:not-allowed}
+.btn-gold{background:var(--gold);color:var(--g1)}.btn-gold:hover{background:var(--gold2)}
+.btn-dl{display:inline-flex;align-items:center;gap:5px;padding:5px 11px;background:var(--g3);color:#fff;
+        border:none;border-radius:var(--rs);font-size:11.5px;font-weight:700;cursor:pointer;
+        text-decoration:none;font-family:inherit;transition:all .15s}
+.btn-dl:hover{background:var(--g2)}
+.btn-zip{display:inline-flex;align-items:center;gap:7px;margin-top:16px;padding:10px 20px;
+         background:var(--g1);color:#fff;border:none;border-radius:var(--rs);
+         font-size:13.5px;font-weight:700;cursor:pointer;font-family:inherit;transition:all .15s}
+.btn-zip:hover{background:var(--g2)}
+.pgb{height:4px;background:var(--border);border-radius:2px;overflow:hidden;margin:10px 0}
+.pgf{height:100%;background:linear-gradient(90deg,var(--gold),var(--g3));transition:width .3s;width:0}
+.empty{text-align:center;padding:44px 22px;color:var(--muted)}
+.empty-ic{font-size:42px;margin-bottom:12px;opacity:.5}.empty-tx{font-size:13px}
+/* ── Bookkeeping ── */
+.ledger-filters{display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap;align-items:center}
+.filter-btn{padding:6px 14px;border-radius:20px;font-size:12px;font-weight:700;border:1.5px solid var(--border);
+            background:var(--card);color:var(--muted);cursor:pointer;font-family:inherit;transition:all .15s}
+.filter-btn:hover{border-color:var(--g3);color:var(--g2)}
+.filter-btn.active{background:var(--g1);color:#fff;border-color:var(--g1)}
+.ledger-search{flex:1;min-width:160px;padding:6px 12px;border:1.5px solid var(--border);border-radius:20px;
+               font-size:12px;font-family:inherit;color:var(--ink);background:var(--card);outline:none}
+.ledger-search:focus{border-color:var(--g3)}
+.ledger-stats{display:flex;gap:0;background:var(--g1);border-radius:var(--rs);overflow:hidden;margin-bottom:16px}
+.ls-item{flex:1;padding:10px 14px;border-right:1px solid rgba(255,255,255,.1)}
+.ls-item:last-child{border-right:none}
+.ls-lbl{font-size:9.5px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:rgba(255,255,255,.5);margin-bottom:2px}
+.ls-val{font-size:16px;font-weight:800;color:#fff;font-family:"Libre Baskerville",serif}
+.ls-val.ok{color:#6ee7b7}.ls-val.warn{color:#fbbf24}
+.ledger-table{width:100%;border-collapse:collapse;font-size:12.5px}
+.ledger-table thead tr{background:var(--g1)}
+.ledger-table th{padding:9px 12px;text-align:left;color:#fff;font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase}
+.ledger-table th:first-child{border-radius:7px 0 0 0}.ledger-table th:last-child{border-radius:0 7px 0 0}
+.ledger-table th:hover{background:var(--g2)}
+.ledger-table td{padding:9px 12px;border-bottom:1px solid var(--border);vertical-align:middle}
+.ledger-table tr:nth-child(even) td{background:#fafdfb}
+.ledger-table tr:hover td{background:var(--g5)}
+.ledger-table tr.paid td{opacity:.65}
+.ledger-table tr.deleted td{opacity:.45;text-decoration:line-through;background:#fef2f2!important}
+.inv-num{font-family:monospace;font-size:12px;font-weight:700;color:var(--g2)}
+.paid-toggle{display:flex;align-items:center;gap:7px;cursor:pointer;white-space:nowrap}
+.paid-toggle input[type=checkbox]{width:16px;height:16px;accent-color:var(--g3);cursor:pointer;flex-shrink:0}
+.paid-lbl{font-size:12px;font-weight:600}
+.paid-lbl.paid{color:var(--ok)}.paid-lbl.unpaid{color:var(--muted)}
+.ledger-empty{text-align:center;padding:40px 20px;color:var(--muted);font-size:13px}
+.btn-clear-paid{display:inline-flex;align-items:center;gap:5px;padding:5px 12px;background:none;
+                border:1.5px solid var(--err);color:var(--err);border-radius:var(--rs);
+                font-size:11.5px;font-weight:700;cursor:pointer;font-family:inherit;transition:all .15s;margin-left:auto}
+.btn-clear-paid:hover{background:var(--err-bg)}
+.field-table{width:100%;border-collapse:collapse;font-size:12.5px;margin-top:10px}
+.field-table th{background:var(--g1);color:#fff;padding:7px 10px;text-align:left;font-size:11px;font-weight:700;letter-spacing:.05em}
+.field-table th:first-child{border-radius:5px 0 0 0}.field-table th:last-child{border-radius:0 5px 0 0}
+.field-table td{padding:5px 10px;border-bottom:1px solid var(--border);font-family:monospace;font-size:12px}
+.field-table tr:nth-child(even) td{background:#fafdfb}
+.field-table td.desc{font-family:"Source Sans 3",sans-serif;font-size:12px;color:var(--muted)}
+.guide-img{width:100%;border:1px solid var(--border);border-radius:var(--r);box-shadow:var(--sh)}
+.footer{background:var(--g1);color:rgba(255,255,255,.4);font-size:10.5px;padding:16px 28px;text-align:center;line-height:1.75;}
+.footer strong{color:rgba(255,255,255,.65)}
+@media(max-width:768px){
+  .form-section.active{grid-template-columns:1fr}
+  .sidebar{position:static;height:auto;border-right:none;border-bottom:1px solid var(--border)}
+  .content{padding:18px 14px}
+  .upg,.fg-grid,.fg-grid.c3{grid-template-columns:1fr}
+}
+
+/* ── Batch upload ── */
+.batch-bar{display:flex;align-items:center;gap:10px;padding:10px 14px;
+           background:var(--g5);border-radius:var(--rs);margin-bottom:0;border:1px solid var(--border)}
+.batch-bar span{font-size:12px;color:var(--muted);flex:1}
+.btn-csv-dl{display:inline-flex;align-items:center;gap:5px;padding:5px 12px;background:none;
+            border:1.5px solid var(--g3);color:var(--g3);border-radius:var(--rs);
+            font-size:11.5px;font-weight:700;cursor:pointer;font-family:inherit;transition:all .15s}
+.btn-csv-dl:hover{background:var(--g5)}
+.btn-csv-ul{position:relative;display:inline-flex;align-items:center;gap:5px;padding:5px 12px;
+            background:var(--g1);color:#fff;border:none;border-radius:var(--rs);
+            font-size:11.5px;font-weight:700;cursor:pointer;font-family:inherit;transition:all .15s}
+.btn-csv-ul:hover{background:var(--g2)}
+.btn-csv-ul input{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%}
+/* ── Premium codes table ── */
+.prem-note{font-size:12px;color:var(--muted);padding:10px 14px;background:var(--warn-bg);
+           border-radius:var(--rs);margin-bottom:12px;border:1px solid #f6d88a}
+
+
+
+
+
+/* ── File System storage ── */
+#fs-setup-modal{
+  position:fixed;inset:0;z-index:9998;background:rgba(26,92,58,.92);
+  display:flex;align-items:center;justify-content:center;padding:24px;
+}
+.fs-modal-box{background:var(--card);border-radius:16px;padding:36px 40px;
+              max-width:460px;width:100%;box-shadow:0 24px 60px rgba(0,0,0,.3)}
+.fs-modal-icon{font-size:44px;margin-bottom:14px}
+.fs-modal-title{font-family:"Libre Baskerville",serif;font-size:20px;font-weight:700;
+                color:var(--g1);margin-bottom:8px}
+.fs-modal-body{font-size:13px;color:var(--muted);line-height:1.7;margin-bottom:24px}
+.fs-modal-body strong{color:var(--ink)}
+.fs-btn-row{display:flex;gap:10px;flex-direction:column}
+.fs-btn-primary{padding:12px 20px;background:var(--g1);color:#fff;border:none;
+                border-radius:var(--rs);font-size:14px;font-weight:700;cursor:pointer;
+                font-family:inherit;transition:background .15s;text-align:left}
+.fs-btn-primary:hover{background:var(--g2)}
+.fs-btn-secondary{padding:10px 20px;background:none;color:var(--muted);
+                  border:1.5px solid var(--border);border-radius:var(--rs);
+                  font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;
+                  transition:all .15s;text-align:left}
+.fs-btn-secondary:hover{border-color:var(--g3);color:var(--g2)}
+.fs-note{font-size:11px;color:var(--muted);margin-top:14px;line-height:1.6}
+/* File status pill in header */
+#file-status-pill{
+  display:none;align-items:center;gap:6px;padding:4px 12px;
+  border-radius:20px;font-size:11.5px;font-weight:600;
+  background:rgba(255,255,255,.1);color:rgba(255,255,255,.7);
+  border:1px solid rgba(255,255,255,.2);cursor:default;
+  white-space:nowrap;max-width:200px;overflow:hidden;text-overflow:ellipsis;
+}
+#file-status-pill.saving{color:var(--gold2)}
+#file-status-pill.saved{color:#6ee7b7}
+#file-status-pill.fallback{color:#fbbf24}
+.fsp-dot{width:7px;height:7px;border-radius:50%;background:currentColor;flex-shrink:0}
+
+
+/* progress bar (INV export) */
+.progress-wrap{margin-top:12px}
+.progress{height:8px;border-radius:99px;background:var(--line,#e6e8eb);overflow:hidden}
+.progress-bar{height:100%;width:0%;border-radius:99px;background:var(--g1,#1a4a2e);transition:width .2s ease}
+.progress-txt{margin-top:8px;font-size:12px;color:var(--muted)}
+
+</style>
+<script>
+/* ══ INV core — CabMD Entered Claims workbook → one PDF per doctor ══
+   Replaces DeletePicturesHeadersFooters / RenameSheets / PrintSheetsToPDF.   */
+
+/* Detail sheets put values in fixed columns (0-indexed). Derived from the
+   CabMD export, confirmed against the practice's own generated PDFs. */
+const COLS=[
+  {i:0,  k:'claim',  h:'Claim#',          w:66,  a:'left'},
+  {i:2,  k:'hc',     h:'Healthcard',      w:112, a:'left'},
+  {i:4,  k:'name',   h:'Patient Name',    w:126, a:'left'},
+  {i:5,  k:'dob',    h:'DOB',             w:66,  a:'left',  t:'date'},
+  {i:6,  k:'bill',   h:'Billing Method',  w:56,  a:'center'},
+  {i:7,  k:'dx',     h:'DX',              w:34,  a:'center'},
+  {i:8,  k:'loc',    h:'Loc.',            w:34,  a:'center'},
+  {i:9,  k:'master', h:'Master#',         w:48,  a:'center'},
+  {i:11, k:'svc',    h:'Service Date',    w:66,  a:'center', t:'date'},
+  {i:12, k:'code',   h:'Code',            w:44,  a:'center'},
+  {i:13, k:'qty',    h:'Qty',             w:28,  a:'center', t:'int'},
+  {i:16, k:'fee',    h:'Fee Submitted',   w:70,  a:'right',  t:'money'},
+  {i:17, k:'rej',    h:'Rejection codes', w:64,  a:'center'},
+  {i:19, k:'ent',    h:'Entered Date',    w:66,  a:'center', t:'date'}
+];
+
+/* Excel serial → M-D-YYYY, matching the CabMD report's own style. */
+function serialToDate(n){
+  if(n===''||n===null||n===undefined)return '';
+  const v=typeof n==='number'?n:parseFloat(n);
+  if(isNaN(v))return String(n).trim();
+  const d=new Date(Date.UTC(1899,11,30)+Math.floor(v)*86400000);
+  if(isNaN(d.getTime()))return String(n).trim();
+  return (d.getUTCMonth()+1)+'-'+d.getUTCDate()+'-'+d.getUTCFullYear();
+}
+function money(v){
+  const n=typeof v==='number'?v:parseFloat(String(v).replace(/[^0-9.\-]/g,''));
+  if(isNaN(n))return String(v==null?'':v).trim();
+  return '$'+n.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g,',');
+}
+function cellText(raw,type){
+  if(raw===null||raw===undefined||raw==='')return '';
+  if(type==='date')return serialToDate(raw);
+  if(type==='money')return money(raw);
+  if(type==='int'){const n=parseFloat(raw);return isNaN(n)?String(raw).trim():String(Math.round(n));}
+  return String(raw).trim();
+}
+
+/* Sheet name from D2, following RenameSheets(): text after " for ",
+   commas stripped, trimmed, capped at 30 characters. */
+function sheetTitleName(d2){
+  const s=String(d2==null?'':d2);
+  const parts=s.split(' for ');
+  if(parts.length<2)return '';
+  let t=parts[parts.length-1].replace(/,/g,'').trim();
+  if(t.length>30)t=t.slice(0,30);
+  return t;
+}
+/* PrintSheetsToPDF() filename cleaning. The VBA also replaced "\" but the
+   character was lost from the document, so it is handled here too. */
+function safeFileName(name){
+  return String(name==null?'':name)
+    .replace(/[:\/\\?*\[\]]/g,'_')
+    .replace(/ /g,'_');
+}
+
+/* Pull one sheet into a structured report. `grid` is an array of row arrays. */
+function readSheet(grid,sheetName){
+  const at=(r,c)=>{const row=grid[r];const v=row?row[c]:undefined;
+    return (v===undefined||v===null)?'':v;};
+  const d2=at(1,3), d3=at(2,3), d4=at(3,3);
+  const person=sheetTitleName(d2);
+
+  /* Data starts after the two-part header block. A real claim row has a claim
+     number AND a numeric fee — testing for text alone matched the header row,
+     which begins "Claim#" and carries the word "Code" in the same column. */
+  const isDataRow=r=>{
+    const claim=String(at(r,0)).trim();
+    if(!claim||/^claim#?$/i.test(claim))return false;
+    const fee=at(r,16);
+    return fee!==''&&!isNaN(parseFloat(fee));
+  };
+  let start=-1;
+  for(let r=0;r<Math.min(grid.length,60);r++){ if(isDataRow(r)){start=r;break;} }
+  const rows=[]; let total=null; let totalLabel='';
+  if(start>=0){
+    for(let r=start;r<grid.length;r++){
+      const label=String(at(r,10)).trim();
+      if(/total fee/i.test(label)){
+        totalLabel=label;
+        for(let c=11;c<20;c++){const v=at(r,c);
+          if(v!==''&&!isNaN(parseFloat(v))){total=parseFloat(v);break;}}
+        continue;
+      }
+      if(!isDataRow(r))continue;
+      const o={};
+      COLS.forEach(col=>o[col.k]=cellText(at(r,col.i),col.t));
+      o._fee=parseFloat(at(r,16));
+      rows.push(o);
+    }
+  }
+  /* Fall back to summing the rows when the sheet carries no total line. */
+  if(total===null&&rows.length){
+    const s=rows.reduce((a,x)=>a+(isNaN(x._fee)?0:x._fee),0);
+    total=s; totalLabel='Total Fee Submitted:';
+  }
+  /* The workbook also carries summary sheets (by date, by care provider, by
+     group). They have their own headers and column counts, so they are read
+     generically instead of being forced into the detail layout above. */
+  if(!rows.length){
+    const gen=readGeneric(grid);
+    return{sheetName,person:'',
+      title:String(d2||at(1,1)||at(1,2)||'').trim(),
+      sub1:String(d3||at(2,1)||at(2,2)||'').trim(),
+      sub2:String(d4||at(3,1)||at(3,2)||'').trim(),
+      generic:gen,rows:[],total:null,totalLabel:'',isDetail:false};
+  }
+
+  return{sheetName,person,
+    title:String(d2||'').trim(),
+    sub1:String(d3||'').trim(),
+    sub2:String(d4||'').trim(),
+    rows,total,
+    totalLabel:totalLabel||'Total Fee Submitted:',
+    isDetail:rows.length>0&&!!person};
+}
+
+/* Read a sheet whose shape isn't known: locate the header row (the one with the
+   most non-empty cells in the first 15 rows), then take everything below it. */
+function readGeneric(grid){
+  const at=(r,c)=>{const row=grid[r];const v=row?row[c]:undefined;
+    return (v===undefined||v===null)?'':v;};
+  const width=Math.max(0,...grid.map(r=>r?r.length:0));
+  let hr=-1,best=0;
+  for(let r=0;r<Math.min(grid.length,15);r++){
+    let n=0; for(let c=0;c<width;c++) if(String(at(r,c)).trim())n++;
+    if(n>best){best=n;hr=r;}
+  }
+  if(hr<0)return{cols:[],rows:[]};
+  /* Keep only columns that carry something below the header. */
+  const keep=[];
+  for(let c=0;c<width;c++){
+    let used=String(at(hr,c)).trim()?1:0;
+    for(let r=hr+1;r<grid.length;r++) if(String(at(r,c)).trim()){used++;break;}
+    if(used)keep.push(c);
+  }
+  const isNum=c=>{
+    let n=0,t=0;
+    for(let r=hr+1;r<grid.length;r++){const v=at(r,c);
+      if(v===''||v===null)continue;t++;if(!isNaN(parseFloat(v)))n++;}
+    return t>0&&n/t>0.7;
+  };
+  const cols=keep.map(c=>({i:c,h:String(at(hr,c)).trim(),num:isNum(c)}));
+  const rows=[];
+  for(let r=hr+1;r<grid.length;r++){
+    const cells=cols.map(c=>{
+      const v=at(r,c.i);
+      if(v==='')return '';
+      if(c.num&&!isNaN(parseFloat(v))){
+        const n=parseFloat(v);
+        /* Fee-like columns get currency; counts stay plain. */
+        return /fee|total|submitted|amount/i.test(c.h)?money(n)
+             : (Number.isInteger(n)?String(n):String(n));
+      }
+      return String(v).trim();
+    });
+    if(cells.some(x=>x!==''))rows.push(cells);
+  }
+  return{cols,rows};
+}
+
+/* Render a generic (summary) sheet: header row plus data, evenly spaced. */
+function renderGeneric(doc,rep,opt){
+  opt=opt||{};
+  const PW=doc.internal.pageSize.getWidth(), PH=doc.internal.pageSize.getHeight();
+  const M=opt.margin||30, avail=PW-M*2;
+  const g=rep.generic||{cols:[],rows:[]};
+  let y=M+6;
+  const centre=(t,size,bold)=>{if(!t)return;
+    doc.setFont('helvetica',bold?'bold':'normal');doc.setFontSize(size);
+    doc.text(String(t),PW/2,y,{align:'center'});y+=size+4;};
+  centre(rep.title,11,true);centre(rep.sub1,8.5,false);centre(rep.sub2,8.5,false);
+  y+=6;
+  if(!g.cols.length){
+    doc.setFont('helvetica','normal');doc.setFontSize(9);
+    doc.text('(no tabular data on this sheet)',PW/2,y+10,{align:'center'});
+    return;
+  }
+  /* Give text columns more room than numeric ones. */
+  const weight=g.cols.map(c=>c.num?1:2);
+  const tw=weight.reduce((a,b)=>a+b,0);
+  const w=weight.map(x=>avail*x/tw);
+  const drawHead=()=>{
+    doc.setFont('helvetica','bold');doc.setFontSize(7.5);
+    let x=M,maxL=1;
+    g.cols.forEach((c,i)=>{
+      const lines=doc.splitTextToSize(c.h||'',w[i]-4);
+      maxL=Math.max(maxL,lines.length);
+      lines.forEach((ln,li)=>doc.text(ln,c.num?x+w[i]-3:x+3,y+li*8,
+        c.num?{align:'right'}:undefined));
+      x+=w[i];
+    });
+    y+=maxL*8+2;doc.setLineWidth(0.6);doc.line(M,y,M+avail,y);y+=8;
+  };
+  drawHead();
+  doc.setFont('helvetica','normal');doc.setFontSize(7.5);
+  g.rows.forEach(cells=>{
+    if(y>PH-M-14){doc.addPage();y=M+6;drawHead();
+      doc.setFont('helvetica','normal');doc.setFontSize(7.5);}
+    const bold=cells.some(v=>/^(grand )?total/i.test(String(v)));
+    if(bold)doc.setFont('helvetica','bold');
+    let x=M;
+    g.cols.forEach((c,i)=>{
+      const t=cells[i]||'';
+      if(t){const fit=doc.splitTextToSize(t,w[i]-4)[0]||'';
+        if(c.num)doc.text(fit,x+w[i]-3,y,{align:'right'});
+        else doc.text(fit,x+3,y);}
+      x+=w[i];
+    });
+    if(bold)doc.setFont('helvetica','normal');
+    y+=11;
+  });
+}
+
+/* Render one report onto a jsPDF document. Landscape letter, table scaled to
+   the printable width — the VBA's FitToPagesWide = 1. */
+function renderReport(doc,rep,opt){
+  opt=opt||{};
+  if(!rep.isDetail)return renderGeneric(doc,rep,opt);
+  const PW=doc.internal.pageSize.getWidth();
+  const PH=doc.internal.pageSize.getHeight();
+  const M=opt.margin||30;
+  const avail=PW-M*2;
+  const natural=COLS.reduce((a,c)=>a+c.w,0);
+  const k=avail/natural;                       // scale to fill the page width
+  const w=COLS.map(c=>c.w*k);
+  const x0=M;
+
+  let y=M+6;
+  const centre=(txt,size,bold)=>{
+    doc.setFont('helvetica',bold?'bold':'normal');doc.setFontSize(size);
+    doc.text(String(txt||''),PW/2,y,{align:'center'});y+=size+4;
+  };
+  if(rep.title)centre(rep.title,11,true);
+  if(rep.sub1) centre(rep.sub1,8.5,false);
+  if(rep.sub2) centre(rep.sub2,8.5,false);
+  y+=6;
+
+  const drawHead=()=>{
+    doc.setFont('helvetica','bold');doc.setFontSize(7);
+    let x=x0;
+    COLS.forEach((c,i)=>{
+      const cw=w[i];
+      const lines=doc.splitTextToSize(c.h,cw-4);
+      lines.forEach((ln,li)=>doc.text(ln,x+cw/2,y+li*7.5,{align:'center'}));
+      x+=cw;
+    });
+    const maxLines=Math.max(...COLS.map((c,i)=>doc.splitTextToSize(c.h,w[i]-4).length));
+    y+=maxLines*7.5+2;
+    doc.setLineWidth(0.6);doc.line(x0,y,x0+avail,y);
+    y+=8;
+    doc.setFont('helvetica','normal');
+  };
+  drawHead();
+
+  doc.setFontSize(7);
+  const lineH=10.5;
+  rep.rows.forEach(r=>{
+    if(y>PH-M-26){                       // new page, repeat the header row
+      doc.addPage();y=M+6;drawHead();doc.setFontSize(7);
+    }
+    let x=x0;
+    COLS.forEach((c,i)=>{
+      const cw=w[i];
+      let t=r[c.k]||'';
+      if(t){
+        const fit=doc.splitTextToSize(t,cw-4)[0]||'';
+        if(c.a==='right')      doc.text(fit,x+cw-3,y,{align:'right'});
+        else if(c.a==='center')doc.text(fit,x+cw/2,y,{align:'center'});
+        else                   doc.text(fit,x+3,y);
+      }
+      x+=cw;
+    });
+    y+=lineH;
+  });
+
+  if(rep.total!==null&&rep.total!==undefined){
+    y+=6;
+    if(y>PH-M-16){doc.addPage();y=M+20;}
+    doc.setLineWidth(0.6);doc.line(x0+avail*0.55,y-10,x0+avail,y-10);
+    doc.setFont('helvetica','bold');doc.setFontSize(8);
+    doc.text(rep.totalLabel,x0+avail*0.72,y,{align:'right'});
+    doc.text(money(rep.total),x0+avail,y,{align:'right'});
+  }
+}
+
+
+</script>
+</head>
+<body>
+<header class="hdr">
+  <div><div class="hdr-title">OM Billing Inc.™</div>
+  <div class="hdr-module">INV · CabMD Claims Report → Per-Doctor PDFs</div></div>
+  <div class="hdr-brand">OM Billing Inc.<span class="hdr-tm">™</span></div>
+</header>
+
+<div class="form-section active" style="display:grid">
+<aside class="sidebar">
+  <div class="nav-sec">Workflow</div>
+  <button class="nav-btn active" onclick="go('upload',this)"><span class="ni">📁</span>1 · Upload<span class="dot" id="dot-u"></span></button>
+  <button class="nav-btn" onclick="go('review',this)"><span class="ni">📊</span>2 · Review<span class="dot" id="dot-r"></span></button>
+  <button class="nav-btn" onclick="go('export',this)"><span class="ni">⬇️</span>3 · Export<span class="dot" id="dot-x"></span></button>
+  <div class="nav-gap"></div>
+  <button class="nav-btn" onclick="go('rules',this)"><span class="ni">📖</span>What this does</button>
+  <div class="sb-note">Processed locally. Nothing leaves this device.</div>
+</aside>
+
+<div style="display:flex;flex-direction:column;flex:1;overflow:auto"><div class="content">
+
+<div class="panel active" id="panel-upload">
+  <div class="pg-title">Upload the CabMD claims report</div>
+  <div class="pg-sub">The Entered Claims Detail workbook, exactly as CabMD exports it.</div>
+  <div class="card"><div class="card-body">
+    <label class="upz" for="xls-in"><div class="uz-icon">📊</div>
+      <div class="uz-lbl">Choose the Entered Claims Detail file</div>
+      <div class="uz-hint">.xls or .xlsx &nbsp;·&nbsp; every sheet becomes a PDF</div></label>
+    <input type="file" id="xls-in" accept=".xls,.xlsx" style="display:none" onchange="loadXL(this)">
+    <div id="up-res" style="margin-top:14px"></div>
+  </div></div>
+</div>
+
+<div class="panel" id="panel-review">
+  <div class="pg-title">Review</div>
+  <div class="pg-sub">One row per sheet. Check the totals against CabMD before exporting.</div>
+  <div id="rv-empty" class="empty"><div class="empty-ic">📊</div>Upload a workbook to see its contents.</div>
+  <div id="rv-body" style="display:none">
+    <div class="sstrip" id="rv-stats"></div>
+    <div id="rv-warn"></div>
+    <div class="card" style="margin-top:12px">
+      <div class="card-hd"><div class="ct">📊 Sheets found</div></div>
+      <div class="card-body" style="padding:0;overflow:auto;max-height:560px">
+        <table class="dtbl" id="rv-table"></table></div>
+    </div>
+  </div>
+</div>
+
+<div class="panel" id="panel-export">
+  <div class="pg-title">Export</div>
+  <div class="pg-sub">Every sheet is rendered to its own landscape PDF and bundled into one zip.</div>
+  <div id="ex-empty" class="empty"><div class="empty-ic">⬇️</div>Upload a workbook first.</div>
+  <div id="ex-body" style="display:none">
+    <div class="card"><div class="card-hd"><div class="ct">📦 Build the PDF set</div></div>
+    <div class="card-body">
+      <div class="fg-grid c3">
+        <div class="fg"><label class="fl">Folder / zip name</label>
+          <input class="fi" id="e-folder" placeholder="06 2026 - Jun co"></div>
+        <div class="fg"><label class="fl">Include</label>
+          <select class="fi" id="e-scope">
+            <option value="all">All sheets (doctors + summaries)</option>
+            <option value="doctors">Doctor sheets only</option></select></div>
+        <div class="fg" style="justify-content:flex-end">
+          <button class="btn btn-gold" onclick="buildZip()">⬇ Build &amp; download zip</button></div>
+      </div>
+      <div class="progress-wrap" id="ex-prog" style="display:none;margin-top:14px">
+        <div class="progress"><div class="progress-bar" id="ex-bar" style="width:0%"></div></div>
+        <div class="progress-txt" id="ex-txt">Starting…</div>
+      </div>
+      <div id="ex-res" style="margin-top:12px"></div>
+    </div></div>
+  </div>
+</div>
+
+<div class="panel" id="panel-rules">
+  <div class="pg-title">What this does</div>
+  <div class="card"><div class="card-body"><div class="note" style="line-height:2">
+  Replaces the three macros in one pass:<br>
+  <strong>1 · Delete pictures, headers and footers</strong> — nothing is carried over from the workbook,
+  so the logos and page furniture simply never appear.<br>
+  <strong>2 · Rename worksheets</strong> — each sheet is named from the text after
+  &ldquo;<code>&nbsp;for&nbsp;</code>&rdquo; in cell <code>D2</code>, commas removed, trimmed to 30 characters.
+  Sheets with no such text keep their original name.<br>
+  <strong>3 · Print worksheets to PDF</strong> — one landscape letter PDF per sheet, scaled to the page
+  width, with the header row repeated on every page. Filenames replace
+  <code>: / \\ ? * [ ]</code> and spaces with underscores.<br><br>
+  The totals come from each sheet's own &ldquo;Total Fee Submitted&rdquo; line. Where a sheet has none,
+  the fee column is summed instead and the row is flagged in the review table.
+  </div></div></div>
+</div>
+
+</div>
+<div class="footer">Copyright © <script>document.write(new Date().getFullYear())</script> <strong>OM Billing Inc.™</strong> All rights reserved.</div>
+</div></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<script>
+const esc=s=>String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const stat=(l,v,c)=>'<div class="ssi"><div class="ssl">'+l+'</div><div class="ssv '+(c||'')+'">'+v+'</div></div>';
+let reports=[], srcName='';
+
+function go(id,btn){document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
+  document.getElementById('panel-'+id).classList.add('active');
+  document.querySelectorAll('.nav-btn').forEach(b=>b.classList.remove('active'));
+  if(btn)btn.classList.add('active');}
+
+function jsPDFCtor(){
+  if(window.jspdf&&window.jspdf.jsPDF)return window.jspdf.jsPDF;
+  if(window.jsPDF)return window.jsPDF;
+  return null;
+}
+
+function loadXL(input){
+  const f=input.files[0]; if(!f)return;
+  srcName=f.name;
+  document.getElementById('up-res').innerHTML='<div class="alert a-info">Reading the workbook…</div>';
+  const rd=new FileReader();
+  rd.onload=e=>{
+    try{
+      const wb=XLSX.read(new Uint8Array(e.target.result),{type:'array'});
+      reports=wb.SheetNames.map(n=>{
+        const grid=XLSX.utils.sheet_to_json(wb.Sheets[n],{header:1,raw:true,defval:''});
+        return readSheet(grid,n);
+      });
+      const docs=reports.filter(r=>r.isDetail).length;
+      document.getElementById('up-res').innerHTML=
+        '<div class="alert a-ok"><strong>✓ '+esc(f.name)+'</strong><div style="margin-top:6px">'+
+        reports.length+' sheets — <strong>'+docs+'</strong> doctor reports and '+
+        (reports.length-docs)+' summary sheet'+((reports.length-docs)!==1?'s':'')+'.</div></div>';
+      document.getElementById('dot-u').className='dot ok';
+      // suggest a folder name from the file name
+      const m=f.name.match(/(\d{4})[-_ ]?(\w{3})/);
+      const fld=document.getElementById('e-folder');
+      if(fld&&!fld.value)fld.value=f.name.replace(/\.xlsx?$/i,'').slice(0,60);
+      renderReview();
+    }catch(err){
+      document.getElementById('up-res').innerHTML=
+        '<div class="alert a-warn"><strong>⚠ Could not read that file</strong><div style="margin-top:6px">'+
+        esc(err.message)+'</div></div>';
+    }
+  };
+  rd.readAsArrayBuffer(f);
+}
+
+function renderReview(){
+  document.getElementById('rv-empty').style.display=reports.length?'none':'';
+  document.getElementById('rv-body').style.display=reports.length?'':'none';
+  document.getElementById('ex-empty').style.display=reports.length?'none':'';
+  document.getElementById('ex-body').style.display=reports.length?'':'none';
+  if(!reports.length)return;
+  const docs=reports.filter(r=>r.isDetail);
+  const grand=docs.reduce((a,r)=>a+(r.total||0),0);
+  const noTot=reports.filter(r=>r.isDetail&&r.total===null).length;
+  const empty=reports.filter(r=>!r.isDetail&&(!r.generic||!r.generic.rows.length)).length;
+  document.getElementById('rv-stats').innerHTML=
+    stat('Sheets',reports.length)+stat('Doctor reports',docs.length)+
+    stat('Claim lines',docs.reduce((a,r)=>a+r.rows.length,0))+
+    stat('Sum of doctor totals',money(grand),'ok')+
+    stat('Sheets with no data',empty,empty?'warn':'ok');
+  document.getElementById('rv-warn').innerHTML=
+    (empty?'<div class="alert a-warn"><strong>⚠ '+empty+' sheet'+(empty!==1?'s':'')+
+      ' produced no rows</strong><div style="margin-top:6px">They still export, but check them — an '+
+      'unexpected layout would show up this way.</div></div>':'')+
+    '<div class="alert a-info"><strong>ℹ Check the sum against CabMD</strong>'+
+    '<div style="margin-top:6px">The figure above adds up the per-doctor totals. It should match the '+
+    'grand total on the summary sheet.</div></div>';
+  document.getElementById('rv-table').innerHTML=
+    '<thead><tr><th>PDF file</th><th>Report for</th><th style="text-align:center">Rows</th>'+
+    '<th style="text-align:right">Total</th><th style="text-align:right">Type</th></tr></thead><tbody>'+
+    reports.map(r=>{
+      const fn=safeFileName(r.person||r.sheetName)+'.pdf';
+      const rows=r.isDetail?r.rows.length:((r.generic&&r.generic.rows.length)||0);
+      return '<tr'+(!rows?' style="background:var(--warn-bg)"':'')+'>'+
+      '<td style="font-family:ui-monospace,monospace;font-size:11.5px">'+esc(fn)+'</td>'+
+      '<td>'+esc(r.person||'—')+'</td>'+
+      '<td style="text-align:center">'+rows+'</td>'+
+      '<td style="text-align:right;font-family:ui-monospace,monospace">'+
+        (r.total!==null&&r.total!==undefined?money(r.total):'—')+'</td>'+
+      '<td style="text-align:right">'+(r.isDetail?'<span class="badge b-ok">doctor</span>'
+        :'<span class="badge b-multi">summary</span>')+'</td></tr>';
+    }).join('')+'</tbody>';
+  document.getElementById('dot-r').className='dot ok';
+  document.getElementById('dot-x').className='dot';
+}
+
+async function buildZip(){
+  const Ctor=jsPDFCtor();
+  if(!Ctor){document.getElementById('ex-res').innerHTML=
+    '<div class="alert a-warn"><strong>⚠ The PDF library did not load</strong><div style="margin-top:6px">'+
+    'Check the network connection and reload the page.</div></div>';return;}
+  if(typeof JSZip==='undefined'){document.getElementById('ex-res').innerHTML=
+    '<div class="alert a-warn"><strong>⚠ The zip library did not load</strong></div>';return;}
+
+  const scope=document.getElementById('e-scope').value;
+  const list=reports.filter(r=>scope==='doctors'?r.isDetail:true);
+  if(!list.length){alert('Nothing to export.');return;}
+  const folder=(document.getElementById('e-folder').value||'Claims_Reports').trim();
+
+  const prog=document.getElementById('ex-prog'), bar=document.getElementById('ex-bar'),
+        txt=document.getElementById('ex-txt');
+  prog.style.display='';
+  document.getElementById('ex-res').innerHTML='';
+  const zip=new JSZip(), dir=zip.folder(folder);
+  const used={};
+  for(let i=0;i<list.length;i++){
+    const r=list[i];
+    txt.textContent='Rendering '+(i+1)+' of '+list.length+' — '+(r.person||r.sheetName);
+    bar.style.width=Math.round((i/list.length)*100)+'%';
+    await new Promise(res=>setTimeout(res,0));      // let the bar paint
+    try{
+      const doc=new Ctor({orientation:'landscape',unit:'pt',format:'letter'});
+      renderReport(doc,r);
+      let fn=safeFileName(r.person||r.sheetName);
+      if(used[fn]){fn=fn+'_'+(++used[fn]);}else used[fn]=1;   // never overwrite
+      dir.file(fn+'.pdf',doc.output('arraybuffer'));
+    }catch(err){
+      console.error('render failed for',r.sheetName,err);
+      document.getElementById('ex-res').innerHTML+=
+        '<div class="alert a-warn"><strong>⚠ Could not render '+esc(r.person||r.sheetName)+
+        '</strong><div style="margin-top:6px">'+esc(err.message)+'</div></div>';
+    }
+  }
+  txt.textContent='Compressing…'; bar.style.width='100%';
+  await new Promise(res=>setTimeout(res,0));
+  const blob=await zip.generateAsync({type:'blob'});
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(blob);
+  a.download=folder.replace(/[^\w\- ]/g,'_')+'.zip';
+  a.click();URL.revokeObjectURL(a.href);
+  prog.style.display='none';
+  document.getElementById('ex-res').innerHTML+=
+    '<div class="alert a-ok"><strong>✓ '+list.length+' PDFs bundled</strong>'+
+    '<div style="margin-top:6px">Downloaded as <code>'+esc(folder)+'.zip</code>.</div></div>';
+  document.getElementById('dot-x').className='dot ok';
+}
+</script>
+</body>
+</html>

@@ -111,6 +111,7 @@ body::after{
 .card-hope {--card-a:#5b7fd4;--card-b:#26346b}
 .card-rt   {--card-a:#2f9bbf;--card-b:#0f4a63}
 .card-abr  {--card-a:#c8a84b;--card-b:#6b5416}
+.card-inv  {--card-a:#8a9a5b;--card-b:#3f4a22}
 
 .card-flag{
   display:inline-flex;align-items:center;gap:7px;
@@ -130,6 +131,7 @@ body::after{
 .card-hope .flag-dot{background:#7f9ee6;box-shadow:0 0 8px #7f9ee6}
 .card-rt   .flag-dot{background:#4fc0e0;box-shadow:0 0 8px #4fc0e0}
 .card-abr  .flag-dot{background:#e0c469;box-shadow:0 0 8px #e0c469}
+.card-inv  .flag-dot{background:#b3c47d;box-shadow:0 0 8px #b3c47d}
 
 .card-title{font-family:"Cormorant Garamond",serif;font-size:26px;font-weight:600;
              color:#fff;line-height:1.15;margin-bottom:8px;position:relative;z-index:1}
@@ -389,6 +391,11 @@ const MODULES = {
     cls:'card-abr', file:'ABR.html',
     flag:'Admin · ABR', title:'ABR<br>Additional Billing',
     sub:'Palliative case selection<br>Visit + G512 + RT planning', btn:'Open Tool'
+  },
+  inv: {
+    cls:'card-inv', file:'INV.html',
+    flag:'Admin · Invoicing', title:'INV<br>Claims Report PDFs',
+    sub:'CabMD entered claims<br>One PDF per doctor · zip', btn:'Open Tool'
   }
 };
 
@@ -401,7 +408,7 @@ const SECTIONS = {
   // Admin-only. Not referenced by the radonc or medonc roles, so those users
   // never see these cards.
   admin:  { label:'Administration',
-            modules:['abr'] }
+            modules:['abr','inv'] }
 };
 
 /* ══════════════════════════════════════════════════════════════════
