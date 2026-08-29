@@ -2315,8 +2315,20 @@ function resetTesting(){
 }
 
 // ── _initApp: called after FS startup completes ──────────────────────
+// Defaults are only READ into memory at start-up, so a registry the user never
+// edited was absent from localStorage and therefore missing from the saved data
+// file entirely. Write them once so every export carries a complete set.
+function _seedDefaults(){
+  const seed={om_prov:providers,om_diag:diagnoses,om_fees:fees,
+              om_prem:premiums,om_settings:settings};
+  Object.keys(seed).forEach(k=>{
+    try{ if(localStorage.getItem(k)===null)localStorage.setItem(k,JSON.stringify(seed[k])); }catch(e){}
+  });
+  try{ if(localStorage.getItem('om_inv_ctr')===null)localStorage.setItem('om_inv_ctr','0'); }catch(e){}
+}
 function _initApp(){
   const wasForeign=_clearForeignState();
+  _seedDefaults();
   buildIcd10Map();                       // OHIP → ICD-10 crosswalk from D_DIAG
   diagRepaired=normalizeDiagnoses();     // repair swapped ICD-10/Description cols
   if(diagRepaired)lsp('om_diag',diagnoses);
