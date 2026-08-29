@@ -525,9 +525,12 @@ function renderGeneric(doc,rep,opt){
     g.cols.forEach((c,i)=>{
       const t=row.cells[i]||'';
       if(!t)return;
-      const fit=doc.splitTextToSize(t,w[i]-4)[0]||'';
-      if(c.num)doc.text(fit,colX(i)+w[i]-3,y,{align:'right'});
-      else doc.text(fit,colX(i)+3,y);
+      let fs=7.5;
+      while(fs>4.6&&doc.getTextWidth(t)*(fs/doc.getFontSize())>w[i]-5)fs-=0.25;
+      if(fs!==7.5)doc.setFontSize(fs);
+      if(c.num)doc.text(t,colX(i)+w[i]-3,y,{align:'right'});
+      else doc.text(t,colX(i)+3,y);
+      if(fs!==7.5)doc.setFontSize(7.5);
     });
     if(bold)doc.setFont('helvetica','normal');
   };
@@ -615,10 +618,15 @@ function renderReport(doc,rep,opt){
       const cw=w[i];
       let t=r[c.k]||'';
       if(t){
-        const fit=doc.splitTextToSize(t,cw-4)[0]||'';
-        if(c.a==='right')      doc.text(fit,x+cw-3,y,{align:'right'});
-        else if(c.a==='center')doc.text(fit,x+cw/2,y,{align:'center'});
-        else                   doc.text(fit,x+3,y);
+        /* Never clip. Step the font down until the whole value fits, so a long
+           patient name is rendered small rather than silently cut short. */
+        let fs=7;
+        while(fs>4.6&&doc.getTextWidth(t)*(fs/doc.getFontSize())>cw-5)fs-=0.25;
+        if(fs!==7)doc.setFontSize(fs);
+        if(c.a==='right')      doc.text(t,x+cw-3,y,{align:'right'});
+        else if(c.a==='center')doc.text(t,x+cw/2,y,{align:'center'});
+        else                   doc.text(t,x+3,y);
+        if(fs!==7)doc.setFontSize(7);
       }
       x+=cw;
     });
