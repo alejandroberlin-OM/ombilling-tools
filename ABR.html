@@ -332,9 +332,13 @@ function genRows(c,plan,ABR){
     return r;
   };
   const allRef=ABR.refOn==='all';
+  // Visit keeps the original service date; G512A and the RT planning code carry
+  // the planning date. If no planning date is set the field is left EMPTY and
+  // flagged — silently reusing the visit date would bill the planning work on
+  // the wrong day.
   out.push(mk(plan.visitCode||'A345A', visitDate, 1, true));            // visit
-  out.push(mk('G512A',                 planDate||visitDate, 1, allRef)); // palliative management
-  out.push(mk(plan.xCode||'X313A',     planDate||visitDate, plan.xQty||1, allRef)); // RT planning
+  out.push(mk('G512A',                 planDate, 1, allRef));           // palliative management
+  out.push(mk(plan.xCode||'X313A',     planDate, plan.xQty||1, allRef)); // RT planning
   return out;
 }
 
@@ -391,6 +395,20 @@ function toCSV(rows,cols){
     <div id="up-res" style="margin-top:14px"></div>
     <div style="margin-top:12px"><button class="btn btn-g" onclick="clearPool()">Clear the pool</button></div>
   </div></div>
+  <div class="card" style="margin-top:12px">
+    <div class="card-hd"><div class="ct">🗂️ Billing data file (optional)</div></div>
+    <div class="card-body">
+      <div class="note" style="margin-bottom:10px">Load your <strong>RadOnc</strong> data file to pull
+        doctor names from the Doctors registry and fees from the Fee Codes registry. Anything it
+        contains replaces the presets; anything it omits is left as-is.</div>
+      <label class="upz" for="json-in" style="padding:22px">
+        <div class="uz-icon">🗂️</div>
+        <div class="uz-lbl">Choose OM_Billing_Data … .json</div>
+        <div class="uz-hint">reads doctors and fee codes only</div></label>
+      <input type="file" id="json-in" accept=".json" style="display:none" onchange="loadJSON(this)">
+      <div id="json-res" style="margin-top:12px"></div>
+    </div>
+  </div>
 </div>
 
 <div class="panel" id="panel-fees">
@@ -419,6 +437,13 @@ function toCSV(rows,cols){
       <div class="card-hd"><div class="ct">🎯 Available cases</div>
         <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
           <select class="fi" id="f-group" style="width:auto;padding:6px 10px" onchange="renderSelect()"></select>
+          <select class="fi" id="f-sort" style="width:auto;padding:6px 10px" onchange="setSort(this.value)">
+            <option value="date">Source date — oldest first</option>
+            <option value="date_desc">Source date — newest first</option>
+            <option value="name">Patient name</option>
+            <option value="doctor">Referring doctor</option>
+            <option value="group">Diagnosis group</option>
+          </select>
           <button class="btn btn-g" onclick="selCore()">Select core groups</button>
           <button class="btn btn-g" onclick="selNone()">Clear</button>
         </div></div>
@@ -477,6 +502,11 @@ function toCSV(rows,cols){
 </div></div>
 
 <script>
+/* Provider number → name. Seeded from the practice's own RT exports because
+   the RadOnc data file's doctor registry holds only the hospital. Loading a
+   data file on the Upload tab overrides these with om_prov. */
+var PROV_SEED={"013498": "David Hodgson","015995": "C. Anne Koch","016456": "Laura Dawson","017979": "John Cho","017998": "Peter Chung","018014": "Barbara-Ann Millar","021723": "Andrew Hope","027861": "Meredith Giuliani","028783": "Kathy Han","031003": "Tatiana Conrad","031992": "Scott Bratman","033806": "Jennifer Croke","033851": "David Shultz","033998": "Alejandro Berlin","036650": "Derek Tsang","036654": "Ali Hosni Abdalaty","038219": "Benjamin Lok","039841": "Danielle Rodin","041695": "Ezra Hahn","042212": "Philip Wong","042449": "Jelena Lukovic","044498": "Rachel Glicksman","044691": "Aruz Mesci","046775": "Michael Yan","046818": "Andrew McPartlin","048341": "Chiaojung Jillian Tsai","048960": "David Kirsch","049563": "Jennifer Kwan","049810": "Nauman Malik","050023": "Dana Keilty","055174": "Badr Id Said","071134": "Andrea Bezjak","097709": "M Milosevic","104828": "John Kim","161307": "J Waldron","164046": "Andrew Bayley","212639": "Charles Catton","218552": "Alex Sun","243584": "Fei-fei Liu","250068": "Richard Tsang","251223": "Woody Wells","285486": "Rebecca Wong"};
+
 const LS='om_abr_';
 const ls=(k,d)=>{try{const s=localStorage.getItem(LS+k);return s?JSON.parse(s):d}catch(e){return d}};
 const lsp=(k,v)=>{try{localStorage.setItem(LS+k,JSON.stringify(v))}catch(e){}};
@@ -500,6 +530,12 @@ Object.keys(FEE_DEFAULTS).forEach(k=>{
 lsp('fees',fees);
 let SET=ls('set',{billTo:'033998',visit:'A345A',xcode:'X313A',plandate:'',refon:'all'});
 let pool=[], picks=ls('picks',{}), plans=ls('plans',{}), loaded=[];
+let provNames=Object.assign({},PROV_SEED,ls('provs',{}));
+let sortBy=ls('sort','date');
+function provName(num){
+  const k=String(num||'').trim().replace(/\D/g,'').padStart(6,'0');
+  return provNames[k]||'';
+}
 
 function go(id,btn){document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
   document.getElementById('panel-'+id).classList.add('active');
@@ -551,6 +587,62 @@ function loadCSV(input){
     };
     rd.readAsText(f);
   });
+  input.value='';
+}
+function loadJSON(input){
+  const f=input.files[0]; if(!f){return;}
+  const rd=new FileReader();
+  rd.onload=e=>{
+    const out=[];
+    try{
+      const d=JSON.parse(e.target.result);
+      const grab=k=>{const v=d[k];
+        if(v==null)return null;
+        try{return typeof v==='string'?JSON.parse(v):v;}catch(_){return null;}};
+      const provs=grab('om_prov');
+      if(Array.isArray(provs)){
+        let n=0, skipped=0;
+        const add={};
+        provs.forEach(p=>{
+          const num=String(p.num==null?'':p.num).trim().replace(/\D/g,'');
+          const nm=String(p.name==null?'':p.name).trim();
+          if(!num||!nm){skipped++;return;}
+          add[num.padStart(6,'0')]=nm; n++;
+        });
+        if(n){Object.assign(provNames,add);lsp('provs',Object.assign(ls('provs',{}),add));}
+        out.push(n?'<div class="alert a-ok"><strong>\u2713 '+n+' doctor name'+(n!==1?'s':'')+
+            ' loaded</strong></div>'
+          :'<div class="alert a-warn"><strong>\u26a0 No usable doctors in that file</strong>'+
+           '<div style="margin-top:6px">'+(skipped?skipped+' entr'+(skipped!==1?'ies were':'y was')+
+           ' skipped for having no billing number or no name. ':'')+
+           'The names already shown come from your RT exports. To fix this properly, add each doctor '+
+           'with their billing number under <strong>Registries \u2192 Doctors</strong> in an IFHP module '+
+           'and save the data file again.</div></div>');
+      } else out.push('<div class="alert a-warn"><strong>\u26a0 No doctor registry found in that file</strong></div>');
+
+      const fl=grab('om_fees');
+      if(Array.isArray(fl)){
+        let n=0;
+        fl.forEach(x=>{
+          const code=String(x.code==null?'':x.code).trim().toUpperCase();
+          const fee=String(x.fee==null?'':x.fee).trim();
+          if(code&&fee&&!isNaN(parseFloat(fee))&&FEE_CODES.some(([c])=>c===code)){fees[code]=fee;n++;}
+        });
+        if(n){lsp('fees',fees);renderFees();}
+        out.push('<div class="alert a-'+(n?'ok':'info')+'" style="margin-top:8px"><strong>'+
+          (n?'\u2713 '+n+' fee'+(n!==1?'s':'')+' updated from the file':
+              '\u2139 No matching fee codes in that file')+'</strong>'+
+          (n?'':'<div style="margin-top:6px">It carries no amounts for '+
+             FEE_CODES.map(([c])=>c).join(', ')+', so the presets stand.</div>')+'</div>');
+      }
+    }catch(err){
+      out.push('<div class="alert a-warn"><strong>\u26a0 Could not read that file</strong>'+
+        '<div style="margin-top:6px">'+esc(err.message)+'</div></div>');
+    }
+    document.getElementById('json-res').innerHTML=out.join('');
+    renderSelect();renderReview();
+  };
+  rd.readAsText(f);
   input.value='';
 }
 function clearPool(){if(!confirm('Clear the case pool and all selections?'))return;
@@ -614,6 +706,19 @@ function selected(){return pool.filter(c=>picks[c.key]);}
 function selCore(){pool.forEach(c=>{if(CORE_GROUPS.includes(c.group))picks[c.key]=1;});
   lsp('picks',picks);renderSelect();renderReview();}
 function selNone(){picks={};lsp('picks',picks);renderSelect();renderReview();}
+function setSort(v){sortBy=v;lsp('sort',v);renderSelect();}
+function sortCases(list){
+  const d=c=>{const p=parseD(c.date);return p?p.getTime():0;};   // undated sort first
+  const by={
+    date:      (a,b)=>d(a)-d(b) || a.name.localeCompare(b.name),
+    date_desc: (a,b)=>d(b)-d(a) || a.name.localeCompare(b.name),
+    name:      (a,b)=>a.name.localeCompare(b.name),
+    doctor:    (a,b)=>(provName(a.prov)||'zzz '+a.prov).localeCompare(provName(b.prov)||'zzz '+b.prov)
+                      || d(a)-d(b),
+    group:     (a,b)=>a.group.localeCompare(b.group) || d(a)-d(b)
+  };
+  return list.slice().sort(by[sortBy]||by.date);
+}
 
 function renderSelect(){
   document.getElementById('sel-empty').style.display=pool.length?'none':'';
@@ -626,11 +731,12 @@ function renderSelect(){
     '<option value="__all">All groups</option>'+
     groups.map(g=>'<option value="'+esc(g)+'">'+esc(g)+'</option>').join('');
   sel.value=cur;
+  const so=document.getElementById('f-sort'); if(so)so.value=sortBy;
   const f=sel.value;
-  const show=pool.filter(c=>f==='__all'?true:f==='__core'?CORE_GROUPS.includes(c.group):c.group===f);
+  const show=sortCases(pool.filter(c=>f==='__all'?true:f==='__core'?CORE_GROUPS.includes(c.group):c.group===f));
   document.getElementById('sel-table').innerHTML=
     '<thead><tr><th style="width:34px"></th><th>Patient</th><th>Dx</th><th>Group</th><th>Source date</th>'+
-    '<th>Orig. provider</th><th>Visit code</th><th>Planning date</th><th>RT code</th><th>Qty</th><th style="text-align:right">Value</th></tr></thead><tbody>'+
+    '<th>Referring doctor</th><th>Visit code</th><th>Planning date</th><th>RT code</th><th>Qty</th><th style="text-align:right">Value</th></tr></thead><tbody>'+
     show.map(c=>{
       const p=planFor(c), on=!!picks[c.key], k=JSON.stringify(c.key).replace(/"/g,'&quot;');
       let v=0,ok=true;
@@ -641,7 +747,9 @@ function renderSelect(){
       '<td style="white-space:nowrap">'+esc(c.name)+'</td><td><code>'+esc(c.dx)+'</code></td>'+
       '<td style="font-size:11.5px;color:var(--muted)">'+esc(c.group)+'</td>'+
       '<td style="white-space:nowrap">'+esc(c.date)+'</td>'+
-      '<td><code>'+esc(c.prov)+'</code></td>'+
+      '<td style="white-space:nowrap"><code>'+esc(c.prov)+'</code>'+
+        (provName(c.prov)?'<br><span style="font-size:11.5px;color:var(--muted)">'+esc(provName(c.prov))+'</span>'
+                         :'<br><span style="font-size:11.5px;color:var(--warn)">name unknown</span>')+'</td>'+
       '<td><select style="width:84px" onchange="setPlan('+k+',\'visitCode\',this.value)">'+
         ['A345A','A343A'].map(x=>'<option '+(p.visitCode===x?'selected':'')+'>'+x+'</option>').join('')+'</select></td>'+
       '<td><input value="'+esc(p.planDate)+'" placeholder="MM/DD/YYYY" style="width:104px;font-family:monospace" '+
@@ -662,10 +770,18 @@ function renderSelectStats(){
     stat('Cases available',pool.length)+stat('Selected',sel.length,sel.length?'ok':'')+
     stat('Rows generated',sel.length*3)+
     stat('Estimated value',e.missing.length?'—':money(e.total),e.missing.length?'warn':'ok');
-  document.getElementById('sel-warn').innerHTML = e.missing.length
-    ? '<div class="alert a-warn"><strong>⚠ No total yet — missing fees for '+e.missing.map(esc).join(', ')+
-      '</strong><div style="margin-top:6px">Enter them under <strong>Fee Schedule</strong> and the running total will appear.</div></div>'
-    : '';
+  const noPlan=sel.filter(c=>!planFor(c).planDate).length;
+  document.getElementById('sel-warn').innerHTML =
+    (e.missing.length
+      ? '<div class="alert a-warn"><strong>⚠ No total yet — missing fees for '+e.missing.map(esc).join(', ')+
+        '</strong><div style="margin-top:6px">Enter them under <strong>Fee Schedule</strong> and the running total will appear.</div></div>'
+      : '')+
+    (noPlan
+      ? '<div class="alert a-warn"><strong>⚠ '+noPlan+' selected case'+(noPlan!==1?'s have':' has')+
+        ' no planning date</strong><div style="margin-top:6px">The visit row uses the source date, but '+
+        'G512A and the RT planning code need a planning date. Set a default under <strong>Settings</strong> '+
+        'or fill the column below.</div></div>'
+      : '');
   document.getElementById('dot-s').className='dot '+(sel.length?'ok':'');
 }
 
@@ -687,8 +803,13 @@ function renderReview(){
     stat('Estimated value',e.missing.length?'—':money(e.total),e.missing.length?'warn':'ok')+
     stat('Missing dates',noDate,noDate?'warn':'ok');
   const bits=[];
-  if(noDate)bits.push('<div class="alert a-warn"><strong>⚠ '+noDate+' row(s) have no service date</strong>'+
-    '<div style="margin-top:6px">Set a planning date in Settings, or per case on the selection screen.</div></div>');
+  if(noDate){
+    const cases=new Set(rows.filter(r=>!r.ServiceDate).map(r=>r.LastName+', '+r.FirstName));
+    bits.push('<div class="alert a-warn"><strong>⚠ '+noDate+' row(s) have no service date</strong>'+
+    '<div style="margin-top:6px">The G512A and RT planning rows need a <strong>planning date</strong>. '+
+    'Set a default under Settings, or fill it per case on the selection screen. '+
+    'Affects '+cases.size+' case'+(cases.size!==1?'s':'')+'.</div></div>');
+  }
   if(e.missing.length)bits.push('<div class="alert a-info"><strong>ℹ Value not calculated</strong>'+
     '<div style="margin-top:6px">Missing fees for '+e.missing.map(esc).join(', ')+
     '. The CSV is unaffected — fees are only used for the estimate.</div></div>');
