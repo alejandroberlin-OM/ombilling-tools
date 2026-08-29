@@ -1,0 +1,702 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>OM Billing Inc.™ — ABR Additional Billing Rows</title>
+<link href="https://fonts.googleapis.com/css2?family=Libre+Baskerville:ital,wght@0,400;0,700;1,400&family=Source+Sans+3:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --g1:#1a4070;--g2:#1e5494;--g3:#4080c0;--g4:#d0e4f5;--g5:#f0f5fb;
+  --gold:#c8a84b;--gold2:#e0bc60;
+  --ink:#12271b;--ink2:#1a3060;--muted:#4a6080;
+  --bg:#eef3fa;--card:#fff;--border:#c8d8ec;
+  --ok:#1a7a4a;--ok-bg:#e3f5ed;
+  --warn:#7a5010;--warn-bg:#fdf3e0;
+  --err:#991b1b;--err-bg:#fef2f2;
+  --r:11px;--rs:6px;--sh:0 1px 3px rgba(0,0,0,.06),0 4px 14px rgba(0,0,0,.05);
+}
+body{font-family:"Source Sans 3",sans-serif;background:var(--bg);color:var(--ink);min-height:100vh;font-size:14px}
+.hdr{background:var(--g1);color:#fff;height:68px;display:flex;align-items:center;gap:18px;padding:0 28px;
+     position:sticky;top:0;z-index:300;box-shadow:0 2px 16px rgba(0,0,0,.3)}
+.hdr-title{font-family:"Libre Baskerville",serif;font-size:17px;font-weight:700;color:#fff;letter-spacing:-.2px;line-height:1.2}
+.hdr-module{font-size:11px;color:rgba(255,255,255,.6);margin-top:2px;letter-spacing:.03em}
+.hdr-brand{font-family:"Libre Baskerville",serif;font-size:13px;font-weight:700;color:rgba(255,255,255,.55);margin-left:auto;white-space:nowrap}
+.hdr-tm{font-size:9px;vertical-align:super;color:var(--gold2)}
+.hdr-prop{margin-left:auto;font-size:10.5px;color:rgba(255,255,255,.45);font-weight:600;text-align:right;line-height:1.4}
+.hdr-prop strong{color:rgba(255,255,255,.7)}
+.form-tabs{background:var(--g2);display:flex;padding:0 28px;border-bottom:1px solid rgba(255,255,255,.15)}
+.form-tab{padding:11px 22px;font-size:13px;font-weight:700;color:rgba(255,255,255,.55);cursor:pointer;
+          border-bottom:3px solid transparent;margin-bottom:-1px;background:none;
+          border-top:none;border-left:none;border-right:none;font-family:inherit;transition:all .15s}
+.form-tab:hover{color:rgba(255,255,255,.85)}
+.form-tab.active{color:#fff;border-bottom-color:var(--gold2)}
+.tab-badge{font-size:10px;padding:1px 6px;border-radius:8px;margin-left:7px;background:rgba(255,255,255,.15);font-weight:600}
+.form-tab.active .tab-badge{background:var(--gold);color:var(--g1)}
+.form-section{display:none}
+.form-section.active{display:grid;grid-template-columns:230px 1fr;min-height:calc(100vh - 68px)}
+.sidebar{background:var(--card);border-right:1px solid var(--border);padding:20px 12px;
+         position:sticky;top:68px;height:calc(100vh - 68px);overflow-y:auto;display:flex;flex-direction:column}
+.nav-sec{font-size:9.5px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);
+         margin:0 8px 8px;padding-top:4px}
+.nav-btn{display:flex;align-items:center;gap:9px;padding:9px 10px;border-radius:var(--rs);cursor:pointer;
+         color:var(--ink2);font-size:13px;font-weight:500;transition:all .15s;border:none;background:none;
+         width:100%;text-align:left;font-family:inherit;margin-bottom:2px}
+.nav-btn:hover{background:var(--g5)}
+.nav-btn.active{background:var(--g1);color:#fff}
+.ni{font-size:14px;width:18px;text-align:center;flex-shrink:0}
+.dot{width:7px;height:7px;border-radius:50%;background:var(--border);flex-shrink:0;margin-left:auto;transition:background .15s}
+.dot.ok{background:#3aaa7a}.dot.warn{background:#f59e0b}
+.nav-gap{flex:1}
+.sb-note{font-size:11px;color:var(--muted);padding:10px 12px;background:var(--g5);border-radius:var(--rs);
+         line-height:1.65;border-left:3px solid var(--g3);margin-top:4px}
+.content{padding:28px 32px 40px;max-width:900px;flex:1}
+.panel{display:none}.panel.active{display:block}
+.pg-title{font-family:"Libre Baskerville",serif;font-size:22px;font-weight:700;color:var(--g1);margin-bottom:4px}
+.pg-sub{font-size:13px;color:var(--muted);margin-bottom:24px}
+.card{background:var(--card);border:1px solid var(--border);border-radius:var(--r);
+      margin-bottom:16px;overflow:hidden;box-shadow:var(--sh)}
+.card-hd{padding:13px 18px;border-bottom:1px solid var(--border);display:flex;align-items:center;
+         gap:10px;background:#fafdfb}
+.ct{font-size:14px;font-weight:700;color:var(--g1)}.cd{font-size:12px;color:var(--muted);margin-top:1px}
+.card-body{padding:16px 18px}
+.fg{display:flex;flex-direction:column;gap:4px}
+.fg-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.fg-grid.c3{grid-template-columns:1fr 1fr 1fr}
+.fg-grid.full,.fg.full{grid-column:1/-1}
+.fl{font-size:10.5px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--muted)}
+.fi{padding:8px 10px;border:1px solid var(--border);border-radius:var(--rs);font-size:13px;
+    font-family:inherit;color:var(--ink);background:#fff;transition:all .15s}
+.fi:focus{outline:none;border-color:var(--g3);box-shadow:0 0 0 3px rgba(58,170,122,.12)}
+.upg{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px}
+.upz{border:2px dashed var(--border);border-radius:var(--r);padding:26px 14px;text-align:center;
+     cursor:pointer;position:relative;transition:all .2s}
+.upz:hover{border-color:var(--g3);background:var(--g5)}
+.upz.loaded{border-style:solid;border-color:var(--ok);background:var(--ok-bg)}
+.upz.form-loaded{border-style:solid;border-color:var(--gold);background:#fdf8ec}
+.upz input[type=file]{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%}
+.uz-icon{font-size:28px;margin-bottom:7px;opacity:.7}
+.uz-lbl{font-size:13px;font-weight:700;color:var(--g1);margin-bottom:3px}
+.uz-hint{font-size:11px;color:var(--muted)}
+.uz-file{font-size:11px;font-weight:700;margin-top:6px;word-break:break-all}
+.mode-banner{display:flex;align-items:center;gap:10px;padding:8px 16px;border-radius:var(--rs);
+             font-size:12.5px;font-weight:600;margin-bottom:14px}
+.mode-form{background:var(--ok-bg);color:var(--ok);border:1px solid #a3d9bc}
+.mode-flat{background:var(--warn-bg);color:var(--warn);border:1px solid #f6d88a}
+.mode-dot{width:9px;height:9px;border-radius:50%;flex-shrink:0}
+.mode-form .mode-dot{background:var(--ok)}.mode-flat .mode-dot{background:#d97706}
+.dtbl{width:100%;border-collapse:collapse;font-size:12.5px}
+.dtbl thead tr{background:var(--g1)}
+.dtbl th{padding:7px 10px;text-align:left;color:#fff;font-size:10px;font-weight:700;letter-spacing:.07em;text-transform:uppercase}
+.dtbl th:first-child{border-radius:5px 0 0 0}.dtbl th:last-child{border-radius:0 5px 0 0;width:38px}
+.dtbl td{padding:4px 5px;border-bottom:1px solid var(--border);vertical-align:middle}
+.dtbl tr:last-child td{border-bottom:none}
+.dtbl tr:nth-child(even) td{background:#fafdfb}
+.dtbl input,.dtbl input[type=number]{width:100%;border:1px solid transparent;padding:4px 6px;border-radius:4px;
+  font-size:12px;font-family:inherit;background:transparent;transition:all .15s;color:var(--ink)}
+.dtbl input:focus{outline:none;border-color:var(--g3);background:#fff;box-shadow:0 0 0 2px rgba(58,170,122,.1)}
+.bdel{background:none;border:none;color:#e05252;cursor:pointer;font-size:14px;padding:2px 6px;
+      border-radius:4px;transition:background .15s;line-height:1}
+.bdel:hover{background:var(--err-bg)}
+.badd{display:inline-flex;align-items:center;gap:5px;margin-top:10px;padding:6px 13px;background:none;
+      border:1.5px dashed var(--g3);color:var(--g3);border-radius:var(--rs);font-size:12px;font-weight:700;
+      cursor:pointer;font-family:inherit;transition:all .15s}
+.badd:hover{background:var(--g5)}
+.sstrip{display:flex;gap:0;background:var(--g1);border-radius:var(--rs);overflow:hidden;margin-bottom:14px}
+.ssi{flex:1;padding:11px 14px;border-right:1px solid rgba(255,255,255,.1)}
+.ssi:last-child{border-right:none}
+.ssl{font-size:9.5px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:rgba(255,255,255,.5);margin-bottom:2px}
+.ssv{font-size:17px;font-weight:800;color:#fff;font-family:"Libre Baskerville",serif}
+.ssv.warn{color:#fbbf24}.ssv.ok{color:#6ee7b7}
+.pt-row{display:flex;align-items:center;gap:11px;padding:10px 0;border-bottom:1px solid var(--border)}
+.pt-row:last-child{border-bottom:none}
+.ava{width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;
+     font-weight:800;font-size:12px;color:#fff;flex-shrink:0;background:var(--g1)}
+.ava.multi{background:var(--gold)}
+.pi{flex:1;min-width:0}.pn{font-size:13px;font-weight:700}.pm{font-size:11.5px;color:var(--muted);margin-top:1px}
+.badge{font-size:10px;font-weight:700;padding:3px 8px;border-radius:10px;letter-spacing:.03em;white-space:nowrap}
+.b-ok{background:var(--ok-bg);color:var(--ok)}.b-warn{background:var(--warn-bg);color:var(--warn)}
+.b-err{background:var(--err-bg);color:var(--err)}.b-multi{background:#fdf3e0;color:#92400e}
+.alert{border-radius:var(--rs);padding:10px 13px;font-size:13px;margin-bottom:12px}
+.a-warn{background:var(--warn-bg);color:var(--warn);border:1px solid #f6d88a}
+.a-info{background:#eff6ff;color:#1e40af;border:1px solid #bfdbfe}
+.a-ok{background:var(--ok-bg);color:var(--ok);border:1px solid #b8e2ce}
+.alert ul{margin-top:5px;padding-left:15px}.alert li{margin-top:3px}
+.note{background:var(--g5);border-left:3px solid var(--g3);padding:9px 13px;
+      border-radius:0 var(--rs) var(--rs) 0;font-size:12px;color:var(--ink2);margin-top:12px;line-height:1.6}
+.btn{display:inline-flex;align-items:center;gap:7px;padding:9px 18px;border:none;border-radius:var(--rs);
+     font-size:13.5px;font-weight:700;cursor:pointer;font-family:inherit;transition:all .15s}
+.btn-g{background:var(--g1);color:#fff}.btn-g:hover{background:var(--g2)}
+.btn-g:disabled{opacity:.45;cursor:not-allowed}
+.btn-gold{background:var(--gold);color:var(--g1)}.btn-gold:hover{background:var(--gold2)}
+.btn-dl{display:inline-flex;align-items:center;gap:5px;padding:5px 11px;background:var(--g3);color:#fff;
+        border:none;border-radius:var(--rs);font-size:11.5px;font-weight:700;cursor:pointer;
+        text-decoration:none;font-family:inherit;transition:all .15s}
+.btn-dl:hover{background:var(--g2)}
+.btn-zip{display:inline-flex;align-items:center;gap:7px;margin-top:16px;padding:10px 20px;
+         background:var(--g1);color:#fff;border:none;border-radius:var(--rs);
+         font-size:13.5px;font-weight:700;cursor:pointer;font-family:inherit;transition:all .15s}
+.btn-zip:hover{background:var(--g2)}
+.pgb{height:4px;background:var(--border);border-radius:2px;overflow:hidden;margin:10px 0}
+.pgf{height:100%;background:linear-gradient(90deg,var(--gold),var(--g3));transition:width .3s;width:0}
+.empty{text-align:center;padding:44px 22px;color:var(--muted)}
+.empty-ic{font-size:42px;margin-bottom:12px;opacity:.5}.empty-tx{font-size:13px}
+/* ── Bookkeeping ── */
+.ledger-filters{display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap;align-items:center}
+.filter-btn{padding:6px 14px;border-radius:20px;font-size:12px;font-weight:700;border:1.5px solid var(--border);
+            background:var(--card);color:var(--muted);cursor:pointer;font-family:inherit;transition:all .15s}
+.filter-btn:hover{border-color:var(--g3);color:var(--g2)}
+.filter-btn.active{background:var(--g1);color:#fff;border-color:var(--g1)}
+.ledger-search{flex:1;min-width:160px;padding:6px 12px;border:1.5px solid var(--border);border-radius:20px;
+               font-size:12px;font-family:inherit;color:var(--ink);background:var(--card);outline:none}
+.ledger-search:focus{border-color:var(--g3)}
+.ledger-stats{display:flex;gap:0;background:var(--g1);border-radius:var(--rs);overflow:hidden;margin-bottom:16px}
+.ls-item{flex:1;padding:10px 14px;border-right:1px solid rgba(255,255,255,.1)}
+.ls-item:last-child{border-right:none}
+.ls-lbl{font-size:9.5px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:rgba(255,255,255,.5);margin-bottom:2px}
+.ls-val{font-size:16px;font-weight:800;color:#fff;font-family:"Libre Baskerville",serif}
+.ls-val.ok{color:#6ee7b7}.ls-val.warn{color:#fbbf24}
+.ledger-table{width:100%;border-collapse:collapse;font-size:12.5px}
+.ledger-table thead tr{background:var(--g1)}
+.ledger-table th{padding:9px 12px;text-align:left;color:#fff;font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase}
+.ledger-table th:first-child{border-radius:7px 0 0 0}.ledger-table th:last-child{border-radius:0 7px 0 0}
+.ledger-table th:hover{background:var(--g2)}
+.ledger-table td{padding:9px 12px;border-bottom:1px solid var(--border);vertical-align:middle}
+.ledger-table tr:nth-child(even) td{background:#fafdfb}
+.ledger-table tr:hover td{background:var(--g5)}
+.ledger-table tr.paid td{opacity:.65}
+.ledger-table tr.deleted td{opacity:.45;text-decoration:line-through;background:#fef2f2!important}
+.inv-num{font-family:monospace;font-size:12px;font-weight:700;color:var(--g2)}
+.paid-toggle{display:flex;align-items:center;gap:7px;cursor:pointer;white-space:nowrap}
+.paid-toggle input[type=checkbox]{width:16px;height:16px;accent-color:var(--g3);cursor:pointer;flex-shrink:0}
+.paid-lbl{font-size:12px;font-weight:600}
+.paid-lbl.paid{color:var(--ok)}.paid-lbl.unpaid{color:var(--muted)}
+.ledger-empty{text-align:center;padding:40px 20px;color:var(--muted);font-size:13px}
+.btn-clear-paid{display:inline-flex;align-items:center;gap:5px;padding:5px 12px;background:none;
+                border:1.5px solid var(--err);color:var(--err);border-radius:var(--rs);
+                font-size:11.5px;font-weight:700;cursor:pointer;font-family:inherit;transition:all .15s;margin-left:auto}
+.btn-clear-paid:hover{background:var(--err-bg)}
+.field-table{width:100%;border-collapse:collapse;font-size:12.5px;margin-top:10px}
+.field-table th{background:var(--g1);color:#fff;padding:7px 10px;text-align:left;font-size:11px;font-weight:700;letter-spacing:.05em}
+.field-table th:first-child{border-radius:5px 0 0 0}.field-table th:last-child{border-radius:0 5px 0 0}
+.field-table td{padding:5px 10px;border-bottom:1px solid var(--border);font-family:monospace;font-size:12px}
+.field-table tr:nth-child(even) td{background:#fafdfb}
+.field-table td.desc{font-family:"Source Sans 3",sans-serif;font-size:12px;color:var(--muted)}
+.guide-img{width:100%;border:1px solid var(--border);border-radius:var(--r);box-shadow:var(--sh)}
+.footer{background:var(--g1);color:rgba(255,255,255,.4);font-size:10.5px;padding:16px 28px;text-align:center;line-height:1.75;}
+.footer strong{color:rgba(255,255,255,.65)}
+@media(max-width:768px){
+  .form-section.active{grid-template-columns:1fr}
+  .sidebar{position:static;height:auto;border-right:none;border-bottom:1px solid var(--border)}
+  .content{padding:18px 14px}
+  .upg,.fg-grid,.fg-grid.c3{grid-template-columns:1fr}
+}
+
+/* ── Batch upload ── */
+.batch-bar{display:flex;align-items:center;gap:10px;padding:10px 14px;
+           background:var(--g5);border-radius:var(--rs);margin-bottom:0;border:1px solid var(--border)}
+.batch-bar span{font-size:12px;color:var(--muted);flex:1}
+.btn-csv-dl{display:inline-flex;align-items:center;gap:5px;padding:5px 12px;background:none;
+            border:1.5px solid var(--g3);color:var(--g3);border-radius:var(--rs);
+            font-size:11.5px;font-weight:700;cursor:pointer;font-family:inherit;transition:all .15s}
+.btn-csv-dl:hover{background:var(--g5)}
+.btn-csv-ul{position:relative;display:inline-flex;align-items:center;gap:5px;padding:5px 12px;
+            background:var(--g1);color:#fff;border:none;border-radius:var(--rs);
+            font-size:11.5px;font-weight:700;cursor:pointer;font-family:inherit;transition:all .15s}
+.btn-csv-ul:hover{background:var(--g2)}
+.btn-csv-ul input{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%}
+/* ── Premium codes table ── */
+.prem-note{font-size:12px;color:var(--muted);padding:10px 14px;background:var(--warn-bg);
+           border-radius:var(--rs);margin-bottom:12px;border:1px solid #f6d88a}
+
+
+
+
+
+/* ── File System storage ── */
+#fs-setup-modal{
+  position:fixed;inset:0;z-index:9998;background:rgba(26,92,58,.92);
+  display:flex;align-items:center;justify-content:center;padding:24px;
+}
+.fs-modal-box{background:var(--card);border-radius:16px;padding:36px 40px;
+              max-width:460px;width:100%;box-shadow:0 24px 60px rgba(0,0,0,.3)}
+.fs-modal-icon{font-size:44px;margin-bottom:14px}
+.fs-modal-title{font-family:"Libre Baskerville",serif;font-size:20px;font-weight:700;
+                color:var(--g1);margin-bottom:8px}
+.fs-modal-body{font-size:13px;color:var(--muted);line-height:1.7;margin-bottom:24px}
+.fs-modal-body strong{color:var(--ink)}
+.fs-btn-row{display:flex;gap:10px;flex-direction:column}
+.fs-btn-primary{padding:12px 20px;background:var(--g1);color:#fff;border:none;
+                border-radius:var(--rs);font-size:14px;font-weight:700;cursor:pointer;
+                font-family:inherit;transition:background .15s;text-align:left}
+.fs-btn-primary:hover{background:var(--g2)}
+.fs-btn-secondary{padding:10px 20px;background:none;color:var(--muted);
+                  border:1.5px solid var(--border);border-radius:var(--rs);
+                  font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;
+                  transition:all .15s;text-align:left}
+.fs-btn-secondary:hover{border-color:var(--g3);color:var(--g2)}
+.fs-note{font-size:11px;color:var(--muted);margin-top:14px;line-height:1.6}
+/* File status pill in header */
+#file-status-pill{
+  display:none;align-items:center;gap:6px;padding:4px 12px;
+  border-radius:20px;font-size:11.5px;font-weight:600;
+  background:rgba(255,255,255,.1);color:rgba(255,255,255,.7);
+  border:1px solid rgba(255,255,255,.2);cursor:default;
+  white-space:nowrap;max-width:200px;overflow:hidden;text-overflow:ellipsis;
+}
+#file-status-pill.saving{color:var(--gold2)}
+#file-status-pill.saved{color:#6ee7b7}
+#file-status-pill.fallback{color:#fbbf24}
+.fsp-dot{width:7px;height:7px;border-radius:50%;background:currentColor;flex-shrink:0}
+
+
+</style>
+<script>
+/* ══ ABR core — palliative G512 source → additional billing rows ══ */
+const OUT_COLS=['ProviderNumber','GroupNumber','ProvinceCode','HealthNumber','VersionCode',
+ 'FirstName','LastName','DateOfBirth','Gender','ReferringProviderNumber','DiagnosticCode',
+ 'ServiceLocationType','MasterNumber','AdmissionDate','ServiceDate','ServiceCode','ServiceQty'];
+
+/* Diagnosis groups the ABR selection is normally drawn from. */
+const DX_GROUPS={
+  '185':'GU / Prostate','189':'GU / Kidney','188':'GU / Bladder','186':'GU / Testis',
+  '162':'Lung','171':'Sarcoma / soft tissue','170':'Sarcoma / bone','191':'Brain','192':'Brain / CNS',
+  '198':'Brain metastases'
+};
+function dxGroup(dx){return DX_GROUPS[String(dx||'').trim()]||'Other';}
+const CORE_GROUPS=['GU / Prostate','GU / Kidney','GU / Bladder','GU / Testis','Lung',
+  'Sarcoma / soft tissue','Sarcoma / bone','Brain','Brain / CNS','Brain metastases'];
+
+const pad2=n=>String(n).padStart(2,'0');
+function parseD(v){
+  const s=String(v==null?'':v).trim(); if(!s)return null;
+  let m=s.match(/^(\d{1,2})[\/\-.](\d{1,2})[\/\-.](\d{4})$/);
+  if(m)return new Date(Date.UTC(+m[3],+m[1]-1,+m[2]));
+  m=s.match(/^(\d{4})[\/\-.](\d{1,2})[\/\-.](\d{1,2})$/);
+  if(m)return new Date(Date.UTC(+m[1],+m[2]-1,+m[3]));
+  return null;
+}
+const fmtD=d=>d?pad2(d.getUTCMonth()+1)+'/'+pad2(d.getUTCDate())+'/'+d.getUTCFullYear():'';
+const normD=v=>{const d=parseD(v);return d?fmtD(d):String(v==null?'':v).trim();};
+const pad6=v=>{const s=String(v==null?'':v).trim().replace(/\D/g,'');return s?s.padStart(6,'0'):'';};
+
+/* Case key — health number is the only reliable identifier across periods. */
+function ckey(r){
+  const hn=String(r.HealthNumber==null?'':r.HealthNumber).trim();
+  if(hn)return 'hn:'+hn;
+  return 'nm:'+String(r.LastName||'').trim().toUpperCase()+','+String(r.FirstName||'').trim().toUpperCase()
+        +'|'+String(r.ServiceDate||'').trim();
+}
+
+/* Collapse the source file to one entry per patient (the G512A rows). */
+function buildCases(rows){
+  const map=new Map();
+  rows.forEach((r,i)=>{
+    if(Object.values(r).every(v=>v==null||String(v).trim()===''))return;
+    const k=ckey(r);
+    if(!map.has(k)){
+      map.set(k,{key:k,src:r,srcRow:i+2,
+        name:String(r.LastName||'').trim()+', '+String(r.FirstName||'').trim(),
+        hn:String(r.HealthNumber||'').trim(),
+        dx:String(r.DiagnosticCode||'').trim(),
+        group:dxGroup(r.DiagnosticCode),
+        date:normD(r.ServiceDate),
+        prov:pad6(r.ProviderNumber),
+        n:0});
+    }
+    map.get(k).n++;
+  });
+  return [...map.values()];
+}
+
+/* Generate the three billing rows for one selected case. */
+function genRows(c,plan,ABR){
+  const s=c.src, out=[];
+  const base={};
+  OUT_COLS.forEach(col=>base[col]=String(s[col]==null?'':s[col]).trim());
+  base.DateOfBirth=normD(base.DateOfBirth);
+  base.ProviderNumber=ABR.billTo;              // everything bills under the ABR provider
+  const ref=pad6(s.ProviderNumber);            // original service provider becomes referring
+  const planDate=normD(plan.planDate||'');
+  const visitDate=normD(plan.visitDate||c.date);
+
+  const mk=(code,date,qty,withRef)=>{
+    const r=Object.assign({},base);
+    r.ServiceCode=code;
+    r.ServiceDate=date;
+    r.ServiceQty=String(qty||1);
+    r.ReferringProviderNumber=withRef?ref:'';
+    r.AdmissionDate='';
+    return r;
+  };
+  const allRef=ABR.refOn==='all';
+  out.push(mk(plan.visitCode||'A345A', visitDate, 1, true));            // visit
+  out.push(mk('G512A',                 planDate||visitDate, 1, allRef)); // palliative management
+  out.push(mk(plan.xCode||'X313A',     planDate||visitDate, plan.xQty||1, allRef)); // RT planning
+  return out;
+}
+
+function estimate(selected,plans,fees,ABR){
+  let total=0; const missing=new Set(); const per={};
+  selected.forEach(c=>{
+    const p=plans[c.key]||{};
+    [[p.visitCode||'A345A',1],['G512A',1],[p.xCode||'X313A',p.xQty||1]].forEach(([code,q])=>{
+      const f=fees[code];
+      if(f===undefined||f===''||isNaN(parseFloat(f))){missing.add(code);return;}
+      const amt=parseFloat(f)*q; total+=amt; per[code]=(per[code]||0)+amt;
+    });
+  });
+  return{total,missing:[...missing],per};
+}
+
+function toCSV(rows,cols){
+  cols=cols||OUT_COLS;
+  const esc=v=>{const s=String(v==null?'':v);return /[",\r\n]/.test(s)?'"'+s.replace(/"/g,'""')+'"':s;};
+  return [cols.join(',')].concat(rows.map(r=>cols.map(c=>esc(r[c])).join(','))).join('\r\n');
+}
+
+</script>
+</head>
+<body>
+<header class="hdr">
+  <div><div class="hdr-title">OM Billing Inc.™</div>
+  <div class="hdr-module">ABR · Additional Billing Rows (Palliative)</div></div>
+  <div class="hdr-brand">OM Billing Inc.<span class="hdr-tm">™</span></div>
+</header>
+
+<div class="form-section active" style="display:grid">
+<aside class="sidebar">
+  <div class="nav-sec">Workflow</div>
+  <button class="nav-btn active" onclick="go('upload',this)"><span class="ni">📁</span>1 · Upload<span class="dot" id="dot-u"></span></button>
+  <button class="nav-btn" onclick="go('fees',this)"><span class="ni">💲</span>2 · Fee Schedule<span class="dot" id="dot-f"></span></button>
+  <button class="nav-btn" onclick="go('select',this)"><span class="ni">🎯</span>3 · Select Cases<span class="dot" id="dot-s"></span></button>
+  <button class="nav-btn" onclick="go('review',this)"><span class="ni">⚡</span>4 · Review &amp; Export<span class="dot" id="dot-x"></span></button>
+  <div class="nav-gap"></div>
+  <button class="nav-btn" onclick="go('settings',this)"><span class="ni">⚙️</span>Settings</button>
+  <div class="sb-note">Processed locally. Nothing leaves this device.</div>
+</aside>
+
+<div style="display:flex;flex-direction:column;flex:1;overflow:auto"><div class="content">
+
+<div class="panel active" id="panel-upload">
+  <div class="pg-title">Upload palliative management files</div>
+  <div class="pg-sub">The G512A source export. Load more than one period if you want to draw cases from several — they accumulate.</div>
+  <div class="card"><div class="card-body">
+    <label class="upz" for="csv-in"><div class="uz-icon">📄</div>
+      <div class="uz-lbl">Choose a PallMgmt CSV</div>
+      <div class="uz-hint">load several to build a bigger pool</div></label>
+    <input type="file" id="csv-in" accept=".csv" multiple style="display:none" onchange="loadCSV(this)">
+    <div id="up-res" style="margin-top:14px"></div>
+    <div style="margin-top:12px"><button class="btn btn-g" onclick="clearPool()">Clear the pool</button></div>
+  </div></div>
+</div>
+
+<div class="panel" id="panel-fees">
+  <div class="pg-title">Fee Schedule</div>
+  <div class="pg-sub">Used only to estimate what a selection is worth. Nothing here is written to the CSV.</div>
+  <div class="alert a-warn"><strong>⚠ Enter the missing fees before trusting any total</strong>
+    <div style="margin-top:6px">Only <code>A343A</code> and <code>A345A</code> came from your own billing data.
+    I have deliberately left the others blank rather than guess at Schedule of Benefits amounts —
+    a wrong fee here would mislead you about how many cases to generate.</div></div>
+  <div class="card" style="margin-top:12px">
+    <div class="card-hd"><div class="ct">💲 Amounts per unit</div></div>
+    <div class="card-body" style="padding:0"><table class="dtbl" id="fee-table"></table></div>
+  </div>
+</div>
+
+<div class="panel" id="panel-select">
+  <div class="pg-title">Select Cases</div>
+  <div class="pg-sub">Tick the cases to generate. The running total updates as you go, so you can stop at the amount you need.</div>
+  <div id="sel-empty" class="empty"><div class="empty-ic">🎯</div>Upload a file to see the available cases.</div>
+  <div id="sel-body" style="display:none">
+    <div class="sstrip" id="sel-stats"></div>
+    <div id="sel-warn"></div>
+    <div class="card" style="margin-top:12px">
+      <div class="card-hd"><div class="ct">🎯 Available cases</div>
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+          <select class="fi" id="f-group" style="width:auto;padding:6px 10px" onchange="renderSelect()"></select>
+          <button class="btn btn-g" onclick="selCore()">Select core groups</button>
+          <button class="btn btn-g" onclick="selNone()">Clear</button>
+        </div></div>
+      <div class="card-body" style="padding:0;overflow:auto;max-height:560px">
+        <table class="dtbl" id="sel-table"></table></div>
+    </div>
+  </div>
+</div>
+
+<div class="panel" id="panel-review">
+  <div class="pg-title">Review &amp; Export</div>
+  <div class="pg-sub">Every row that will be written.</div>
+  <div id="rv-empty" class="empty"><div class="empty-ic">⚡</div>Select some cases first.</div>
+  <div id="rv-body" style="display:none">
+    <div class="sstrip" id="rv-stats"></div>
+    <div id="rv-warn"></div>
+    <div class="card" style="margin-top:12px">
+      <div class="card-hd"><div class="ct">📄 Generated rows</div>
+        <button class="btn btn-gold" onclick="dlCSV()">⬇ Download ABR CSV</button></div>
+      <div class="card-body" style="padding:0;overflow:auto;max-height:520px">
+        <table class="dtbl" id="rv-table"></table></div>
+    </div>
+  </div>
+</div>
+
+<div class="panel" id="panel-settings">
+  <div class="pg-title">Settings</div>
+  <div class="card"><div class="card-hd"><div class="ct">⚙️ Generation</div></div><div class="card-body">
+    <div class="fg-grid c3">
+      <div class="fg"><label class="fl">Bill everything under provider</label>
+        <input class="fi" id="s-billto" style="font-family:monospace" oninput="saveSet()"></div>
+      <div class="fg"><label class="fl">Default visit code</label>
+        <select class="fi" id="s-visit" onchange="saveSet()">
+          <option value="A345A">A345A — consultation</option>
+          <option value="A343A">A343A — subsequent visit</option></select></div>
+      <div class="fg"><label class="fl">Default RT planning code</label>
+        <select class="fi" id="s-xcode" onchange="saveSet()">
+          <option value="X313A">X313A</option><option value="X312A">X312A</option></select></div>
+    </div>
+    <div class="fg-grid c3" style="margin-top:12px">
+      <div class="fg"><label class="fl">Planning date (G512A + RT rows)</label>
+        <input class="fi" id="s-plandate" placeholder="MM/DD/YYYY" style="font-family:monospace" oninput="saveSet()"></div>
+      <div class="fg"><label class="fl">Referring provider appears on</label>
+        <select class="fi" id="s-refon" onchange="saveSet()">
+          <option value="all">All three rows</option>
+          <option value="visit">The visit row only</option></select></div>
+    </div>
+    <div class="note" style="margin-top:10px">The referring provider is always the original service
+      provider from the source file. Your two example files differ on this: the May file put it on the
+      visit row only, the June/July file put it on all three. Pick whichever your submissions accept.</div>
+  </div></div>
+</div>
+
+</div>
+<div class="footer">Copyright © <script>document.write(new Date().getFullYear())</script> <strong>OM Billing Inc.™</strong> All rights reserved.</div>
+</div></div>
+
+<script>
+const LS='om_abr_';
+const ls=(k,d)=>{try{const s=localStorage.getItem(LS+k);return s?JSON.parse(s):d}catch(e){return d}};
+const lsp=(k,v)=>{try{localStorage.setItem(LS+k,JSON.stringify(v))}catch(e){}};
+const esc=s=>String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const stat=(l,v,c)=>'<div class="ssi"><div class="ssl">'+l+'</div><div class="ssv '+(c||'')+'">'+v+'</div></div>';
+const money=n=>'$'+n.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g,',');
+
+const FEE_CODES=[['A345A','Consultation'],['A343A','Subsequent visit'],
+  ['G512A','Palliative management'],['X313A','RT planning'],['X312A','RT planning']];
+/* Only the two that came from the practice's own billing data are pre-filled. */
+let fees=ls('fees',{A345A:'178.75',A343A:'35.75',G512A:'',X313A:'',X312A:''});
+let SET=ls('set',{billTo:'033998',visit:'A345A',xcode:'X313A',plandate:'',refon:'all'});
+let pool=[], picks=ls('picks',{}), plans=ls('plans',{}), loaded=[];
+
+function go(id,btn){document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
+  document.getElementById('panel-'+id).classList.add('active');
+  document.querySelectorAll('.nav-btn').forEach(b=>b.classList.remove('active'));
+  if(btn)btn.classList.add('active');}
+
+function parseCSV(t){
+  t=t.replace(/^\uFEFF/,'');const rows=[];let cur='',row=[],q=false;
+  for(let i=0;i<t.length;i++){const c=t[i];
+    if(q){if(c==='"'){if(t[i+1]==='"'){cur+='"';i++;}else q=false;}else cur+=c;}
+    else if(c==='"')q=true;
+    else if(c===','){row.push(cur);cur='';}
+    else if(c==='\n'){row.push(cur);rows.push(row);row=[];cur='';}
+    else if(c!=='\r')cur+=c;}
+  if(cur!==''||row.length){row.push(cur);rows.push(row);}
+  if(!rows.length)return[];
+  const h=rows[0].map(x=>x.trim().replace(/^\uFEFF/,''));
+  return rows.slice(1).filter(r=>r.some(x=>x&&x.trim()))
+    .map(r=>{const o={};h.forEach((k,i)=>o[k]=(r[i]==null?'':r[i]).trim());return o;});
+}
+
+function loadCSV(input){
+  const files=[...input.files]; if(!files.length)return;
+  let done=0, added=0, skipped=0;
+  files.forEach(f=>{
+    const rd=new FileReader();
+    rd.onload=e=>{
+      try{
+        const rows=parseCSV(e.target.result);
+        if(!('HealthNumber' in (rows[0]||{}))||!('ServiceCode' in (rows[0]||{}))){skipped++;}
+        else{
+          const cases=buildCases(rows);
+          const have=new Set(pool.map(c=>c.key));
+          cases.forEach(c=>{if(!have.has(c.key)){pool.push(c);added++;}});
+          loaded.push(f.name);
+        }
+      }catch(err){skipped++;}
+      if(++done===files.length){
+        document.getElementById('up-res').innerHTML=
+          (added?'<div class="alert a-ok"><strong>✓ '+added+' new case'+(added!==1?'s':'')+
+            ' added</strong><div style="margin-top:6px">Pool now holds <strong>'+pool.length+
+            '</strong> cases from: '+loaded.map(esc).join(', ')+'</div></div>':'')+
+          (skipped?'<div class="alert a-warn" style="margin-top:8px"><strong>⚠ '+skipped+
+            ' file(s) skipped</strong><div style="margin-top:6px">They did not look like a PallMgmt export.</div></div>':'')+
+          (!added&&!skipped?'<div class="alert a-info">Those cases were already in the pool.</div>':'');
+        document.getElementById('dot-u').className='dot '+(pool.length?'ok':'');
+        renderSelect();renderReview();
+      }
+    };
+    rd.readAsText(f);
+  });
+  input.value='';
+}
+function clearPool(){if(!confirm('Clear the case pool and all selections?'))return;
+  pool=[];picks={};plans={};loaded=[];lsp('picks',picks);lsp('plans',plans);
+  document.getElementById('up-res').innerHTML='';renderSelect();renderReview();}
+
+/* ── fees ── */
+function renderFees(){
+  document.getElementById('fee-table').innerHTML=
+    '<thead><tr><th>Code</th><th>Description</th><th>Fee per unit</th><th style="text-align:right">Source</th></tr></thead><tbody>'+
+    FEE_CODES.map(([c,d])=>{
+      const v=fees[c]||'';
+      const known=(c==='A345A'||c==='A343A');
+      return '<tr><td><code>'+c+'</code></td><td>'+d+'</td>'+
+      '<td><input value="'+esc(v)+'" placeholder="0.00" inputmode="decimal" style="width:96px;font-family:monospace" '+
+        'oninput="setFee('+JSON.stringify(c)+',this.value)"></td>'+
+      '<td style="text-align:right">'+(v?(known?'<span class="badge b-ok">your data</span>':'<span class="badge b-ok">entered</span>')
+        :'<span class="badge b-err">needed</span>')+'</td></tr>';
+    }).join('')+'</tbody>';
+  const miss=FEE_CODES.filter(([c])=>!fees[c]).length;
+  document.getElementById('dot-f').className='dot '+(miss?'warn':'ok');
+}
+function setFee(c,v){fees[c]=String(v).trim();lsp('fees',fees);
+  renderSelectStats();renderReview();
+  const miss=FEE_CODES.filter(([x])=>!fees[x]).length;
+  document.getElementById('dot-f').className='dot '+(miss?'warn':'ok');
+  const b=document.querySelector('#fee-table tr td code');if(b){}}
+
+/* ── selection ── */
+function planFor(c){
+  const p=plans[c.key]||{};
+  return{visitCode:p.visitCode||SET.visit,xCode:p.xCode||SET.xcode,
+         xQty:p.xQty||1,planDate:p.planDate||SET.plandate,visitDate:p.visitDate||c.date};
+}
+function setPlan(k,f,v){plans[k]=plans[k]||{};
+  const s=String(v).trim(); if(s)plans[k][f]=(f==='xQty'?parseInt(s)||1:s); else delete plans[k][f];
+  lsp('plans',plans);renderSelectStats();renderReview();}
+function togglePick(k,on){if(on)picks[k]=1;else delete picks[k];lsp('picks',picks);
+  renderSelectStats();renderReview();}
+function selected(){return pool.filter(c=>picks[c.key]);}
+function selCore(){pool.forEach(c=>{if(CORE_GROUPS.includes(c.group))picks[c.key]=1;});
+  lsp('picks',picks);renderSelect();renderReview();}
+function selNone(){picks={};lsp('picks',picks);renderSelect();renderReview();}
+
+function renderSelect(){
+  document.getElementById('sel-empty').style.display=pool.length?'none':'';
+  document.getElementById('sel-body').style.display=pool.length?'':'none';
+  if(!pool.length)return;
+  const groups=[...new Set(pool.map(c=>c.group))].sort();
+  const sel=document.getElementById('f-group');
+  const cur=sel.value||'__core';
+  sel.innerHTML='<option value="__core">Core groups (GU, lung, sarcoma, brain)</option>'+
+    '<option value="__all">All groups</option>'+
+    groups.map(g=>'<option value="'+esc(g)+'">'+esc(g)+'</option>').join('');
+  sel.value=cur;
+  const f=sel.value;
+  const show=pool.filter(c=>f==='__all'?true:f==='__core'?CORE_GROUPS.includes(c.group):c.group===f);
+  document.getElementById('sel-table').innerHTML=
+    '<thead><tr><th style="width:34px"></th><th>Patient</th><th>Dx</th><th>Group</th><th>Source date</th>'+
+    '<th>Orig. provider</th><th>Visit code</th><th>Planning date</th><th>RT code</th><th>Qty</th><th style="text-align:right">Value</th></tr></thead><tbody>'+
+    show.map(c=>{
+      const p=planFor(c), on=!!picks[c.key], k=JSON.stringify(c.key).replace(/"/g,'&quot;');
+      let v=0,ok=true;
+      [[p.visitCode,1],['G512A',1],[p.xCode,p.xQty]].forEach(([cd,q])=>{
+        const fv=parseFloat(fees[cd]); if(isNaN(fv))ok=false; else v+=fv*q;});
+      return '<tr'+(on?' style="background:var(--ok-bg)"':'')+'>'+
+      '<td><input type="checkbox" '+(on?'checked':'')+' onchange="togglePick('+k+',this.checked)"></td>'+
+      '<td style="white-space:nowrap">'+esc(c.name)+'</td><td><code>'+esc(c.dx)+'</code></td>'+
+      '<td style="font-size:11.5px;color:var(--muted)">'+esc(c.group)+'</td>'+
+      '<td style="white-space:nowrap">'+esc(c.date)+'</td>'+
+      '<td><code>'+esc(c.prov)+'</code></td>'+
+      '<td><select style="width:84px" onchange="setPlan('+k+',\'visitCode\',this.value)">'+
+        ['A345A','A343A'].map(x=>'<option '+(p.visitCode===x?'selected':'')+'>'+x+'</option>').join('')+'</select></td>'+
+      '<td><input value="'+esc(p.planDate)+'" placeholder="MM/DD/YYYY" style="width:104px;font-family:monospace" '+
+        'oninput="setPlan('+k+',\'planDate\',this.value)"></td>'+
+      '<td><select style="width:84px" onchange="setPlan('+k+',\'xCode\',this.value)">'+
+        ['X313A','X312A'].map(x=>'<option '+(p.xCode===x?'selected':'')+'>'+x+'</option>').join('')+'</select></td>'+
+      '<td><input value="'+p.xQty+'" inputmode="numeric" style="width:48px;font-family:monospace" '+
+        'oninput="setPlan('+k+',\'xQty\',this.value)"></td>'+
+      '<td style="text-align:right;white-space:nowrap">'+(ok?money(v):'<span style="color:var(--muted)">—</span>')+'</td></tr>';
+    }).join('')+'</tbody>';
+  renderSelectStats();
+}
+function renderSelectStats(){
+  if(!pool.length)return;
+  const sel=selected();
+  const e=estimate(sel,Object.fromEntries(sel.map(c=>[c.key,planFor(c)])),fees,{billTo:SET.billTo,refOn:SET.refon});
+  document.getElementById('sel-stats').innerHTML=
+    stat('Cases available',pool.length)+stat('Selected',sel.length,sel.length?'ok':'')+
+    stat('Rows generated',sel.length*3)+
+    stat('Estimated value',e.missing.length?'—':money(e.total),e.missing.length?'warn':'ok');
+  document.getElementById('sel-warn').innerHTML = e.missing.length
+    ? '<div class="alert a-warn"><strong>⚠ No total yet — missing fees for '+e.missing.map(esc).join(', ')+
+      '</strong><div style="margin-top:6px">Enter them under <strong>Fee Schedule</strong> and the running total will appear.</div></div>'
+    : '';
+  document.getElementById('dot-s').className='dot '+(sel.length?'ok':'');
+}
+
+/* ── review ── */
+function buildRows(){
+  const ABR={billTo:SET.billTo,refOn:SET.refon};
+  return selected().flatMap(c=>genRows(c,planFor(c),ABR));
+}
+function renderReview(){
+  const sel=selected();
+  document.getElementById('rv-empty').style.display=sel.length?'none':'';
+  document.getElementById('rv-body').style.display=sel.length?'':'none';
+  if(!sel.length){document.getElementById('dot-x').className='dot';return;}
+  const rows=buildRows();
+  const e=estimate(sel,Object.fromEntries(sel.map(c=>[c.key,planFor(c)])),fees,{});
+  const noDate=rows.filter(r=>!r.ServiceDate).length;
+  document.getElementById('rv-stats').innerHTML=
+    stat('Cases',sel.length)+stat('Rows',rows.length)+
+    stat('Estimated value',e.missing.length?'—':money(e.total),e.missing.length?'warn':'ok')+
+    stat('Missing dates',noDate,noDate?'warn':'ok');
+  const bits=[];
+  if(noDate)bits.push('<div class="alert a-warn"><strong>⚠ '+noDate+' row(s) have no service date</strong>'+
+    '<div style="margin-top:6px">Set a planning date in Settings, or per case on the selection screen.</div></div>');
+  if(e.missing.length)bits.push('<div class="alert a-info"><strong>ℹ Value not calculated</strong>'+
+    '<div style="margin-top:6px">Missing fees for '+e.missing.map(esc).join(', ')+
+    '. The CSV is unaffected — fees are only used for the estimate.</div></div>');
+  document.getElementById('rv-warn').innerHTML=bits.join('');
+  document.getElementById('rv-table').innerHTML=
+    '<thead><tr>'+OUT_COLS.map(c=>'<th style="white-space:nowrap">'+c+'</th>').join('')+'</tr></thead><tbody>'+
+    rows.map(r=>'<tr'+(!r.ServiceDate?' style="background:var(--warn-bg)"':'')+'>'+
+      OUT_COLS.map(c=>'<td style="white-space:nowrap;font-size:11.5px;font-family:'+
+        (['FirstName','LastName','Gender'].includes(c)?'inherit':'ui-monospace,monospace')+'">'+
+        esc(r[c])+'</td>').join('')+'</tr>').join('')+'</tbody>';
+  document.getElementById('dot-x').className='dot '+(noDate?'warn':'ok');
+}
+function dlCSV(){
+  const rows=buildRows();
+  if(!rows.length){alert('No cases selected.');return;}
+  const noDate=rows.filter(r=>!r.ServiceDate).length;
+  if(noDate&&!confirm(noDate+' row(s) have no service date and will be rejected.\n\nDownload anyway?'))return;
+  const d=new Date(),s=d.getFullYear()+String(d.getMonth()+1).padStart(2,'0')+String(d.getDate()).padStart(2,'0');
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(new Blob([toCSV(rows)],{type:'text/csv;charset=utf-8'}));
+  a.download='AdtlABR_'+s+'.csv';a.click();URL.revokeObjectURL(a.href);
+}
+
+/* ── settings ── */
+function loadSet(){
+  document.getElementById('s-billto').value=SET.billTo;
+  document.getElementById('s-visit').value=SET.visit;
+  document.getElementById('s-xcode').value=SET.xcode;
+  document.getElementById('s-plandate').value=SET.plandate;
+  document.getElementById('s-refon').value=SET.refon;
+}
+function saveSet(){
+  SET={billTo:document.getElementById('s-billto').value.trim(),
+       visit:document.getElementById('s-visit').value,
+       xcode:document.getElementById('s-xcode').value,
+       plandate:document.getElementById('s-plandate').value.trim(),
+       refon:document.getElementById('s-refon').value};
+  lsp('set',SET);renderSelect();renderReview();
+}
+loadSet();renderFees();renderSelect();renderReview();
+</script>
+</body>
+</html>

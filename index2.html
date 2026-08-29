@@ -109,6 +109,8 @@ body::after{
 .card-rpr  {--card-a:#a065c4;--card-b:#4a2b5f}
 .card-onc  {--card-a:#c9703c;--card-b:#7a3b1f}
 .card-hope {--card-a:#5b7fd4;--card-b:#26346b}
+.card-rt   {--card-a:#2f9bbf;--card-b:#0f4a63}
+.card-abr  {--card-a:#c8a84b;--card-b:#6b5416}
 
 .card-flag{
   display:inline-flex;align-items:center;gap:7px;
@@ -126,6 +128,8 @@ body::after{
 .card-rpr  .flag-dot{background:#b57fd6;box-shadow:0 0 8px #b57fd6}
 .card-onc  .flag-dot{background:#e08a52;box-shadow:0 0 8px #e08a52}
 .card-hope .flag-dot{background:#7f9ee6;box-shadow:0 0 8px #7f9ee6}
+.card-rt   .flag-dot{background:#4fc0e0;box-shadow:0 0 8px #4fc0e0}
+.card-abr  .flag-dot{background:#e0c469;box-shadow:0 0 8px #e0c469}
 
 .card-title{font-family:"Cormorant Garamond",serif;font-size:26px;font-weight:600;
              color:#fff;line-height:1.15;margin-bottom:8px;position:relative;z-index:1}
@@ -375,15 +379,29 @@ const MODULES = {
     cls:'card-hope', file:'HOPE.html',
     flag:'RMP · Dr. Hope', title:'HOPE<br>Excel Processor',
     sub:'Dr. Hope note-data export<br>Excel · CabMD CSV', btn:'Open Tool'
+  },
+  rt: {
+    cls:'card-rt', file:'RT.html',
+    flag:'RMP · X-Codes', title:'RT<br>X-Code Submission',
+    sub:'Radiotherapy service record<br>Brachy expansion · CabMD CSV', btn:'Open Tool'
+  },
+  abr: {
+    cls:'card-abr', file:'ABR.html',
+    flag:'Admin · ABR', title:'ABR<br>Additional Billing',
+    sub:'Palliative case selection<br>Visit + G512 + RT planning', btn:'Open Tool'
   }
 };
 
 /* ══ PRACTICE SECTIONS ══ */
 const SECTIONS = {
   radonc: { label:'Radiation Oncology',
-            modules:['ifhp_radonc','qc','rnc','rpr','oncall','hope'] },
+            modules:['ifhp_radonc','qc','rnc','rpr','oncall','hope','rt'] },
   medonc: { label:'DMOH',
-            modules:['ifhp_gen','qc','mhdu','repeats'] }
+            modules:['ifhp_gen','qc','mhdu','repeats'] },
+  // Admin-only. Not referenced by the radonc or medonc roles, so those users
+  // never see these cards.
+  admin:  { label:'Administration',
+            modules:['abr'] }
 };
 
 /* ══════════════════════════════════════════════════════════════════
@@ -395,7 +413,7 @@ const SECTIONS = {
 const SALT = 'om-billing-suite-v3::';
 const ROLES = {
   '449198f012fb69db1abd4080448a955ae9c856227bf6ee5736991741fe75f850':
-    { role:'superuser', label:'Superuser · All practices', sections:['radonc','medonc'] },
+    { role:'superuser', label:'Superuser · All practices', sections:['radonc','medonc','admin'] },
   '0cbaa9df9591a7f13a7343a7cb4c7987ab219504ed724eae8af9fb51355d87af':
     { role:'radonc',    label:'Radiation Oncology',        sections:['radonc'] },
   '31ed3826d64125645b44608c5bd960870e197d67449e758d45ef843b9847c39e':
