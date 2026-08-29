@@ -1,0 +1,802 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>OM Billing Inc.™ — RT X-Code Submission</title>
+<link href="https://fonts.googleapis.com/css2?family=Libre+Baskerville:ital,wght@0,400;0,700;1,400&family=Source+Sans+3:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --g1:#1a4070;--g2:#1e5494;--g3:#4080c0;--g4:#d0e4f5;--g5:#f0f5fb;
+  --gold:#c8a84b;--gold2:#e0bc60;
+  --ink:#12271b;--ink2:#1a3060;--muted:#4a6080;
+  --bg:#eef3fa;--card:#fff;--border:#c8d8ec;
+  --ok:#1a7a4a;--ok-bg:#e3f5ed;
+  --warn:#7a5010;--warn-bg:#fdf3e0;
+  --err:#991b1b;--err-bg:#fef2f2;
+  --r:11px;--rs:6px;--sh:0 1px 3px rgba(0,0,0,.06),0 4px 14px rgba(0,0,0,.05);
+}
+body{font-family:"Source Sans 3",sans-serif;background:var(--bg);color:var(--ink);min-height:100vh;font-size:14px}
+.hdr{background:var(--g1);color:#fff;height:68px;display:flex;align-items:center;gap:18px;padding:0 28px;
+     position:sticky;top:0;z-index:300;box-shadow:0 2px 16px rgba(0,0,0,.3)}
+.hdr-title{font-family:"Libre Baskerville",serif;font-size:17px;font-weight:700;color:#fff;letter-spacing:-.2px;line-height:1.2}
+.hdr-module{font-size:11px;color:rgba(255,255,255,.6);margin-top:2px;letter-spacing:.03em}
+.hdr-brand{font-family:"Libre Baskerville",serif;font-size:13px;font-weight:700;color:rgba(255,255,255,.55);margin-left:auto;white-space:nowrap}
+.hdr-tm{font-size:9px;vertical-align:super;color:var(--gold2)}
+.hdr-prop{margin-left:auto;font-size:10.5px;color:rgba(255,255,255,.45);font-weight:600;text-align:right;line-height:1.4}
+.hdr-prop strong{color:rgba(255,255,255,.7)}
+.form-tabs{background:var(--g2);display:flex;padding:0 28px;border-bottom:1px solid rgba(255,255,255,.15)}
+.form-tab{padding:11px 22px;font-size:13px;font-weight:700;color:rgba(255,255,255,.55);cursor:pointer;
+          border-bottom:3px solid transparent;margin-bottom:-1px;background:none;
+          border-top:none;border-left:none;border-right:none;font-family:inherit;transition:all .15s}
+.form-tab:hover{color:rgba(255,255,255,.85)}
+.form-tab.active{color:#fff;border-bottom-color:var(--gold2)}
+.tab-badge{font-size:10px;padding:1px 6px;border-radius:8px;margin-left:7px;background:rgba(255,255,255,.15);font-weight:600}
+.form-tab.active .tab-badge{background:var(--gold);color:var(--g1)}
+.form-section{display:none}
+.form-section.active{display:grid;grid-template-columns:230px 1fr;min-height:calc(100vh - 68px)}
+.sidebar{background:var(--card);border-right:1px solid var(--border);padding:20px 12px;
+         position:sticky;top:68px;height:calc(100vh - 68px);overflow-y:auto;display:flex;flex-direction:column}
+.nav-sec{font-size:9.5px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);
+         margin:0 8px 8px;padding-top:4px}
+.nav-btn{display:flex;align-items:center;gap:9px;padding:9px 10px;border-radius:var(--rs);cursor:pointer;
+         color:var(--ink2);font-size:13px;font-weight:500;transition:all .15s;border:none;background:none;
+         width:100%;text-align:left;font-family:inherit;margin-bottom:2px}
+.nav-btn:hover{background:var(--g5)}
+.nav-btn.active{background:var(--g1);color:#fff}
+.ni{font-size:14px;width:18px;text-align:center;flex-shrink:0}
+.dot{width:7px;height:7px;border-radius:50%;background:var(--border);flex-shrink:0;margin-left:auto;transition:background .15s}
+.dot.ok{background:#3aaa7a}.dot.warn{background:#f59e0b}
+.nav-gap{flex:1}
+.sb-note{font-size:11px;color:var(--muted);padding:10px 12px;background:var(--g5);border-radius:var(--rs);
+         line-height:1.65;border-left:3px solid var(--g3);margin-top:4px}
+.content{padding:28px 32px 40px;max-width:900px;flex:1}
+.panel{display:none}.panel.active{display:block}
+.pg-title{font-family:"Libre Baskerville",serif;font-size:22px;font-weight:700;color:var(--g1);margin-bottom:4px}
+.pg-sub{font-size:13px;color:var(--muted);margin-bottom:24px}
+.card{background:var(--card);border:1px solid var(--border);border-radius:var(--r);
+      margin-bottom:16px;overflow:hidden;box-shadow:var(--sh)}
+.card-hd{padding:13px 18px;border-bottom:1px solid var(--border);display:flex;align-items:center;
+         gap:10px;background:#fafdfb}
+.ct{font-size:14px;font-weight:700;color:var(--g1)}.cd{font-size:12px;color:var(--muted);margin-top:1px}
+.card-body{padding:16px 18px}
+.fg{display:flex;flex-direction:column;gap:4px}
+.fg-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.fg-grid.c3{grid-template-columns:1fr 1fr 1fr}
+.fg-grid.full,.fg.full{grid-column:1/-1}
+.fl{font-size:10.5px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--muted)}
+.fi{padding:8px 10px;border:1px solid var(--border);border-radius:var(--rs);font-size:13px;
+    font-family:inherit;color:var(--ink);background:#fff;transition:all .15s}
+.fi:focus{outline:none;border-color:var(--g3);box-shadow:0 0 0 3px rgba(58,170,122,.12)}
+.upg{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px}
+.upz{border:2px dashed var(--border);border-radius:var(--r);padding:26px 14px;text-align:center;
+     cursor:pointer;position:relative;transition:all .2s}
+.upz:hover{border-color:var(--g3);background:var(--g5)}
+.upz.loaded{border-style:solid;border-color:var(--ok);background:var(--ok-bg)}
+.upz.form-loaded{border-style:solid;border-color:var(--gold);background:#fdf8ec}
+.upz input[type=file]{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%}
+.uz-icon{font-size:28px;margin-bottom:7px;opacity:.7}
+.uz-lbl{font-size:13px;font-weight:700;color:var(--g1);margin-bottom:3px}
+.uz-hint{font-size:11px;color:var(--muted)}
+.uz-file{font-size:11px;font-weight:700;margin-top:6px;word-break:break-all}
+.mode-banner{display:flex;align-items:center;gap:10px;padding:8px 16px;border-radius:var(--rs);
+             font-size:12.5px;font-weight:600;margin-bottom:14px}
+.mode-form{background:var(--ok-bg);color:var(--ok);border:1px solid #a3d9bc}
+.mode-flat{background:var(--warn-bg);color:var(--warn);border:1px solid #f6d88a}
+.mode-dot{width:9px;height:9px;border-radius:50%;flex-shrink:0}
+.mode-form .mode-dot{background:var(--ok)}.mode-flat .mode-dot{background:#d97706}
+.dtbl{width:100%;border-collapse:collapse;font-size:12.5px}
+.dtbl thead tr{background:var(--g1)}
+.dtbl th{padding:7px 10px;text-align:left;color:#fff;font-size:10px;font-weight:700;letter-spacing:.07em;text-transform:uppercase}
+.dtbl th:first-child{border-radius:5px 0 0 0}.dtbl th:last-child{border-radius:0 5px 0 0;width:38px}
+.dtbl td{padding:4px 5px;border-bottom:1px solid var(--border);vertical-align:middle}
+.dtbl tr:last-child td{border-bottom:none}
+.dtbl tr:nth-child(even) td{background:#fafdfb}
+.dtbl input,.dtbl input[type=number]{width:100%;border:1px solid transparent;padding:4px 6px;border-radius:4px;
+  font-size:12px;font-family:inherit;background:transparent;transition:all .15s;color:var(--ink)}
+.dtbl input:focus{outline:none;border-color:var(--g3);background:#fff;box-shadow:0 0 0 2px rgba(58,170,122,.1)}
+.bdel{background:none;border:none;color:#e05252;cursor:pointer;font-size:14px;padding:2px 6px;
+      border-radius:4px;transition:background .15s;line-height:1}
+.bdel:hover{background:var(--err-bg)}
+.badd{display:inline-flex;align-items:center;gap:5px;margin-top:10px;padding:6px 13px;background:none;
+      border:1.5px dashed var(--g3);color:var(--g3);border-radius:var(--rs);font-size:12px;font-weight:700;
+      cursor:pointer;font-family:inherit;transition:all .15s}
+.badd:hover{background:var(--g5)}
+.sstrip{display:flex;gap:0;background:var(--g1);border-radius:var(--rs);overflow:hidden;margin-bottom:14px}
+.ssi{flex:1;padding:11px 14px;border-right:1px solid rgba(255,255,255,.1)}
+.ssi:last-child{border-right:none}
+.ssl{font-size:9.5px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:rgba(255,255,255,.5);margin-bottom:2px}
+.ssv{font-size:17px;font-weight:800;color:#fff;font-family:"Libre Baskerville",serif}
+.ssv.warn{color:#fbbf24}.ssv.ok{color:#6ee7b7}
+.pt-row{display:flex;align-items:center;gap:11px;padding:10px 0;border-bottom:1px solid var(--border)}
+.pt-row:last-child{border-bottom:none}
+.ava{width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;
+     font-weight:800;font-size:12px;color:#fff;flex-shrink:0;background:var(--g1)}
+.ava.multi{background:var(--gold)}
+.pi{flex:1;min-width:0}.pn{font-size:13px;font-weight:700}.pm{font-size:11.5px;color:var(--muted);margin-top:1px}
+.badge{font-size:10px;font-weight:700;padding:3px 8px;border-radius:10px;letter-spacing:.03em;white-space:nowrap}
+.b-ok{background:var(--ok-bg);color:var(--ok)}.b-warn{background:var(--warn-bg);color:var(--warn)}
+.b-err{background:var(--err-bg);color:var(--err)}.b-multi{background:#fdf3e0;color:#92400e}
+.alert{border-radius:var(--rs);padding:10px 13px;font-size:13px;margin-bottom:12px}
+.a-warn{background:var(--warn-bg);color:var(--warn);border:1px solid #f6d88a}
+.a-info{background:#eff6ff;color:#1e40af;border:1px solid #bfdbfe}
+.a-ok{background:var(--ok-bg);color:var(--ok);border:1px solid #b8e2ce}
+.alert ul{margin-top:5px;padding-left:15px}.alert li{margin-top:3px}
+.note{background:var(--g5);border-left:3px solid var(--g3);padding:9px 13px;
+      border-radius:0 var(--rs) var(--rs) 0;font-size:12px;color:var(--ink2);margin-top:12px;line-height:1.6}
+.btn{display:inline-flex;align-items:center;gap:7px;padding:9px 18px;border:none;border-radius:var(--rs);
+     font-size:13.5px;font-weight:700;cursor:pointer;font-family:inherit;transition:all .15s}
+.btn-g{background:var(--g1);color:#fff}.btn-g:hover{background:var(--g2)}
+.btn-g:disabled{opacity:.45;cursor:not-allowed}
+.btn-gold{background:var(--gold);color:var(--g1)}.btn-gold:hover{background:var(--gold2)}
+.btn-dl{display:inline-flex;align-items:center;gap:5px;padding:5px 11px;background:var(--g3);color:#fff;
+        border:none;border-radius:var(--rs);font-size:11.5px;font-weight:700;cursor:pointer;
+        text-decoration:none;font-family:inherit;transition:all .15s}
+.btn-dl:hover{background:var(--g2)}
+.btn-zip{display:inline-flex;align-items:center;gap:7px;margin-top:16px;padding:10px 20px;
+         background:var(--g1);color:#fff;border:none;border-radius:var(--rs);
+         font-size:13.5px;font-weight:700;cursor:pointer;font-family:inherit;transition:all .15s}
+.btn-zip:hover{background:var(--g2)}
+.pgb{height:4px;background:var(--border);border-radius:2px;overflow:hidden;margin:10px 0}
+.pgf{height:100%;background:linear-gradient(90deg,var(--gold),var(--g3));transition:width .3s;width:0}
+.empty{text-align:center;padding:44px 22px;color:var(--muted)}
+.empty-ic{font-size:42px;margin-bottom:12px;opacity:.5}.empty-tx{font-size:13px}
+/* ── Bookkeeping ── */
+.ledger-filters{display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap;align-items:center}
+.filter-btn{padding:6px 14px;border-radius:20px;font-size:12px;font-weight:700;border:1.5px solid var(--border);
+            background:var(--card);color:var(--muted);cursor:pointer;font-family:inherit;transition:all .15s}
+.filter-btn:hover{border-color:var(--g3);color:var(--g2)}
+.filter-btn.active{background:var(--g1);color:#fff;border-color:var(--g1)}
+.ledger-search{flex:1;min-width:160px;padding:6px 12px;border:1.5px solid var(--border);border-radius:20px;
+               font-size:12px;font-family:inherit;color:var(--ink);background:var(--card);outline:none}
+.ledger-search:focus{border-color:var(--g3)}
+.ledger-stats{display:flex;gap:0;background:var(--g1);border-radius:var(--rs);overflow:hidden;margin-bottom:16px}
+.ls-item{flex:1;padding:10px 14px;border-right:1px solid rgba(255,255,255,.1)}
+.ls-item:last-child{border-right:none}
+.ls-lbl{font-size:9.5px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:rgba(255,255,255,.5);margin-bottom:2px}
+.ls-val{font-size:16px;font-weight:800;color:#fff;font-family:"Libre Baskerville",serif}
+.ls-val.ok{color:#6ee7b7}.ls-val.warn{color:#fbbf24}
+.ledger-table{width:100%;border-collapse:collapse;font-size:12.5px}
+.ledger-table thead tr{background:var(--g1)}
+.ledger-table th{padding:9px 12px;text-align:left;color:#fff;font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase}
+.ledger-table th:first-child{border-radius:7px 0 0 0}.ledger-table th:last-child{border-radius:0 7px 0 0}
+.ledger-table th:hover{background:var(--g2)}
+.ledger-table td{padding:9px 12px;border-bottom:1px solid var(--border);vertical-align:middle}
+.ledger-table tr:nth-child(even) td{background:#fafdfb}
+.ledger-table tr:hover td{background:var(--g5)}
+.ledger-table tr.paid td{opacity:.65}
+.ledger-table tr.deleted td{opacity:.45;text-decoration:line-through;background:#fef2f2!important}
+.inv-num{font-family:monospace;font-size:12px;font-weight:700;color:var(--g2)}
+.paid-toggle{display:flex;align-items:center;gap:7px;cursor:pointer;white-space:nowrap}
+.paid-toggle input[type=checkbox]{width:16px;height:16px;accent-color:var(--g3);cursor:pointer;flex-shrink:0}
+.paid-lbl{font-size:12px;font-weight:600}
+.paid-lbl.paid{color:var(--ok)}.paid-lbl.unpaid{color:var(--muted)}
+.ledger-empty{text-align:center;padding:40px 20px;color:var(--muted);font-size:13px}
+.btn-clear-paid{display:inline-flex;align-items:center;gap:5px;padding:5px 12px;background:none;
+                border:1.5px solid var(--err);color:var(--err);border-radius:var(--rs);
+                font-size:11.5px;font-weight:700;cursor:pointer;font-family:inherit;transition:all .15s;margin-left:auto}
+.btn-clear-paid:hover{background:var(--err-bg)}
+.field-table{width:100%;border-collapse:collapse;font-size:12.5px;margin-top:10px}
+.field-table th{background:var(--g1);color:#fff;padding:7px 10px;text-align:left;font-size:11px;font-weight:700;letter-spacing:.05em}
+.field-table th:first-child{border-radius:5px 0 0 0}.field-table th:last-child{border-radius:0 5px 0 0}
+.field-table td{padding:5px 10px;border-bottom:1px solid var(--border);font-family:monospace;font-size:12px}
+.field-table tr:nth-child(even) td{background:#fafdfb}
+.field-table td.desc{font-family:"Source Sans 3",sans-serif;font-size:12px;color:var(--muted)}
+.guide-img{width:100%;border:1px solid var(--border);border-radius:var(--r);box-shadow:var(--sh)}
+.footer{background:var(--g1);color:rgba(255,255,255,.4);font-size:10.5px;padding:16px 28px;text-align:center;line-height:1.75;}
+.footer strong{color:rgba(255,255,255,.65)}
+@media(max-width:768px){
+  .form-section.active{grid-template-columns:1fr}
+  .sidebar{position:static;height:auto;border-right:none;border-bottom:1px solid var(--border)}
+  .content{padding:18px 14px}
+  .upg,.fg-grid,.fg-grid.c3{grid-template-columns:1fr}
+}
+
+/* ── Batch upload ── */
+.batch-bar{display:flex;align-items:center;gap:10px;padding:10px 14px;
+           background:var(--g5);border-radius:var(--rs);margin-bottom:0;border:1px solid var(--border)}
+.batch-bar span{font-size:12px;color:var(--muted);flex:1}
+.btn-csv-dl{display:inline-flex;align-items:center;gap:5px;padding:5px 12px;background:none;
+            border:1.5px solid var(--g3);color:var(--g3);border-radius:var(--rs);
+            font-size:11.5px;font-weight:700;cursor:pointer;font-family:inherit;transition:all .15s}
+.btn-csv-dl:hover{background:var(--g5)}
+.btn-csv-ul{position:relative;display:inline-flex;align-items:center;gap:5px;padding:5px 12px;
+            background:var(--g1);color:#fff;border:none;border-radius:var(--rs);
+            font-size:11.5px;font-weight:700;cursor:pointer;font-family:inherit;transition:all .15s}
+.btn-csv-ul:hover{background:var(--g2)}
+.btn-csv-ul input{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%}
+/* ── Premium codes table ── */
+.prem-note{font-size:12px;color:var(--muted);padding:10px 14px;background:var(--warn-bg);
+           border-radius:var(--rs);margin-bottom:12px;border:1px solid #f6d88a}
+
+
+
+
+
+/* ── File System storage ── */
+#fs-setup-modal{
+  position:fixed;inset:0;z-index:9998;background:rgba(26,92,58,.92);
+  display:flex;align-items:center;justify-content:center;padding:24px;
+}
+.fs-modal-box{background:var(--card);border-radius:16px;padding:36px 40px;
+              max-width:460px;width:100%;box-shadow:0 24px 60px rgba(0,0,0,.3)}
+.fs-modal-icon{font-size:44px;margin-bottom:14px}
+.fs-modal-title{font-family:"Libre Baskerville",serif;font-size:20px;font-weight:700;
+                color:var(--g1);margin-bottom:8px}
+.fs-modal-body{font-size:13px;color:var(--muted);line-height:1.7;margin-bottom:24px}
+.fs-modal-body strong{color:var(--ink)}
+.fs-btn-row{display:flex;gap:10px;flex-direction:column}
+.fs-btn-primary{padding:12px 20px;background:var(--g1);color:#fff;border:none;
+                border-radius:var(--rs);font-size:14px;font-weight:700;cursor:pointer;
+                font-family:inherit;transition:background .15s;text-align:left}
+.fs-btn-primary:hover{background:var(--g2)}
+.fs-btn-secondary{padding:10px 20px;background:none;color:var(--muted);
+                  border:1.5px solid var(--border);border-radius:var(--rs);
+                  font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;
+                  transition:all .15s;text-align:left}
+.fs-btn-secondary:hover{border-color:var(--g3);color:var(--g2)}
+.fs-note{font-size:11px;color:var(--muted);margin-top:14px;line-height:1.6}
+/* File status pill in header */
+#file-status-pill{
+  display:none;align-items:center;gap:6px;padding:4px 12px;
+  border-radius:20px;font-size:11.5px;font-weight:600;
+  background:rgba(255,255,255,.1);color:rgba(255,255,255,.7);
+  border:1px solid rgba(255,255,255,.2);cursor:default;
+  white-space:nowrap;max-width:200px;overflow:hidden;text-overflow:ellipsis;
+}
+#file-status-pill.saving{color:var(--gold2)}
+#file-status-pill.saved{color:#6ee7b7}
+#file-status-pill.fallback{color:#fbbf24}
+.fsp-dot{width:7px;height:7px;border-radius:50%;background:currentColor;flex-shrink:0}
+
+
+</style>
+<script>
+var DX_TPG_BEH={"171.3|3": "195", "174.9|3": "174", "185|": "185", "186.9|3": "186", "193.9|3": "199", "196.5|3": "202", "C00.4|3": "140", "C01.9|": "141", "C01.9|3": "141", "C02.2|3": "195", "C02.3|3": "141", "C02.9|3": "141", "C03.1|3": "143", "C06.0|3": "149", "C06.9|3": "149", "C07.9|": "142", "C07.9|1": "142", "C07.9|3": "142", "C08.0|3": "142", "C08.1|3": "142", "C09.0|3": "146", "C09.8|": "146", "C09.8|3": "146", "C09.9|": "146", "C09.9|3": "146", "C10.8|3": "146", "C10.9|3": "146", "C11.0|3": "195", "C11.9|": "147", "C13.0|3": "161", "C13.9|": "148", "C13.9|3": "148", "C14.8|": "146", "C14.8|3": "146", "C15.0|": "150", "C15.0|3": "150", "C15.1|": "150", "C15.3|": "195", "C15.5|": "199", "C15.5|3": "150", "C15.9|": "150", "C16.9|3": "151", "C17.9|1": "152", "C18.0|": "153", "C18.1|6": "158", "C18.3|": "195", "C18.9|": "153", "C18.9|3": "153", "C20.9|": "154", "C20.9|3": "154", "C21.0|3": "154", "C21.1|": "154", "C21.8|3": "154", "C22.0|": "155", "C22.0|3": "155", "C22.1|": "199", "C23.9|": "156", "C24.0|": "156", "C24.9|": "195", "C25.0|": "157", "C25.1|3": "157", "C25.9|": "157", "C25.9|6": "157", "C30.0|": "160", "C30.0|3": "160", "C31.0|3": "160", "C31.1|3": "160", "C31.8|3": "195", "C32.0|": "161", "C32.0|3": "161", "C32.1|3": "161", "C33.9|": "162", "C33.9|6": "162", "C34.0|": "162", "C34.1|": "162", "C34.1|3": "162", "C34.2|": "162", "C34.2|3": "162", "C34.3|": "162", "C34.3|3": "162", "C34.9|": "162", "C34.9|3": "162", "C34.9|6": "162", "C38.0|3": "427", "C38.3|3": "195", "C38.4|3": "163", "C41.2|3": "203", "C41.3|3": "172", "C41.4|3": "170", "C41.9|": "170", "C41.9|0": "195", "C41.9|3": "170", "C42.0|": "207", "C42.0|3": "207", "C42.1|0": "195", "C42.1|1": "207", "C42.1|3": "203", "C42.4|": "208", "C44.1|3": "173", "C44.2|0": "216", "C44.2|3": "173", "C44.3|": "173", "C44.3|3": "173", "C44.5|3": "173", "C44.6|3": "728", "C44.7|3": "173", "C44.9|": "173", "C44.9|3": "173", "C49.0|3": "171", "C49.1|": "171", "C49.1|0": "215", "C49.1|3": "171", "C49.2|": "171", "C49.2|3": "171", "C49.3|3": "171", "C49.4|": "171", "C49.4|3": "171", "C49.5|": "171", "C49.5|3": "171", "C49.9|": "195", "C50.1|2": "174", "C50.1|3": "174", "C50.2|3": "174", "C50.3|3": "174", "C50.4|2": "174", "C50.4|3": "174", "C50.5|2": "174", "C50.5|3": "174", "C50.6|3": "174", "C50.8|": "174", "C50.8|3": "174", "C50.9 01|3": "174", "C50.9|": "174", "C50.9|2": "174", "C50.9|3": "174", "C50.9|6": "174", "C51.0|3": "184", "C51.9|3": "184", "C52.9|": "195", "C53.9|": "180", "C53.9|3": "180", "C54.1|": "182", "C54.1|3": "182", "C55.9|": "182", "C55.9|3": "182", "C56.9|": "183", "C56.9|3": "183", "C57.4|0": "183", "C61.9 01|3": "185", "C61.9|": "185", "C61.9|3": "185", "C62.9|": "186", "C62.9|3": "186", "C63.2|": "195", "C64.9|": "189", "C64.9|0": "189", "C64.9|3": "189", "C67.9|": "188", "C67.9|3": "188", "C68.8|": "195", "C69.2|": "195", "C69.3|0": "224", "C69.3|3": "190", "C69.3|6": "190", "C69.6|3": "202", "C69.9|": "224", "C70.0|": "225", "C70.0|0": "225", "C70.0|1": "191", "C70.9|": "195", "C71.0|3": "191", "C71.1|3": "191", "C71.2|3": "191", "C71.3|3": "191", "C71.6|3": "191", "C71.6|6": "191", "C71.7|3": "191", "C71.8|0": "225", "C71.8|3": "191", "C71.9|": "191", "C71.9|1": "191", "C71.9|3": "225", "C72.0|": "192", "C72.0|0": "225", "C72.0|3": "195", "C72.5|3": "225", "C72.8|3": "191", "C73.9|": "193", "C73.9|3": "193", "C74.0|": "194", "C75.1|0": "227", "C75.1|3": "225", "C75.2|": "195", "C76.1|": "199", "C76.1|6": "199", "C76.2|3": "202", "C76.3|3": "199", "C76.4|1": "199", "C76.5|3": "199", "C77.0|3": "202", "C77.1|3": "201", "C77.2|1": "202", "C77.2|3": "202", "C77.8|3": "202", "C77.9|3": "201", "C80.9|": "195", "C80.9|3": "195"};
+var DX_TPG={"171.3": "195", "174.9": "174", "185": "185", "186.9": "186", "193.9": "199", "196.5": "202", "C00.4": "140", "C01.9": "141", "C02.2": "195", "C02.3": "141", "C02.9": "141", "C03.1": "143", "C06.0": "149", "C06.9": "149", "C07.9": "142", "C08.0": "142", "C08.1": "142", "C09.0": "146", "C09.8": "146", "C09.9": "146", "C10.8": "146", "C10.9": "146", "C11.0": "195", "C11.9": "147", "C13.0": "161", "C13.9": "148", "C14.8": "146", "C15.0": "150", "C15.1": "150", "C15.3": "195", "C15.5": "199", "C15.9": "150", "C16.9": "151", "C17.9": "152", "C18.0": "153", "C18.1": "158", "C18.3": "195", "C18.9": "153", "C20.9": "154", "C21.0": "154", "C21.1": "154", "C21.8": "154", "C22.0": "155", "C22.1": "199", "C23.9": "156", "C24.0": "156", "C24.9": "195", "C25.0": "157", "C25.1": "157", "C25.9": "157", "C30.0": "160", "C31.0": "160", "C31.1": "160", "C31.8": "195", "C32.0": "161", "C32.1": "161", "C33.9": "162", "C34.0": "162", "C34.1": "162", "C34.2": "162", "C34.3": "162", "C34.9": "162", "C38.0": "427", "C38.3": "195", "C38.4": "163", "C41.2": "203", "C41.3": "172", "C41.4": "170", "C41.9": "170", "C42.0": "207", "C42.1": "207", "C42.4": "208", "C44.1": "173", "C44.2": "173", "C44.3": "173", "C44.5": "173", "C44.6": "728", "C44.7": "173", "C44.9": "173", "C49.0": "171", "C49.1": "171", "C49.2": "171", "C49.3": "171", "C49.4": "171", "C49.5": "171", "C49.9": "195", "C50.1": "174", "C50.2": "174", "C50.3": "174", "C50.4": "174", "C50.5": "174", "C50.6": "174", "C50.8": "174", "C50.9": "174", "C50.9 01": "174", "C51.0": "184", "C51.9": "184", "C52.9": "195", "C53.9": "180", "C54.1": "182", "C55.9": "182", "C56.9": "183", "C57.4": "183", "C61.9": "185", "C61.9 01": "185", "C62.9": "186", "C63.2": "195", "C64.9": "189", "C67.9": "188", "C68.8": "195", "C69.2": "195", "C69.3": "190", "C69.6": "202", "C69.9": "224", "C70.0": "191", "C70.9": "195", "C71.0": "191", "C71.1": "191", "C71.2": "191", "C71.3": "191", "C71.6": "191", "C71.7": "191", "C71.8": "191", "C71.9": "225", "C72.0": "195", "C72.5": "225", "C72.8": "191", "C73.9": "193", "C74.0": "194", "C75.1": "225", "C75.2": "195", "C76.1": "199", "C76.2": "202", "C76.3": "199", "C76.4": "199", "C76.5": "199", "C77.0": "202", "C77.1": "201", "C77.2": "202", "C77.8": "202", "C77.9": "201", "C80.9": "195"};
+/* ══ RT X-Code core engine (tested standalone, embedded verbatim in the module) ══ */
+
+const OUT_COLS=['ProviderNumber','GroupNumber','ProvinceCode','HealthNumber','VersionCode',
+ 'FirstName','LastName','DateOfBirth','Gender','ReferringProviderNumber','DiagnosticCode',
+ 'ServiceLocationType','MasterNumber','AdmissionDate','ServiceDate','ServiceCode','ServiceQty'];
+
+/* Brachy expansions — from ProcessRows(). The technique name arrives in the
+   ServiceCode column and is replaced by this list of codes, one row each. */
+const BRACHY={
+  'GU US HDR':['X313A','X324A','Z611A','Z541A','J138C','C343A','E082A'],
+  'GU US LDR':['X313A','X324A','Z611A','Z541A','J138C','C343A','E082A'],
+  'GU MR HDR':['X313A','X324A','Z611A','Z541A','C343A','E082A'],
+  'GYN IS HDR':['X313A','X324A','J162C','C343A','E082A'],
+  'GYN IVA':['X312A','X323A','A343A','X334A','A348A','X334A','A348A']
+};
+/* Codes needing a referring provider the source file never supplies.
+   The VBA wrote the literal "REFERRING" here as a to-do marker. */
+const NEEDS_REF=['J138C','J162C'];
+/* Admission codes: HOP -> HIP 3910, AdmissionDate = ServiceDate. */
+const ADMIT_CODES=['C343A','E082A'];
+/* GYN IVA day offsets: first X334A/A348A +1 day, second +2. */
+const DAY_OFFSET={'X334A':[1,2],'A348A':[1,2]};
+
+/* ── dates ── */
+const pad2=n=>String(n).padStart(2,'0');
+function parseD(v){
+  const s=String(v==null?'':v).trim(); if(!s)return null;
+  let m=s.match(/^(\d{1,2})[\/\-.](\d{1,2})[\/\-.](\d{4})$/);      // MM/DD/YYYY or MM-DD-YYYY
+  if(m)return new Date(Date.UTC(+m[3],+m[1]-1,+m[2]));
+  m=s.match(/^(\d{4})[\/\-.](\d{1,2})[\/\-.](\d{1,2})$/);          // YYYY-MM-DD
+  if(m)return new Date(Date.UTC(+m[1],+m[2]-1,+m[3]));
+  if(/^\d+(\.0+)?$/.test(s)){                                       // Excel serial
+    const n=Math.floor(parseFloat(s));
+    if(n>=1&&n<=2958465)return new Date(Date.UTC(1899,11,30)+n*86400000);
+  }
+  return null;
+}
+function fmtD(d){return d?pad2(d.getUTCMonth()+1)+'/'+pad2(d.getUTCDate())+'/'+d.getUTCFullYear():'';}
+function normD(v){const d=parseD(v);return d?fmtD(d):String(v==null?'':v).trim();}
+function addDays(d,n){return new Date(d.getTime()+n*86400000);}
+
+/* ── diagnosis: ICD-O topography (+ behaviour digit) -> OHIP 3-digit ──
+   DX_TPG_BEH / DX_TPG are learned from this clinic's own historical files.  */
+function icdoParts(r){
+  const ic=String(r.IcdoCode==null?'':r.IcdoCode).trim().replace(/\./g,'');
+  if(ic.length>=5&&/^\d{5}/.test(ic))return{morph:ic.slice(0,4),beh:ic[4]};
+  return{morph:'',beh:''};
+}
+function mapDx(r,overrides){
+  const tpg=String(r.TpgDiagCode==null?'':r.TpgDiagCode).trim();
+  const {beh}=icdoParts(r);
+  if(overrides&&tpg&&overrides[tpg])return{code:overrides[tpg],src:'override'};
+  if(tpg&&DX_TPG_BEH[tpg+'|'+beh])return{code:DX_TPG_BEH[tpg+'|'+beh],src:'learned'};
+  if(tpg&&DX_TPG[tpg])return{code:DX_TPG[tpg],src:'learned'};
+  return{code:'',src:'unmapped'};
+}
+
+/* ── row key for corrections (stable across runs) ── */
+function pkey(r){
+  const mrn=String(r.Mrn==null?'':r.Mrn).trim();
+  if(mrn)return 'mrn:'+mrn;
+  return 'nm:'+String(r.LastName||'').trim().toUpperCase()+','+String(r.FirstName||'').trim().toUpperCase();
+}
+
+/* ══ MAIN ══
+   corrections: { patientKey: {field:value} }        — per-patient fixes
+   refFills:    { refKey: providerNumber }           — referring per brachy line
+   dxOverrides: { tpgCode: ohipCode }                                        */
+function transform(rows,opts){
+  opts=opts||{};
+  const corr=opts.corrections||{}, refFills=opts.refFills||{}, dxo=opts.dxOverrides||{};
+  const out=[],exceptions=[],needRef=[];
+
+  rows.forEach((raw,idx)=>{
+    const srcRow=idx+2;
+    if(Object.values(raw).every(v=>v==null||String(v).trim()===''))return;
+
+    // per-patient corrections applied first so everything downstream sees them
+    const r=Object.assign({},raw);
+    const pk=pkey(r);
+    if(corr[pk])Object.keys(corr[pk]).forEach(f=>{if(corr[pk][f]!=='')r[f]=corr[pk][f];});
+
+    const base={};
+    OUT_COLS.forEach(c=>base[c]=String(r[c]==null?'':r[c]).trim());
+    base.DateOfBirth=normD(base.DateOfBirth);
+    base.ServiceDate=normD(base.ServiceDate);
+    base.AdmissionDate=base.AdmissionDate?normD(base.AdmissionDate):'';
+    if(!base.ServiceQty)base.ServiceQty='1';
+
+    // diagnosis
+    if(!base.DiagnosticCode){
+      const d=mapDx(r,dxo);
+      base.DiagnosticCode=d.code;
+      base._dxSrc=d.src;
+    } else base._dxSrc='source';
+
+    // ── integrity review (step 1) ──
+    const probs=[];
+    if(!base.HealthNumber)probs.push('No health number');
+    else if(!/^\d{10}$/.test(base.HealthNumber))probs.push('Health number is not 10 digits');
+    if(!base.VersionCode)probs.push('No version code — check if out-of-province');
+    if(!base.DateOfBirth)probs.push('No date of birth');
+    if(!base.Gender)probs.push('No gender');
+    if(!base.ProviderNumber)probs.push('No provider number');
+    if(!base.DiagnosticCode)probs.push('No diagnostic code and none could be mapped');
+
+    const svcD=parseD(base.ServiceDate);
+    const tech=base.ServiceCode;
+    const isBrachy=Object.prototype.hasOwnProperty.call(BRACHY,tech);
+    // Step 2a: a non-UHN approver means MIRA already put them in as referring;
+    // those admissions bill C343A/E082A only, never the X-codes.
+    const nonUHN=isBrachy&&!!base.ReferringProviderNumber;
+    const codes=isBrachy?(nonUHN?ADMIT_CODES.slice():BRACHY[tech].slice()):[tech];
+
+    const seenOff={};
+    codes.forEach(code=>{
+      const line=Object.assign({},base);
+      line.ServiceCode=(code==='XNone')?'X312A':code;   // XNone resolves to X312A
+      if(code==='XNone')line._xnone=true;
+
+      // GYN IVA staggered dates
+      if(isBrachy&&DAY_OFFSET[code]&&svcD){
+        const i=(seenOff[code]=(seenOff[code]||0));
+        line.ServiceDate=fmtD(addDays(svcD,DAY_OFFSET[code][i]||DAY_OFFSET[code][0]));
+        seenOff[code]=i+1;
+      }
+      // Admission codes: HOP -> HIP 3910, AdmissionDate = that line's ServiceDate
+      if(isBrachy&&ADMIT_CODES.includes(code)){
+        line.ServiceLocationType='HIP';
+        line.MasterNumber='3910';
+        line.AdmissionDate=line.ServiceDate;
+      }
+      // Codes that need a referring provider
+      if(isBrachy&&NEEDS_REF.includes(code)){
+        const rk=pk+'|'+code+'|'+line.ServiceDate;
+        line.ReferringProviderNumber=refFills[rk]||'';
+        line._refKey=rk;
+        if(!line.ReferringProviderNumber){
+          line._needRef=true;
+          needRef.push({key:rk,row:srcRow,name:base.LastName+', '+base.FirstName,
+            code:code,date:line.ServiceDate,mrn:String(r.Mrn||'').trim()});
+        }
+      }
+      line._srcRow=srcRow; line._pk=pk;
+      line._tech=isBrachy?tech:''; line._nonUHN=nonUHN;
+      line._intent=String(r.Intent==null?'':r.Intent).trim();
+      line._tpg=String(r.TpgDiagCode==null?'':r.TpgDiagCode).trim();
+      line._topo=String(r.TopologyDescription==null?'':r.TopologyDescription).trim();
+      line._morph=String(r.MorphologyDescription==null?'':r.MorphologyDescription).trim();
+      line._probs=probs;
+      out.push(line);
+    });
+
+    if(probs.length)exceptions.push({row:srcRow,pk:pk,
+      name:base.LastName+', '+base.FirstName,mrn:String(r.Mrn||'').trim(),
+      date:base.ServiceDate,code:tech,probs:probs,
+      hn:base.HealthNumber,vc:base.VersionCode,dob:base.DateOfBirth,
+      gender:base.Gender,prov:base.ProviderNumber,province:base.ProvinceCode,
+      dx:base.DiagnosticCode});
+  });
+  return{rows:out,exceptions:exceptions,needRef:needRef};
+}
+
+function toCSV(rows,cols){
+  cols=cols||OUT_COLS;
+  const esc=v=>{const s=String(v==null?'':v);return /[",\r\n]/.test(s)?'"'+s.replace(/"/g,'""')+'"':s;};
+  return [cols.join(',')].concat(rows.map(r=>cols.map(c=>esc(r[c])).join(','))).join('\r\n');
+}
+
+
+</script>
+</head>
+<body>
+<header class="hdr">
+  <div>
+    <div class="hdr-title">OM Billing Inc.™</div>
+    <div class="hdr-module">RT · Radiotherapy X-Code Submission</div>
+  </div>
+  <div class="hdr-brand">OM Billing Inc.<span class="hdr-tm">™</span></div>
+</header>
+
+<div class="form-section active" style="display:grid">
+<aside class="sidebar">
+  <div class="nav-sec">Workflow</div>
+  <button class="nav-btn active" onclick="go('upload',this)"><span class="ni">📁</span>1 · Upload<span class="dot" id="dot-u"></span></button>
+  <button class="nav-btn" onclick="go('integrity',this)"><span class="ni">🔍</span>2 · Integrity<span class="dot" id="dot-i"></span></button>
+  <button class="nav-btn" onclick="go('dx',this)"><span class="ni">🔬</span>3 · Diagnosis<span class="dot" id="dot-d"></span></button>
+  <button class="nav-btn" onclick="go('ref',this)"><span class="ni">👤</span>4 · Referring<span class="dot" id="dot-r"></span></button>
+  <button class="nav-btn" onclick="go('review',this)"><span class="ni">⚡</span>5 · Review &amp; Export<span class="dot" id="dot-x"></span></button>
+  <div class="nav-gap"></div>
+  <button class="nav-btn" onclick="go('rules',this)"><span class="ni">📖</span>Rules applied</button>
+  <div class="sb-note">Processed locally. Nothing leaves this device.</div>
+</aside>
+
+<div style="display:flex;flex-direction:column;flex:1;overflow:auto">
+<div class="content">
+
+<div class="panel active" id="panel-upload">
+  <div class="pg-title">Upload the RT service record</div>
+  <div class="pg-sub">The full export with all its columns — the extra clinical columns are used to fill in missing diagnoses.</div>
+  <div class="card"><div class="card-body">
+    <label class="upz" for="csv-in">
+      <div class="uz-icon">📄</div>
+      <div class="uz-lbl">Choose the rt_service_record CSV</div>
+      <div class="uz-hint">the ORIGINAL export, not a part-processed file</div>
+    </label>
+    <input type="file" id="csv-in" accept=".csv" style="display:none" onchange="loadCSV(this)">
+    <div id="up-res" style="margin-top:14px"></div>
+  </div></div>
+</div>
+
+<div class="panel" id="panel-integrity">
+  <div class="pg-title">Integrity Review</div>
+  <div class="pg-sub">Rows with missing or doubtful patient data. Fix them here and the corrections flow into the CSV. Blank fields are left as the source had them.</div>
+  <div id="int-empty" class="empty"><div class="empty-ic">🔍</div>Upload a file to review it.</div>
+  <div id="int-body" style="display:none">
+    <div class="sstrip" id="int-stats"></div>
+    <div class="alert a-info" style="margin-top:12px">A missing <strong>version code</strong> usually means an
+      out-of-province patient — set the province and the claim will go through. A missing
+      <strong>health number</strong> cannot be guessed and must be looked up.</div>
+    <div class="card" style="margin-top:12px">
+      <div class="card-hd"><div class="ct">⚠️ Rows needing attention</div>
+        <button class="btn btn-g" onclick="clearCorr()">Reset corrections</button></div>
+      <div class="card-body" style="padding:0;overflow:auto"><table class="dtbl" id="int-table"></table></div>
+    </div>
+  </div>
+</div>
+
+<div class="panel" id="panel-dx">
+  <div class="pg-title">Diagnosis Mapping</div>
+  <div class="pg-sub">Rows with no diagnostic code are matched from the tumour site and morphology columns. Override any of them; your choices are remembered.</div>
+  <div id="dx-empty" class="empty"><div class="empty-ic">🔬</div>Upload a file to see its diagnoses.</div>
+  <div id="dx-body" style="display:none">
+    <div class="sstrip" id="dx-stats"></div>
+    <div id="dx-warn"></div>
+    <div class="card" style="margin-top:12px">
+      <div class="card-hd"><div class="ct">🔬 Sites needing a code</div>
+        <button class="btn btn-g" onclick="clearDx()">Reset overrides</button></div>
+      <div class="card-body" style="padding:0;overflow:auto"><table class="dtbl" id="dx-table"></table></div>
+    </div>
+  </div>
+</div>
+
+<div class="panel" id="panel-ref">
+  <div class="pg-title">Referring Provider</div>
+  <div class="pg-sub">The brachytherapy consult codes need a referring physician that the export never carries. Enter one for each.</div>
+  <div id="ref-empty" class="empty"><div class="empty-ic">👤</div>Upload a file to see which lines need a referring provider.</div>
+  <div id="ref-body" style="display:none">
+    <div id="ref-warn"></div>
+    <div class="card" style="margin-top:12px">
+      <div class="card-hd"><div class="ct">👤 Lines awaiting a referring provider</div></div>
+      <div class="card-body" style="padding:0;overflow:auto"><table class="dtbl" id="ref-table"></table></div>
+    </div>
+  </div>
+</div>
+
+<div class="panel" id="panel-review">
+  <div class="pg-title">Review &amp; Export</div>
+  <div class="pg-sub">Every claim line that will be submitted.</div>
+  <div id="rv-empty" class="empty"><div class="empty-ic">⚡</div>Upload a file to build the claim lines.</div>
+  <div id="rv-body" style="display:none">
+    <div class="sstrip" id="rv-stats"></div>
+    <div id="rv-warn"></div>
+    <div class="card" style="margin-top:12px">
+      <div class="card-hd"><div class="ct">📄 Claim lines</div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <button class="btn btn-g" onclick="dlHeld()">⬇ Held rows</button>
+          <button class="btn btn-g" onclick="dlMet()">⬇ Metastatic subset</button>
+          <button class="btn btn-gold" onclick="dlMain()">⬇ Submission CSV</button>
+        </div></div>
+      <div class="card-body" style="padding:0;overflow:auto;max-height:520px"><table class="dtbl" id="rv-table"></table></div>
+    </div>
+  </div>
+</div>
+
+<div class="panel" id="panel-rules">
+  <div class="pg-title">Rules applied</div>
+  <div class="pg-sub">Exactly what this module does, in order.</div>
+  <div class="card"><div class="card-body"><div class="note" style="line-height:2">
+  <strong>1 · Integrity review</strong> — flags missing health number, version code, date of birth, gender, provider number and diagnosis.<br>
+  <strong>2 · Non-UHN approver</strong> — when the export already carries a referring provider on a brachy row, that admission bills <code>C343A</code> and <code>E082A</code> only, with no X-codes.<br>
+  <strong>3 · Brachy expansion</strong> — the technique in the service-code column becomes one line per code:<br>
+  &nbsp;&nbsp;<code>GU US HDR</code> / <code>GU US LDR</code> → X313A, X324A, Z611A, Z541A, J138C, C343A, E082A<br>
+  &nbsp;&nbsp;<code>GU MR HDR</code> → X313A, X324A, Z611A, Z541A, C343A, E082A<br>
+  &nbsp;&nbsp;<code>GYN IS HDR</code> → X313A, X324A, J162C, C343A, E082A<br>
+  &nbsp;&nbsp;<code>GYN IVA</code> → X312A, X323A, A343A, then X334A and A348A on the next two days<br>
+  <strong>4 · Admission codes</strong> — <code>C343A</code> and <code>E082A</code> switch the location from HOP to <code>HIP</code>, master number <code>3910</code>, admission date set to the service date.<br>
+  <strong>5 · Referring gap</strong> — <code>J138C</code> and <code>J162C</code> are held until a referring provider is entered.<br>
+  <strong>6 · XNone</strong> → <code>X312A</code>.<br>
+  <strong>7 · H&amp;N brachy</strong> — left exactly as found, for manual coding.<br>
+  <strong>8 · Metastatic / palliative</strong> — kept in the main file and also offered as a separate subset for the 512 submission.
+  </div></div></div>
+</div>
+
+</div>
+<div class="footer">Copyright © <script>document.write(new Date().getFullYear())</script> <strong>OM Billing Inc.™</strong> All rights reserved.</div>
+</div>
+</div>
+
+<script>
+const LS='om_rt_';
+const ls=(k,d)=>{try{const s=localStorage.getItem(LS+k);return s?JSON.parse(s):d}catch(e){return d}};
+const lsp=(k,v)=>{try{localStorage.setItem(LS+k,JSON.stringify(v))}catch(e){}};
+const esc=s=>String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const stat=(l,v,c)=>'<div class="ssi"><div class="ssl">'+l+'</div><div class="ssv '+(c||'')+'">'+v+'</div></div>';
+
+let corrections=ls('corr',{}), refFills=ls('ref',{}), dxOverrides=ls('dxo',{});
+let srcRows=[], R={rows:[],exceptions:[],needRef:[]};
+
+function go(id,btn){
+  document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
+  document.getElementById('panel-'+id).classList.add('active');
+  document.querySelectorAll('.nav-btn').forEach(b=>b.classList.remove('active'));
+  if(btn)btn.classList.add('active');
+}
+
+function parseCSV(t){
+  t=t.replace(/^\uFEFF/,'');
+  const rows=[];let cur='',row=[],q=false;
+  for(let i=0;i<t.length;i++){const c=t[i];
+    if(q){ if(c==='"'){ if(t[i+1]==='"'){cur+='"';i++;} else q=false; } else cur+=c; }
+    else if(c==='"')q=true;
+    else if(c===','){row.push(cur);cur='';}
+    else if(c==='\n'){row.push(cur);rows.push(row);row=[];cur='';}
+    else if(c!=='\r')cur+=c;
+  }
+  if(cur!==''||row.length){row.push(cur);rows.push(row);}
+  if(!rows.length)return[];
+  const h=rows[0].map(x=>x.trim());
+  return rows.slice(1).filter(r=>r.some(x=>x&&x.trim()))
+    .map(r=>{const o={};h.forEach((k,i)=>o[k]=(r[i]==null?'':r[i]).trim());return o;});
+}
+
+function loadCSV(input){
+  const f=input.files[0];if(!f)return;
+  const rd=new FileReader();
+  rd.onload=e=>{
+    try{
+      const rows=parseCSV(e.target.result);
+      const need=['ServiceCode','ServiceDate','HealthNumber','LastName'];
+      const miss=need.filter(c=>!(c in (rows[0]||{})));
+      if(miss.length){document.getElementById('up-res').innerHTML=
+        '<div class="alert a-warn"><strong>⚠ Unexpected columns</strong><div style="margin-top:6px">Missing: <code>'+
+        miss.join('</code>, <code>')+'</code></div></div>';return;}
+      srcRows=rows; rebuild();
+      const hn=('TpgDiagCode' in rows[0]);
+      document.getElementById('up-res').innerHTML=
+        '<div class="alert a-ok"><strong>✓ Loaded '+esc(f.name)+'</strong><div style="margin-top:6px">'+
+        srcRows.length+' source rows → <strong>'+R.rows.length+'</strong> claim lines.</div></div>'+
+        (hn?'':'<div class="alert a-warn" style="margin-top:8px"><strong>⚠ No clinical columns</strong>'+
+          '<div style="margin-top:6px">This looks like a trimmed file, so missing diagnoses cannot be '+
+          'matched automatically. Use the full export.</div></div>');
+      document.getElementById('dot-u').className='dot ok';
+    }catch(err){document.getElementById('up-res').innerHTML=
+      '<div class="alert a-warn"><strong>⚠ Could not read that file</strong><div style="margin-top:6px">'+esc(err.message)+'</div></div>';}
+  };
+  rd.readAsText(f);
+}
+
+function rebuild(){
+  R=transform(srcRows,{corrections,refFills,dxOverrides});
+  renderInt();renderDx();renderRef();renderReview();
+}
+function rebuildQuiet(){
+  R=transform(srcRows,{corrections,refFills,dxOverrides});
+  renderReview();refreshDots();
+}
+function refreshDots(){
+  const held=R.rows.filter(r=>r._needRef).length;
+  const blk=R.exceptions.filter(e=>e.probs.some(p=>/health number|date of birth|gender|provider number|diagnostic/i.test(p))).length;
+  document.getElementById('dot-i').className='dot '+(blk?'warn':'ok');
+  document.getElementById('dot-r').className='dot '+(held?'warn':'ok');
+  document.getElementById('dot-x').className='dot '+((held||blk)?'warn':'ok');
+}
+
+/* ── corrections ── */
+function setCorr(pk,field,val){
+  corrections[pk]=corrections[pk]||{};
+  const v=String(val).trim();
+  if(v)corrections[pk][field]=v; else delete corrections[pk][field];
+  if(!Object.keys(corrections[pk]).length)delete corrections[pk];
+  lsp('corr',corrections); rebuildQuiet();
+}
+function clearCorr(){if(!confirm('Remove all row corrections?'))return;corrections={};lsp('corr',corrections);rebuild();}
+function clearDx(){if(!confirm('Remove all diagnosis overrides?'))return;dxOverrides={};lsp('dxo',dxOverrides);rebuild();}
+function setRef(k,val){
+  const v=String(val).trim();
+  if(v)refFills[k]=v; else delete refFills[k];
+  lsp('ref',refFills); rebuildQuiet();
+}
+function setDx(tpg,val){
+  const v=String(val).trim();
+  if(v)dxOverrides[tpg]=v; else delete dxOverrides[tpg];
+  lsp('dxo',dxOverrides); rebuildQuiet();
+}
+
+/* ── integrity ── */
+function renderInt(){
+  const ex=R.exceptions;
+  document.getElementById('int-empty').style.display=ex.length?'none':'';
+  document.getElementById('int-body').style.display=ex.length?'':'none';
+  if(!ex.length){refreshDots();return;}
+  const noHN=ex.filter(e=>e.probs.some(p=>/health number/i.test(p))).length;
+  const noVC=ex.filter(e=>e.probs.some(p=>/version code/i.test(p))).length;
+  const other=ex.filter(e=>e.probs.some(p=>/birth|gender|provider number|diagnostic/i.test(p))).length;
+  document.getElementById('int-stats').innerHTML=
+    stat('Rows flagged',ex.length)+stat('Health number',noHN,noHN?'warn':'ok')+
+    stat('Version code',noVC,noVC?'warn':'ok')+stat('Other gaps',other,other?'warn':'ok');
+  const F=(pk,f,v,ph,w)=>'<input value="'+esc(v)+'" placeholder="'+ph+'" style="width:'+(w||70)+'px;font-family:monospace" '+
+    'oninput="setCorr('+JSON.stringify(pk).replace(/"/g,'&quot;')+','+JSON.stringify(f).replace(/"/g,'&quot;')+',this.value)">';
+  document.getElementById('int-table').innerHTML=
+    '<thead><tr><th>Patient</th><th>MRN</th><th>Date</th><th>Health #</th><th>VC</th><th>Prov</th>'+
+    '<th>DOB</th><th>Gender</th><th>Provider #</th><th>Dx</th><th>Problem</th></tr></thead><tbody>'+
+    ex.map(e=>{
+      const c=corrections[e.pk]||{};
+      return '<tr><td style="white-space:nowrap">'+esc(e.name)+'</td><td>'+esc(e.mrn)+'</td>'+
+      '<td style="white-space:nowrap">'+esc(e.date)+'</td>'+
+      '<td>'+F(e.pk,'HealthNumber',c.HealthNumber||e.hn,'10 digits',96)+'</td>'+
+      '<td>'+F(e.pk,'VersionCode',c.VersionCode||e.vc,'VC',44)+'</td>'+
+      '<td>'+F(e.pk,'ProvinceCode',c.ProvinceCode||e.province,'ON',44)+'</td>'+
+      '<td>'+F(e.pk,'DateOfBirth',c.DateOfBirth||e.dob,'MM/DD/YYYY',92)+'</td>'+
+      '<td>'+F(e.pk,'Gender',c.Gender||e.gender,'M/F',62)+'</td>'+
+      '<td>'+F(e.pk,'ProviderNumber',c.ProviderNumber||e.prov,'6 digits',72)+'</td>'+
+      '<td>'+F(e.pk,'DiagnosticCode',c.DiagnosticCode||e.dx,'OHIP',56)+'</td>'+
+      '<td style="font-size:11.5px;color:var(--muted)">'+esc(e.probs.join('; '))+'</td></tr>';
+    }).join('')+'</tbody>';
+  refreshDots();
+}
+
+/* ── diagnosis ── */
+function renderDx(){
+  const seen=new Map();
+  R.rows.forEach(r=>{
+    if(r._dxSrc==='source')return;
+    const k=r._tpg||'(none)';
+    if(!seen.has(k))seen.set(k,{tpg:r._tpg,topo:r._topo,morph:r._morph,code:r.DiagnosticCode,src:r._dxSrc,n:0});
+    seen.get(k).n++;
+  });
+  const list=[...seen.values()].sort((a,b)=>b.n-a.n);
+  document.getElementById('dx-empty').style.display=list.length?'none':'';
+  document.getElementById('dx-body').style.display=list.length?'':'none';
+  if(!list.length){document.getElementById('dot-d').className='dot ok';return;}
+  const un=list.filter(d=>!d.code).length;
+  document.getElementById('dx-stats').innerHTML=
+    stat('Sites filled in',list.length)+stat('Matched',list.length-un)+stat('No match',un,un?'warn':'ok');
+  document.getElementById('dx-warn').innerHTML = un
+    ? '<div class="alert a-warn"><strong>⚠ '+un+' site'+(un!==1?'s':'')+' could not be matched</strong>'+
+      '<div style="margin-top:6px">Those lines will export with an empty diagnostic code and be rejected. Enter a code below.</div></div>'
+    : '<div class="alert a-ok"><strong>✓ Every missing diagnosis was matched.</strong> Check them before submitting — these come from your own past files, not an official table.</div>';
+  document.getElementById('dx-table').innerHTML=
+    '<thead><tr><th>Tumour site (ICD-O)</th><th>Morphology</th><th style="text-align:center">Rows</th><th>OHIP</th><th style="text-align:right">Source</th></tr></thead><tbody>'+
+    list.map(d=>'<tr><td><code>'+esc(d.tpg||'—')+'</code> '+esc(d.topo||'')+'</td>'+
+      '<td style="font-size:11.5px;color:var(--muted)">'+esc(d.morph||'')+'</td>'+
+      '<td style="text-align:center">'+d.n+'</td>'+
+      '<td><input value="'+esc(d.code)+'" placeholder="OHIP" maxlength="4" style="width:70px;font-family:monospace" '+
+        'oninput="setDx('+JSON.stringify(d.tpg).replace(/"/g,'&quot;')+',this.value)"></td>'+
+      '<td style="text-align:right">'+(d.src==='override'?'<span class="badge b-ok">manual</span>':
+        d.code?'<span class="badge b-ok">matched</span>':'<span class="badge b-err">no match</span>')+'</td></tr>').join('')+'</tbody>';
+  document.getElementById('dot-d').className='dot '+(un?'warn':'ok');
+}
+
+/* ── referring ── */
+function renderRef(){
+  const all=R.rows.filter(r=>r._refKey);
+  document.getElementById('ref-empty').style.display=all.length?'none':'';
+  document.getElementById('ref-body').style.display=all.length?'':'none';
+  if(!all.length){document.getElementById('dot-r').className='dot ok';return;}
+  const held=all.filter(r=>r._needRef).length;
+  document.getElementById('ref-warn').innerHTML = held
+    ? '<div class="alert a-warn"><strong>⚠ '+held+' line'+(held!==1?'s':'')+' held</strong><div style="margin-top:6px">'+
+      'These are excluded from the submission CSV until a referring provider is entered.</div></div>'
+    : '<div class="alert a-ok"><strong>✓ All consult lines have a referring provider.</strong></div>';
+  document.getElementById('ref-table').innerHTML=
+    '<thead><tr><th>Patient</th><th>MRN</th><th>Code</th><th>Service date</th><th>Referring provider #</th><th style="text-align:right">Status</th></tr></thead><tbody>'+
+    all.map(r=>'<tr><td style="white-space:nowrap">'+esc(r.LastName+', '+r.FirstName)+'</td>'+
+      '<td>'+esc((srcRows.find(s=>pkey(s)===r._pk)||{}).Mrn||'')+'</td>'+
+      '<td><code>'+esc(r.ServiceCode)+'</code></td><td style="white-space:nowrap">'+esc(r.ServiceDate)+'</td>'+
+      '<td><input value="'+esc(r.ReferringProviderNumber)+'" placeholder="6 digits" maxlength="6" '+
+        'style="width:96px;font-family:monospace" oninput="setRef('+JSON.stringify(r._refKey).replace(/"/g,'&quot;')+',this.value)"></td>'+
+      '<td style="text-align:right">'+(r._needRef?'<span class="badge b-err">held</span>':'<span class="badge b-ok">ready</span>')+'</td></tr>').join('')+'</tbody>';
+  document.getElementById('dot-r').className='dot '+(held?'warn':'ok');
+}
+
+/* ── review ── */
+function submittable(){return R.rows.filter(r=>!r._needRef&&!blocked(r));}
+function blocked(r){return (r._probs||[]).some(p=>/No health number|not 10 digits|No date of birth|No gender|No provider number|No diagnostic/i.test(p));}
+function renderReview(){
+  const ok=submittable(), held=R.rows.filter(r=>r._needRef).length, blk=R.rows.filter(r=>blocked(r)).length;
+  document.getElementById('rv-empty').style.display=R.rows.length?'none':'';
+  document.getElementById('rv-body').style.display=R.rows.length?'':'none';
+  if(!R.rows.length)return;
+  const hn=R.rows.filter(r=>r._tech).length, met=R.rows.filter(r=>/Metasta|Palliat/i.test(r._intent||'')).length;
+  document.getElementById('rv-stats').innerHTML=
+    stat('Source rows',srcRows.length)+stat('Claim lines',R.rows.length)+
+    stat('Ready to submit',ok.length,'ok')+stat('Held',held+blk,(held+blk)?'warn':'ok')+
+    stat('Brachy expanded',hn)+stat('Metastatic',met);
+  const hn2=srcRows.filter(r=>/H&N/i.test(r.ServiceCode||'')).length;
+  document.getElementById('rv-warn').innerHTML=
+    ((held+blk)?'<div class="alert a-warn"><strong>⚠ '+(held+blk)+' line'+((held+blk)!==1?'s':'')+
+      ' are not in the submission CSV</strong><div style="margin-top:6px">'+
+      (held?held+' waiting for a referring provider. ':'')+
+      (blk?blk+' with missing patient data. ':'')+
+      'They are in the <strong>Held rows</strong> download so nothing is lost.</div></div>':'')+
+    (hn2?'<div class="alert a-info"><strong>ℹ '+hn2+' H&amp;N row'+(hn2!==1?'s':'')+' left unexpanded</strong>'+
+      '<div style="margin-top:6px">H&amp;N brachytherapy needs manual coding, so those rows pass through untouched.</div></div>':'');
+  const head='<thead><tr>'+OUT_COLS.map(c=>'<th style="white-space:nowrap">'+c+'</th>').join('')+'<th>Status</th></tr></thead>';
+  document.getElementById('rv-table').innerHTML=head+'<tbody>'+R.rows.slice(0,400).map(r=>{
+    const bad=r._needRef||blocked(r);
+    return '<tr'+(bad?' style="background:var(--warn-bg)"':'')+'>'+
+      OUT_COLS.map(c=>'<td style="white-space:nowrap;font-size:11.5px;font-family:'+
+        (['FirstName','LastName','Gender'].includes(c)?'inherit':'ui-monospace,monospace')+'">'+esc(r[c])+'</td>').join('')+
+      '<td>'+(r._needRef?'<span class="badge b-err">no referring</span>':blocked(r)?'<span class="badge b-err">held</span>':'<span class="badge b-ok">ok</span>')+'</td></tr>';
+  }).join('')+'</tbody>'+(R.rows.length>400?'<tfoot><tr><td colspan="18" style="color:var(--muted);padding:10px">Showing first 400 of '+R.rows.length+' — the download contains all of them.</td></tr></tfoot>':'');
+  refreshDots();
+}
+
+function dl(name,text){
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(new Blob([text],{type:'text/csv;charset=utf-8'}));
+  a.download=name;a.click();URL.revokeObjectURL(a.href);
+}
+function stamp(){const d=new Date();return d.getFullYear()+String(d.getMonth()+1).padStart(2,'0')+String(d.getDate()).padStart(2,'0');}
+function dlMain(){
+  const ok=submittable();
+  if(!ok.length){alert('Nothing ready to submit yet.');return;}
+  const held=R.rows.length-ok.length;
+  if(held&&!confirm(held+' line(s) are held and will NOT be in this file.\n\nContinue?'))return;
+  dl('RT_Submission_'+stamp()+'.csv',toCSV(ok));
+}
+function dlHeld(){
+  const h=R.rows.filter(r=>r._needRef||blocked(r));
+  if(!h.length){alert('No held rows.');return;}
+  const cols=OUT_COLS.concat(['Problem']);
+  dl('RT_Held_'+stamp()+'.csv',toCSV(h.map(r=>Object.assign({},r,
+    {Problem:(r._needRef?'Needs referring provider; ':'')+(r._probs||[]).join('; ')})),cols));
+}
+function dlMet(){
+  const m=submittable().filter(r=>/Metasta|Palliat/i.test(r._intent||''));
+  if(!m.length){alert('No metastatic or palliative lines.');return;}
+  dl('RT_Metastatic_512_'+stamp()+'.csv',toCSV(m));
+}
+</script>
+</body>
+</html>
