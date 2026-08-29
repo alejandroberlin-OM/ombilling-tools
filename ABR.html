@@ -396,12 +396,14 @@ function toCSV(rows,cols){
 <div class="panel" id="panel-fees">
   <div class="pg-title">Fee Schedule</div>
   <div class="pg-sub">Used only to estimate what a selection is worth. Nothing here is written to the CSV.</div>
-  <div class="alert a-warn"><strong>⚠ Enter the missing fees before trusting any total</strong>
-    <div style="margin-top:6px">Only <code>A343A</code> and <code>A345A</code> came from your own billing data.
-    I have deliberately left the others blank rather than guess at Schedule of Benefits amounts —
-    a wrong fee here would mislead you about how many cases to generate.</div></div>
+  <div class="alert a-info"><strong>ℹ Fees are pre-filled from your own figures</strong>
+    <div style="margin-top:6px"><code>A345A</code> and <code>A343A</code> came from your billing JSON;
+    <code>G512A</code>, <code>X313A</code> and <code>X312A</code> are the amounts you supplied.
+    Nothing here updates itself, so check them against the current Schedule of Benefits before sizing a
+    batch — at roughly $1,000 a case, a stale fee moves the total quickly. Edits are saved in this browser.</div></div>
   <div class="card" style="margin-top:12px">
-    <div class="card-hd"><div class="ct">💲 Amounts per unit</div></div>
+    <div class="card-hd"><div class="ct">💲 Amounts per unit</div>
+      <button class="btn btn-g" onclick="resetFees()">Restore preset fees</button></div>
     <div class="card-body" style="padding:0"><table class="dtbl" id="fee-table"></table></div>
   </div>
 </div>
@@ -484,8 +486,18 @@ const money=n=>'$'+n.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g,',');
 
 const FEE_CODES=[['A345A','Consultation'],['A343A','Subsequent visit'],
   ['G512A','Palliative management'],['X313A','RT planning'],['X312A','RT planning']];
-/* Only the two that came from the practice's own billing data are pre-filled. */
-let fees=ls('fees',{A345A:'178.75',A343A:'35.75',G512A:'',X313A:'',X312A:''});
+/* Preset fees. A345A/A343A came from the practice's billing JSON; G512A, X313A
+   and X312A were supplied by the biller. All are editable and persist per browser.
+   Verify against the current Schedule of Benefits — nothing here updates itself. */
+const FEE_DEFAULTS={A345A:'178.75',A343A:'35.75',G512A:'67.75',X313A:'811.15',X312A:'680.45'};
+let fees=ls('fees',{});
+// Fill in anything absent or blank so a part-filled saved copy still works,
+// while leaving values the user has actually changed alone.
+Object.keys(FEE_DEFAULTS).forEach(k=>{
+  const v=fees[k];
+  if(v===undefined||String(v).trim()==='')fees[k]=FEE_DEFAULTS[k];
+});
+lsp('fees',fees);
 let SET=ls('set',{billTo:'033998',visit:'A345A',xcode:'X313A',plandate:'',refon:'all'});
 let pool=[], picks=ls('picks',{}), plans=ls('plans',{}), loaded=[];
 
@@ -561,9 +573,10 @@ function renderFees(){
 }
 function feeBadge(c){
   const v=fees[c];
-  const known=(c==='A345A'||c==='A343A');
-  if(v===undefined||v===''||isNaN(parseFloat(v)))return '<span class="badge b-err">needed</span>';
-  return '<span class="badge b-ok">'+(known?'your data':'entered')+'</span>';
+  if(v===undefined||String(v).trim()===''||isNaN(parseFloat(v)))
+    return '<span class="badge b-err">needed</span>';
+  const preset=(String(v).trim()===FEE_DEFAULTS[c]);
+  return '<span class="badge b-ok">'+(preset?'preset':'edited')+'</span>';
 }
 function setFee(c,v){
   fees[c]=String(v).trim();
@@ -573,6 +586,12 @@ function setFee(c,v){
   const cell=document.querySelector('#fee-table tr[data-fee="'+c+'"] [data-role="src"]');
   if(cell)cell.innerHTML=feeBadge(c);
   renderSelectStats();renderReview();refreshFeeDot();
+}
+function resetFees(){
+  if(!confirm('Restore the preset fees, discarding any edits?'))return;
+  fees=Object.assign({},FEE_DEFAULTS);
+  lsp('fees',fees);
+  renderFees();renderSelectStats();renderReview();
 }
 function refreshFeeDot(){
   const miss=FEE_CODES.filter(([x])=>{const v=fees[x];
