@@ -389,42 +389,89 @@ function readGeneric(grid){
   const at=(r,c)=>{const row=grid[r];const v=row?row[c]:undefined;
     return (v===undefined||v===null)?'':v;};
   const width=Math.max(0,...grid.map(r=>r?r.length:0));
-  let hr=-1,best=0;
-  for(let r=0;r<Math.min(grid.length,15);r++){
-    let n=0; for(let c=0;c<width;c++) if(String(at(r,c)).trim())n++;
-    if(n>best){best=n;hr=r;}
+  const txt=(r,c)=>String(at(r,c)).trim();
+  const isNumCell=(r,c)=>{const v=at(r,c);return v!==''&&v!==null&&!isNaN(parseFloat(v));};
+
+  /* A data row carries numbers. A header row carries only text. Find the first
+     data row, then treat the text-only rows just above it as the header block —
+     these reports split their headings over two rows ("Claim Count" on one,
+     "Care Provider" on another), and taking a single "widest" row used to grab
+     the first data row by mistake. */
+  let dataStart=-1;
+  for(let r=0;r<Math.min(grid.length,30);r++){
+    let nums=0,cells=0;
+    for(let c=0;c<width;c++){ if(txt(r,c)){cells++; if(isNumCell(r,c))nums++;} }
+    if(cells&&nums>=2){dataStart=r;break;}
   }
-  if(hr<0)return{cols:[],rows:[]};
-  /* Keep only columns that carry something below the header. */
+  if(dataStart<0)return{cols:[],rows:[]};
+
+  const headRows=[];
+  for(let r=dataStart-1;r>=0&&r>=dataStart-6;r--){
+    let cells=0,nums=0;
+    for(let c=0;c<width;c++){ if(txt(r,c)){cells++; if(isNumCell(r,c))nums++;} }
+    if(!cells)continue;                 // blank spacer row
+    if(nums)break;                      // reached data
+    if(cells<2)break;                   // a lone cell is the report title, not a heading
+    headRows.unshift(r);
+  }
+  /* Merge the header block down each column. */
+  const head=[];
+  for(let c=0;c<width;c++){
+    const parts=headRows.map(r=>txt(r,c)).filter(Boolean);
+    head[c]=parts.join(' ').trim();
+  }
+
+  /* Keep columns that have a heading or any value below it. */
   const keep=[];
   for(let c=0;c<width;c++){
-    let used=String(at(hr,c)).trim()?1:0;
-    for(let r=hr+1;r<grid.length;r++) if(String(at(r,c)).trim()){used++;break;}
+    let used=head[c]?1:0;
+    if(!used)for(let r=dataStart;r<grid.length;r++){ if(txt(r,c)){used=1;break;} }
     if(used)keep.push(c);
   }
-  const isNum=c=>{
+  const numeric=c=>{
     let n=0,t=0;
-    for(let r=hr+1;r<grid.length;r++){const v=at(r,c);
-      if(v===''||v===null)continue;t++;if(!isNaN(parseFloat(v)))n++;}
+    for(let r=dataStart;r<grid.length;r++){
+      const v=at(r,c); if(v===''||v===null)continue; t++; if(!isNaN(parseFloat(v)))n++;
+    }
     return t>0&&n/t>0.7;
   };
-  const cols=keep.map(c=>({i:c,h:String(at(hr,c)).trim(),num:isNum(c)}));
+  const cols=keep.map(c=>{
+    const h=head[c]||'';
+    return{i:c,h:h,num:numeric(c),
+      money:/fee|total|submitted|amount|\$/i.test(h),
+      date:/date/i.test(h)};
+  });
+
   const rows=[];
-  for(let r=hr+1;r<grid.length;r++){
+  for(let r=dataStart;r<grid.length;r++){
     const cells=cols.map(c=>{
       const v=at(r,c.i);
-      if(v==='')return '';
-      if(c.num&&!isNaN(parseFloat(v))){
-        const n=parseFloat(v);
-        /* Fee-like columns get currency; counts stay plain. */
-        return /fee|total|submitted|amount/i.test(c.h)?money(n)
-             : (Number.isInteger(n)?String(n):String(n));
+      if(v===''||v===null)return '';
+      const n=parseFloat(v);
+      if(!isNaN(n)&&typeof v!=='string'||(!isNaN(n)&&/^[\d.\-]+$/.test(String(v).trim()))){
+        if(c.date)return serialToDate(n);
+        if(c.money)return money(n);
+        if(c.num)return Number.isInteger(n)
+          ? String(n).replace(/\B(?=(\d{3})+(?!\d))/g,',')
+          : String(n);
       }
       return String(v).trim();
     });
-    if(cells.some(x=>x!==''))rows.push(cells);
+    if(!cells.some(x=>x!==''))continue;
+    /* Row kinds drive the rules and spacing:
+         grand    — the "Grand Total" line
+         subtotal — a group's own total: the grouping column is filled but the
+                    name column beside it is empty
+         data     — an ordinary line                                        */
+    let kind='data';
+    if(cells.some(v=>/^grand\s*total/i.test(String(v))))kind='grand';
+    else if(cells[0]&&cols.length>1&&!cells[1]&&cells.slice(2).some(v=>v!==''))kind='subtotal';
+    rows.push({cells,kind});
   }
-  return{cols,rows};
+  /* Number the ordinary rows so the last number is the provider count. */
+  let n=0;
+  rows.forEach(r=>{ if(r.kind==='data')r.n=++n; });
+  return{cols,rows,count:n};
 }
 
 /* Render a generic (summary) sheet: header row plus data, evenly spaced. */
@@ -444,40 +491,76 @@ function renderGeneric(doc,rep,opt){
     doc.text('(no tabular data on this sheet)',PW/2,y+10,{align:'center'});
     return;
   }
-  /* Give text columns more room than numeric ones. */
+
+  /* Only the Group Summary carries a numbering column, so the last number is a
+     running count of providers for invoicing. */
+  const numbered=/group summary/i.test(rep.title||'');
+  const NUMW=numbered?26:0;
+
   const weight=g.cols.map(c=>c.num?1:2);
   const tw=weight.reduce((a,b)=>a+b,0);
-  const w=weight.map(x=>avail*x/tw);
+  const w=weight.map(x=>(avail-NUMW)*x/tw);
+  const colX=i=>{let x=M+NUMW;for(let k=0;k<i;k++)x+=w[k];return x;};
+
   const drawHead=()=>{
     doc.setFont('helvetica','bold');doc.setFontSize(7.5);
-    let x=M,maxL=1;
+    let maxL=1;
+    if(numbered)doc.text('#',M+NUMW-6,y,{align:'right'});
     g.cols.forEach((c,i)=>{
       const lines=doc.splitTextToSize(c.h||'',w[i]-4);
       maxL=Math.max(maxL,lines.length);
-      lines.forEach((ln,li)=>doc.text(ln,c.num?x+w[i]-3:x+3,y+li*8,
+      lines.forEach((ln,li)=>doc.text(ln,c.num?colX(i)+w[i]-3:colX(i)+3,y+li*8,
         c.num?{align:'right'}:undefined));
-      x+=w[i];
     });
     y+=maxL*8+2;doc.setLineWidth(0.6);doc.line(M,y,M+avail,y);y+=8;
   };
   drawHead();
-  doc.setFont('helvetica','normal');doc.setFontSize(7.5);
-  g.rows.forEach(cells=>{
-    if(y>PH-M-14){doc.addPage();y=M+6;drawHead();
-      doc.setFont('helvetica','normal');doc.setFontSize(7.5);}
-    const bold=cells.some(v=>/^(grand )?total/i.test(String(v)));
+
+  const drawCells=(row,bold)=>{
     if(bold)doc.setFont('helvetica','bold');
-    let x=M;
+    if(numbered&&row.n)  {doc.setFont('helvetica','normal');doc.setFontSize(7);
+      doc.setTextColor(120);doc.text(String(row.n),M+NUMW-6,y,{align:'right'});
+      doc.setTextColor(0);doc.setFontSize(7.5);
+      if(bold)doc.setFont('helvetica','bold');}
     g.cols.forEach((c,i)=>{
-      const t=cells[i]||'';
-      if(t){const fit=doc.splitTextToSize(t,w[i]-4)[0]||'';
-        if(c.num)doc.text(fit,x+w[i]-3,y,{align:'right'});
-        else doc.text(fit,x+3,y);}
-      x+=w[i];
+      const t=row.cells[i]||'';
+      if(!t)return;
+      const fit=doc.splitTextToSize(t,w[i]-4)[0]||'';
+      if(c.num)doc.text(fit,colX(i)+w[i]-3,y,{align:'right'});
+      else doc.text(fit,colX(i)+3,y);
     });
     if(bold)doc.setFont('helvetica','normal');
-    y+=11;
+  };
+
+  doc.setFont('helvetica','normal');doc.setFontSize(7.5);
+  const LH=11;
+  g.rows.forEach((row,idx)=>{
+    const kind=row.kind||'data';
+    /* Breathing room ahead of a group's total, and more ahead of the grand
+       total, so the blocks read as blocks. */
+    if(kind==='subtotal')y+=3;
+    if(kind==='grand')y+=10;
+
+    if(y>PH-M-16){doc.addPage();y=M+6;drawHead();
+      doc.setFont('helvetica','normal');doc.setFontSize(7.5);}
+
+    if(kind==='subtotal'||kind==='grand'){
+      doc.setLineWidth(kind==='grand'?0.8:0.4);
+      doc.line(kind==='grand'?M:M+NUMW,y-8,M+avail,y-8);
+    }
+    drawCells(row,kind!=='data');
+    y+=LH;
+    /* A blank line after a group's total separates it from the next group. */
+    if(kind==='subtotal')y+=7;
   });
+
+  if(numbered&&g.count){
+    y+=6;
+    if(y>PH-M-14){doc.addPage();y=M+14;}
+    doc.setFont('helvetica','normal');doc.setFontSize(7.5);doc.setTextColor(110);
+    doc.text(g.count+' care providers',M+NUMW,y);
+    doc.setTextColor(0);
+  }
 }
 
 /* Render one report onto a jsPDF document. Landscape letter, table scaled to
@@ -618,6 +701,16 @@ function renderReport(doc,rep,opt){
             <option value="doctors">Doctor sheets only</option></select></div>
         <div class="fg" style="justify-content:flex-end">
           <button class="btn btn-gold" onclick="buildZip()">⬇ Build &amp; download zip</button></div>
+      </div>
+      <div class="fg-grid c3" style="margin-top:10px">
+        <div class="fg" style="grid-column:1 / -1">
+          <label class="fl" style="display:flex;align-items:center;gap:8px">
+            <input type="checkbox" id="e-xlsx" checked>
+            Also include a cleaned Excel workbook in the zip
+          </label>
+          <div class="note" style="margin-top:6px">Sheets renamed to the doctor names, no pictures,
+            headers or footers — values only. Column widths and colours are not carried over.</div>
+        </div>
       </div>
       <div class="progress-wrap" id="ex-prog" style="display:none;margin-top:14px">
         <div class="progress"><div class="progress-bar" id="ex-bar" style="width:0%"></div></div>
@@ -778,6 +871,39 @@ async function buildZip(){
         '</strong><div style="margin-top:6px">'+esc(err.message)+'</div></div>';
     }
   }
+  if(document.getElementById('e-xlsx').checked){
+    txt.textContent='Building the cleaned workbook…';
+    await new Promise(res=>setTimeout(res,0));
+    try{
+      const out=XLSX.utils.book_new();
+      const seen={};
+      list.forEach(r=>{
+        /* Values only — nothing is read from the original but cell contents, so
+           pictures, headers and footers cannot carry across. */
+        const aoa=r.isDetail
+          ? [COLS.map(c=>c.h)].concat(r.rows.map(x=>COLS.map(c=>x[c.k]||'')))
+          : [ (r.generic.cols||[]).map(c=>c.h) ]
+              .concat((r.generic.rows||[]).map(x=>x.cells));
+        if(r.isDetail&&r.total!==null&&r.total!==undefined){
+          const tail=COLS.map(()=> '');
+          tail[COLS.length-3]='Total Fee Submitted:';
+          tail[COLS.length-3+1]='';
+          aoa.push([]);aoa.push(tail.map((v,i)=>i===COLS.length-3?'Total Fee Submitted:':
+            (i===COLS.length-3+1?money(r.total):'')));
+        }
+        let nm=(r.person||r.sheetName).replace(/[:\\\/?*\[\]]/g,'_').slice(0,31);
+        if(seen[nm]){nm=nm.slice(0,28)+'_'+(++seen[nm]);}else seen[nm]=1;
+        XLSX.utils.book_append_sheet(out,XLSX.utils.aoa_to_sheet(aoa),nm);
+      });
+      const wbout=XLSX.write(out,{bookType:'xlsx',type:'array'});
+      dir.file(folder.replace(/[^\w\- ]/g,'_')+'_clean.xlsx',wbout);
+    }catch(err){
+      console.error('workbook build failed',err);
+      document.getElementById('ex-res').innerHTML+=
+        '<div class="alert a-warn"><strong>⚠ The cleaned workbook could not be built</strong>'+
+        '<div style="margin-top:6px">'+esc(err.message)+' — the PDFs are unaffected.</div></div>';
+    }
+  }
   txt.textContent='Compressing…'; bar.style.width='100%';
   await new Promise(res=>setTimeout(res,0));
   const blob=await zip.generateAsync({type:'blob'});
@@ -788,7 +914,8 @@ async function buildZip(){
   prog.style.display='none';
   document.getElementById('ex-res').innerHTML+=
     '<div class="alert a-ok"><strong>✓ '+list.length+' PDFs bundled</strong>'+
-    '<div style="margin-top:6px">Downloaded as <code>'+esc(folder)+'.zip</code>.</div></div>';
+    '<div style="margin-top:6px">Downloaded as <code>'+esc(folder)+'.zip</code>'+
+    (document.getElementById('e-xlsx').checked?', including the cleaned workbook':'')+'.</div></div>';
   document.getElementById('dot-x').className='dot ok';
 }
 </script>
