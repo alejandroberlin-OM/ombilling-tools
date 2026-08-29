@@ -552,20 +552,33 @@ function renderFees(){
     FEE_CODES.map(([c,d])=>{
       const v=fees[c]||'';
       const known=(c==='A345A'||c==='A343A');
-      return '<tr><td><code>'+c+'</code></td><td>'+d+'</td>'+
+      return '<tr data-fee="'+c+'"><td><code>'+c+'</code></td><td>'+d+'</td>'+
       '<td><input value="'+esc(v)+'" placeholder="0.00" inputmode="decimal" style="width:96px;font-family:monospace" '+
-        'oninput="setFee('+JSON.stringify(c)+',this.value)"></td>'+
-      '<td style="text-align:right">'+(v?(known?'<span class="badge b-ok">your data</span>':'<span class="badge b-ok">entered</span>')
-        :'<span class="badge b-err">needed</span>')+'</td></tr>';
+        'oninput="setFee('+JSON.stringify(c).replace(/"/g,'&quot;')+',this.value)"></td>'+
+      '<td data-role="src" style="text-align:right">'+feeBadge(c)+'</td></tr>';
     }).join('')+'</tbody>';
-  const miss=FEE_CODES.filter(([c])=>!fees[c]).length;
+  refreshFeeDot();
+}
+function feeBadge(c){
+  const v=fees[c];
+  const known=(c==='A345A'||c==='A343A');
+  if(v===undefined||v===''||isNaN(parseFloat(v)))return '<span class="badge b-err">needed</span>';
+  return '<span class="badge b-ok">'+(known?'your data':'entered')+'</span>';
+}
+function setFee(c,v){
+  fees[c]=String(v).trim();
+  lsp('fees',fees);
+  // Repaint only this row's badge — re-rendering the table here would replace
+  // the input being typed in and drop the caret.
+  const cell=document.querySelector('#fee-table tr[data-fee="'+c+'"] [data-role="src"]');
+  if(cell)cell.innerHTML=feeBadge(c);
+  renderSelectStats();renderReview();refreshFeeDot();
+}
+function refreshFeeDot(){
+  const miss=FEE_CODES.filter(([x])=>{const v=fees[x];
+    return v===undefined||v===''||isNaN(parseFloat(v));}).length;
   document.getElementById('dot-f').className='dot '+(miss?'warn':'ok');
 }
-function setFee(c,v){fees[c]=String(v).trim();lsp('fees',fees);
-  renderSelectStats();renderReview();
-  const miss=FEE_CODES.filter(([x])=>!fees[x]).length;
-  document.getElementById('dot-f').className='dot '+(miss?'warn':'ok');
-  const b=document.querySelector('#fee-table tr td code');if(b){}}
 
 /* ── selection ── */
 function planFor(c){
