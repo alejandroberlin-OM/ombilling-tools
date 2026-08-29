@@ -311,6 +311,28 @@ function buildCases(rows){
   return [...map.values()];
 }
 
+/* Planning date: the week AFTER the original service date, week running
+   Monday to Sunday. Spread across Mon-Sat, with Saturday deliberately rare. */
+const DAY_WEIGHTS=[1,1,1,1,1,0.08];        // Mon Tue Wed Thu Fri Sat
+function nextWeekMonday(d){
+  const dt=parseD(d); if(!dt)return null;
+  const dow=dt.getUTCDay();                 // 0=Sun … 6=Sat
+  const backToMon=(dow===0?6:dow-1);        // Sunday belongs to the week just ended
+  const mon=new Date(dt.getTime()-backToMon*86400000);
+  return new Date(mon.getTime()+7*86400000);
+}
+function pickWeekday(rnd){
+  const tot=DAY_WEIGHTS.reduce((a,b)=>a+b,0);
+  let r=(rnd===undefined?Math.random():rnd)*tot;
+  for(let i=0;i<DAY_WEIGHTS.length;i++){ r-=DAY_WEIGHTS[i]; if(r<=0)return i; }
+  return 0;
+}
+function planDateFor(srcDate,rnd){
+  const mon=nextWeekMonday(srcDate);
+  if(!mon)return '';
+  return fmtD(new Date(mon.getTime()+pickWeekday(rnd)*86400000));
+}
+
 /* Generate the three billing rows for one selected case. */
 function genRows(c,plan,ABR){
   const s=c.src, out=[];
@@ -318,6 +340,7 @@ function genRows(c,plan,ABR){
   OUT_COLS.forEach(col=>base[col]=String(s[col]==null?'':s[col]).trim());
   base.DateOfBirth=normD(base.DateOfBirth);
   base.ProviderNumber=ABR.billTo;              // everything bills under the ABR provider
+  base.GroupNumber='';                         // ABR rows carry no group number
   const ref=pad6(s.ProviderNumber);            // original service provider becomes referring
   const planDate=normD(plan.planDate||'');
   const visitDate=normD(plan.visitDate||c.date);
@@ -445,6 +468,7 @@ function toCSV(rows,cols){
             <option value="group">Diagnosis group</option>
           </select>
           <button class="btn btn-g" onclick="selCore()">Select core groups</button>
+          <button class="btn btn-g" onclick="fillDates()">📅 Auto-fill dates</button>
           <button class="btn btn-g" onclick="selNone()">Clear</button>
         </div></div>
       <div class="card-body" style="padding:0;overflow:auto;max-height:560px">
@@ -699,14 +723,53 @@ function planFor(c){
 }
 function setPlan(k,f,v){plans[k]=plans[k]||{};
   const s=String(v).trim(); if(s)plans[k][f]=(f==='xQty'?parseInt(s)||1:s); else delete plans[k][f];
-  lsp('plans',plans);renderSelectStats();renderReview();}
+  lsp('plans',plans);
+  // Repaint just this row — a full re-render would replace the input being typed in.
+  touchRow(k);renderSelectStats();renderReview();}
 function togglePick(k,on){if(on)picks[k]=1;else delete picks[k];lsp('picks',picks);
-  renderSelectStats();renderReview();}
+  touchRow(k);renderSelectStats();renderReview();}
+
+/* Recompute one row's value cell and its highlight, without rebuilding the table. */
+function rowValue(c){
+  const p=planFor(c); let v=0,ok=true;
+  [[p.visitCode,1],['G512A',1],[p.xCode,p.xQty]].forEach(([cd,q])=>{
+    const f=parseFloat(fees[cd]); if(isNaN(f))ok=false; else v+=f*q;});
+  return ok?v:null;
+}
+function touchRow(key){
+  const tr=document.querySelector('tr[data-ck="'+CSS.escape(key)+'"]');
+  if(!tr)return;
+  const c=pool.find(x=>x.key===key); if(!c)return;
+  const cell=tr.querySelector('[data-role="val"]');
+  if(cell){const v=rowValue(c);
+    cell.innerHTML=(v===null)?'<span style="color:var(--muted)">—</span>':money(v);}
+  const on=!!picks[key], noDate=on&&!planFor(c).planDate;
+  tr.style.background = noDate ? 'var(--warn-bg)' : (on ? 'var(--ok-bg)' : '');
+  const di=tr.querySelector('[data-role="pdate"]');
+  if(di)di.style.borderColor = noDate ? 'var(--warn)' : '';
+}
 function selected(){return pool.filter(c=>picks[c.key]);}
 function selCore(){pool.forEach(c=>{if(CORE_GROUPS.includes(c.group))picks[c.key]=1;});
   lsp('picks',picks);renderSelect();renderReview();}
 function selNone(){picks={};lsp('picks',picks);renderSelect();renderReview();}
 function setSort(v){sortBy=v;lsp('sort',v);renderSelect();}
+
+/* Fill a planning date for every selected case that lacks one. Existing dates
+   are never overwritten, so a date you set by hand survives. */
+function fillDates(overwrite){
+  const sel=selected();
+  if(!sel.length){alert('Select some cases first.');return;}
+  let n=0,skip=0;
+  sel.forEach(c=>{
+    if(!overwrite&&planFor(c).planDate){skip++;return;}
+    const d=planDateFor(c.date);
+    if(!d){skip++;return;}                     // unreadable source date
+    plans[c.key]=plans[c.key]||{};
+    plans[c.key].planDate=d; n++;
+  });
+  lsp('plans',plans);renderSelect();renderReview();
+  if(!n&&skip)alert('Every selected case already has a planning date.');
+}
 function sortCases(list){
   const d=c=>{const p=parseD(c.date);return p?p.getTime():0;};   // undated sort first
   const by={
@@ -739,10 +802,10 @@ function renderSelect(){
     '<th>Referring doctor</th><th>Visit code</th><th>Planning date</th><th>RT code</th><th>Qty</th><th style="text-align:right">Value</th></tr></thead><tbody>'+
     show.map(c=>{
       const p=planFor(c), on=!!picks[c.key], k=JSON.stringify(c.key).replace(/"/g,'&quot;');
-      let v=0,ok=true;
-      [[p.visitCode,1],['G512A',1],[p.xCode,p.xQty]].forEach(([cd,q])=>{
-        const fv=parseFloat(fees[cd]); if(isNaN(fv))ok=false; else v+=fv*q;});
-      return '<tr'+(on?' style="background:var(--ok-bg)"':'')+'>'+
+      const v=rowValue(c);
+      const noDate=on&&!p.planDate;
+      const bg=noDate?'var(--warn-bg)':(on?'var(--ok-bg)':'');
+      return '<tr data-ck="'+esc(c.key)+'"'+(bg?' style="background:'+bg+'"':'')+'>'+
       '<td><input type="checkbox" '+(on?'checked':'')+' onchange="togglePick('+k+',this.checked)"></td>'+
       '<td style="white-space:nowrap">'+esc(c.name)+'</td><td><code>'+esc(c.dx)+'</code></td>'+
       '<td style="font-size:11.5px;color:var(--muted)">'+esc(c.group)+'</td>'+
@@ -752,13 +815,15 @@ function renderSelect(){
                          :'<br><span style="font-size:11.5px;color:var(--warn)">name unknown</span>')+'</td>'+
       '<td><select style="width:84px" onchange="setPlan('+k+',\'visitCode\',this.value)">'+
         ['A345A','A343A'].map(x=>'<option '+(p.visitCode===x?'selected':'')+'>'+x+'</option>').join('')+'</select></td>'+
-      '<td><input value="'+esc(p.planDate)+'" placeholder="MM/DD/YYYY" style="width:104px;font-family:monospace" '+
+      '<td><input data-role="pdate" value="'+esc(p.planDate)+'" placeholder="MM/DD/YYYY" '+
+        'style="width:104px;font-family:monospace'+(noDate?';border-color:var(--warn)':'')+'" '+
         'oninput="setPlan('+k+',\'planDate\',this.value)"></td>'+
       '<td><select style="width:84px" onchange="setPlan('+k+',\'xCode\',this.value)">'+
         ['X313A','X312A'].map(x=>'<option '+(p.xCode===x?'selected':'')+'>'+x+'</option>').join('')+'</select></td>'+
       '<td><input value="'+p.xQty+'" inputmode="numeric" style="width:48px;font-family:monospace" '+
         'oninput="setPlan('+k+',\'xQty\',this.value)"></td>'+
-      '<td style="text-align:right;white-space:nowrap">'+(ok?money(v):'<span style="color:var(--muted)">—</span>')+'</td></tr>';
+      '<td data-role="val" style="text-align:right;white-space:nowrap">'+
+        (v===null?'<span style="color:var(--muted)">—</span>':money(v))+'</td></tr>';
     }).join('')+'</tbody>';
   renderSelectStats();
 }
