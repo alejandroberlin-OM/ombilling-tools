@@ -462,6 +462,13 @@ function transform(rows,opts){
     // Step 2a: a non-UHN approver means MIRA already put them in as referring;
     // those admissions bill C343A/E082A only, never the X-codes.
     const nonUHN=isBrachy&&!!base.ReferringProviderNumber;
+    /* One of our own doctors bills the admission; the outside physician stays
+       as the referrer. Assigned in the Non-UHN tab, keyed patient+date. */
+    if(nonUHN){
+      const uk=pk+'|'+base.ServiceDate;
+      const assigned=String((opts.uhnFills||{})[uk]||'').trim();
+      if(assigned)base.ProviderNumber=assigned;
+    }
     const codes=isBrachy?(nonUHN?ADMIT_CODES.slice():BRACHY[tech].slice()):[tech];
 
     const seenOff={};
@@ -495,6 +502,7 @@ function transform(rows,opts){
       }
       line._srcRow=srcRow; line._pk=pk;
       line._tech=isBrachy?tech:''; line._nonUHN=nonUHN;
+      if(nonUHN&&!base.ProviderNumber)line._needUHN=true;
       line._intent=String(r.Intent==null?'':r.Intent).trim();
       line._tpg=String(r.TpgDiagCode==null?'':r.TpgDiagCode).trim();
       line._topo=String(r.TopologyDescription==null?'':r.TopologyDescription).trim();
@@ -551,7 +559,8 @@ function toCSV(rows,cols){
   <button class="nav-btn" onclick="go('dx',this)"><span class="ni">🔬</span>3 · Diagnosis<span class="dot" id="dot-d"></span></button>
   <button class="nav-btn" onclick="go('ref',this)"><span class="ni">👤</span>4 · Referring<span class="dot" id="dot-r"></span></button>
   <button class="nav-btn" onclick="go('hn',this)"><span class="ni">🏥</span>5 · H&amp;N Stay<span class="dot" id="dot-h"></span></button>
-  <button class="nav-btn" onclick="go('review',this)"><span class="ni">⚡</span>6 · Review &amp; Export<span class="dot" id="dot-x"></span></button>
+  <button class="nav-btn" onclick="go('uhn',this)"><span class="ni">🏨</span>6 · Non-UHN<span class="dot" id="dot-n"></span></button>
+  <button class="nav-btn" onclick="go('review',this)"><span class="ni">⚡</span>7 · Review &amp; Export<span class="dot" id="dot-x"></span></button>
   <div class="nav-gap"></div>
   <button class="nav-btn" onclick="go('rules',this)"><span class="ni">📖</span>Rules applied</button>
   <div class="sb-note">Processed locally. Nothing leaves this device.</div>
@@ -657,6 +666,23 @@ function toCSV(rows,cols){
   </div>
 </div>
 
+<div class="panel" id="panel-uhn">
+  <div class="pg-title">Non-UHN Approver</div>
+  <div class="pg-sub">Where an outside physician approved the plan, MIRA records them as the referrer
+    and bills the admission only. Name one of our doctors to bill under.</div>
+  <div id="uhn-empty" class="empty"><div class="empty-ic">🏨</div>No non-UHN admissions in this file.</div>
+  <div id="uhn-body" style="display:none">
+    <div id="uhn-warn"></div>
+    <div class="card" style="margin-top:12px">
+      <div class="card-hd"><div class="ct">🏨 Admissions needing a billing doctor</div></div>
+      <div class="card-body" style="padding:0;overflow:auto"><table class="dtbl" id="uhn-table"></table></div>
+    </div>
+    <div class="note" style="margin-top:10px">These admissions bill <code>C343A</code> and
+      <code>E082A</code> only — no X-codes — because the plan was not approved by one of our
+      radiation oncologists. Type a number or a name; the same list as the Referring tab is offered.</div>
+  </div>
+</div>
+
 <div class="panel" id="panel-review">
   <div class="pg-title">Review &amp; Export</div>
   <div class="pg-sub">Every claim line that will be submitted.</div>
@@ -668,7 +694,6 @@ function toCSV(rows,cols){
       <div class="card-hd"><div class="ct">📄 Claim lines</div>
         <div style="display:flex;gap:8px;flex-wrap:wrap">
           <button class="btn btn-g" onclick="dlHeld()">⬇ Held rows</button>
-          <button class="btn btn-g" onclick="dlMet()">⬇ Metastatic subset</button>
           <button class="btn btn-gold" onclick="dlMain()">⬇ Submission CSV</button>
         </div></div>
       <div class="card-body" style="padding:0;overflow:auto;max-height:520px"><table class="dtbl" id="rv-table"></table></div>
@@ -694,7 +719,8 @@ function toCSV(rows,cols){
   first day X313A + X324A with the C343A/E082A admission pair, middle days their own codes, and the last
   day's set replacing whatever the day number would give. HIP rows carry the first day as the admission
   date. Until a length is entered the row is held out of the submission.<br>
-  <strong>8 · Metastatic / palliative</strong> — kept in the main file and also offered as a separate subset for the 512 submission.
+  <strong>8 · Metastatic / palliative</strong> — kept in this file exactly as found. The G512 palliative
+  submission is produced by its own module from the same source export.
   </div></div></div>
 </div>
 
@@ -734,7 +760,8 @@ const savedPat=(ls('hnpatv',0)===HN_PATTERN_VERSION)?ls('hnpat',null):null;
 if(savedPat)HN_PATTERN=savedPat; else lsp('hnpatv',HN_PATTERN_VERSION);
 const HN_LABEL={first:'First day',second:'Second day',third:'Third day',
                 middle:'Any later day',last:'Last day'};
-let srcRows=[], R={rows:[],exceptions:[],needRef:[]};
+let srcRows=[], srcName='', R={rows:[],exceptions:[],needRef:[]};
+let uhnFills=ls('uhn',{});
 
 function go(id,btn){
   document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
@@ -771,7 +798,7 @@ function loadCSV(input){
       if(miss.length){document.getElementById('up-res').innerHTML=
         '<div class="alert a-warn"><strong>⚠ Unexpected columns</strong><div style="margin-top:6px">Missing: <code>'+
         miss.join('</code>, <code>')+'</code></div></div>';return;}
-      srcRows=rows; rebuild();
+      srcRows=rows; srcName=f.name; rebuild();
       const hn=('TpgDiagCode' in rows[0]);
       document.getElementById('up-res').innerHTML=
         '<div class="alert a-ok"><strong>✓ Loaded '+esc(f.name)+'</strong><div style="margin-top:6px">'+
@@ -786,10 +813,81 @@ function loadCSV(input){
   rd.readAsText(f);
 }
 
-function opts(){return{corrections,refFills,dxOverrides,hnDays};}
+function opts(){return{corrections,refFills,dxOverrides,hnDays,uhnFills};}
+
+/* Non-UHN approver cases. MIRA puts the outside physician in as referring and
+   leaves the billing provider empty, so one of our own doctors has to be named
+   before the admission can be submitted. */
+function nonUHNCases(){
+  const seen={}, out=[];
+  (R?R.rows:[]).forEach(r=>{
+    if(!r._nonUHN)return;
+    const k=r._pk+'|'+r.ServiceDate;
+    if(seen[k])return; seen[k]=1;
+    out.push({key:k,name:r.LastName+', '+r.FirstName,date:r.ServiceDate,
+      ref:r.ReferringProviderNumber,tech:r._tech,
+      prov:uhnFills[k]||String(r.ProviderNumber||'').trim()});
+  });
+  return out;
+}
+function setUHN(k,val){
+  let v=String(val).trim();
+  const m=v.match(/^\s*(\d{3,6})/);
+  if(m&&/[^\d]/.test(v))v=m[1];
+  if(v)uhnFills[k]=v; else delete uhnFills[k];
+  lsp('uhn',uhnFills);
+  const tr=document.querySelector('tr[data-uk="'+CSS.escape(k)+'"]');
+  if(tr){
+    const ni=tr.querySelector('[data-role="uhnnum"]'); if(ni&&ni.value!==v)ni.value=v;
+    const nm=tr.querySelector('[data-role="uhnname"]'); const known=refName(v);
+    if(nm)nm.textContent=known||(v?'not on file':'');
+    const st=tr.querySelector('[data-role="uhnst"]');
+    if(st)st.innerHTML=v?'<span class="badge b-ok">assigned</span>'
+                       :'<span class="badge b-err">unassigned</span>';
+    tr.style.background=v?'':'var(--warn-bg)';
+  }
+  R=transform(srcRows,opts());
+  renderReview();renderUHNStats();
+}
+function renderUHN(){
+  const cases=nonUHNCases();
+  document.getElementById('uhn-empty').style.display=cases.length?'none':'';
+  document.getElementById('uhn-body').style.display=cases.length?'':'none';
+  if(!cases.length){document.getElementById('dot-n').className='dot ok';return;}
+  document.getElementById('uhn-table').innerHTML=
+    '<thead><tr><th>Patient</th><th>Service date</th><th>Technique</th>'+
+    '<th>Outside referrer</th><th>Bill under</th><th>Doctor</th>'+
+    '<th style="text-align:right">Status</th></tr></thead><tbody>'+
+    cases.map(c=>{
+      const k=JSON.stringify(c.key).replace(/"/g,'&quot;');
+      return '<tr data-uk="'+esc(c.key)+'"'+(c.prov?'':' style="background:var(--warn-bg)"')+'>'+
+      '<td style="white-space:nowrap">'+esc(c.name)+'</td>'+
+      '<td style="white-space:nowrap">'+esc(c.date)+'</td>'+
+      '<td><code>'+esc(c.tech||'')+'</code></td>'+
+      '<td><code>'+esc(c.ref||'')+'</code>'+(refName(c.ref)
+        ?'<br><span style="font-size:11.5px;color:var(--muted)">'+esc(refName(c.ref))+'</span>':'')+'</td>'+
+      '<td><input data-role="uhnnum" list="reflist" value="'+esc(c.prov)+'" placeholder="number or name" '+
+        'style="width:150px;font-family:monospace" oninput="setUHN('+k+',this.value)"></td>'+
+      '<td data-role="uhnname" style="font-size:12px;color:var(--muted)">'+
+        esc(refName(c.prov)||(c.prov?'not on file':''))+'</td>'+
+      '<td data-role="uhnst" style="text-align:right">'+(c.prov
+        ?'<span class="badge b-ok">assigned</span>':'<span class="badge b-err">unassigned</span>')+
+      '</td></tr>';}).join('')+'</tbody>';
+  renderUHNStats();
+}
+function renderUHNStats(){
+  const cases=nonUHNCases(), pending=cases.filter(c=>!c.prov).length;
+  document.getElementById('uhn-warn').innerHTML = pending
+    ? '<div class="alert a-warn"><strong>⚠ '+pending+' admission'+(pending!==1?'s':'')+
+      ' with no billing doctor</strong><div style="margin-top:6px">The outside physician is recorded as '+
+      'the referrer, but the claim still needs one of our doctors as the billing provider. '+
+      'Until then these lines are held out of the submission.</div></div>'
+    : '<div class="alert a-ok"><strong>✓ Every non-UHN admission has a billing doctor.</strong></div>';
+  document.getElementById('dot-n').className='dot '+(pending?'warn':'ok');
+}
 function rebuild(){
   R=transform(srcRows,opts());
-  renderInt();renderDx();renderRef();renderHN();renderReview();
+  renderInt();renderDx();renderRef();renderHN();renderUHN();renderReview();
 }
 function rebuildQuiet(){
   R=transform(srcRows,opts());
@@ -1089,18 +1187,19 @@ function clearRefs(){
 
 /* ── review ── */
 function submittable(){return R.rows.filter(r=>!r._needRef&&!blocked(r));}
-function blocked(r){return r._needHN||(r._probs||[]).some(p=>/No health number|not 10 digits|No date of birth|No gender|No provider number|No diagnostic/i.test(p));}
+function blocked(r){return r._needHN||r._needUHN||(r._probs||[]).some(p=>/No health number|not 10 digits|No date of birth|No gender|No provider number|No diagnostic/i.test(p));}
 function renderReview(){
   const ok=submittable(), held=R.rows.filter(r=>r._needRef).length, blk=R.rows.filter(r=>blocked(r)).length;
   document.getElementById('rv-empty').style.display=R.rows.length?'none':'';
   document.getElementById('rv-body').style.display=R.rows.length?'':'none';
   if(!R.rows.length)return;
-  const hn=R.rows.filter(r=>r._tech).length, met=R.rows.filter(r=>/Metasta|Palliat/i.test(r._intent||'')).length;
+  const hn=R.rows.filter(r=>r._tech).length;
+  const nonUHN=nonUHNCases().filter(c=>!c.prov).length;
   const hnExp=R.rows.filter(r=>r._hn&&!r._needHN).length;
   document.getElementById('rv-stats').innerHTML=
     stat('Source rows',srcRows.length)+stat('Claim lines',R.rows.length)+
     stat('Ready to submit',ok.length,'ok')+stat('Held',held+blk,(held+blk)?'warn':'ok')+
-    stat('Brachy expanded',hn)+stat('H&N rows',hnExp)+stat('Metastatic',met);
+    stat('Brachy expanded',hn)+stat('H&N rows',hnExp)+stat('Non-UHN',nonUHN,nonUHN?'warn':'ok');
   const hn2=R.rows.filter(r=>r._needHN).length;
   document.getElementById('rv-warn').innerHTML=
     ((held+blk)?'<div class="alert a-warn"><strong>⚠ '+(held+blk)+' line'+((held+blk)!==1?'s':'')+
@@ -1128,25 +1227,28 @@ function dl(name,text){
   a.download=name;a.click();URL.revokeObjectURL(a.href);
 }
 function stamp(){const d=new Date();return d.getFullYear()+String(d.getMonth()+1).padStart(2,'0')+String(d.getDate()).padStart(2,'0');}
+/* Keep the source file's identity in the output name, so a submission can
+   always be traced back to the export it came from. */
+function baseName(){
+  const b=String(srcName||'').replace(/\.csv$/i,'')
+    .replace(/[_ -]*(ORIGINAL|FINAL)$/i,'').replace(/[_ -]+$/,'');
+  return b||'rt_service_record';
+}
 function dlMain(){
   const ok=submittable();
   if(!ok.length){alert('Nothing ready to submit yet.');return;}
   const held=R.rows.length-ok.length;
   if(held&&!confirm(held+' line(s) are held and will NOT be in this file.\n\nContinue?'))return;
-  dl('RT_Submission_'+stamp()+'.csv',toCSV(ok));
+  dl(baseName()+'_for_submission.csv',toCSV(ok));
 }
 function dlHeld(){
   const h=R.rows.filter(r=>r._needRef||blocked(r));
   if(!h.length){alert('No held rows.');return;}
   const cols=OUT_COLS.concat(['Problem']);
-  dl('RT_Held_'+stamp()+'.csv',toCSV(h.map(r=>Object.assign({},r,
+  dl(baseName()+'_held.csv',toCSV(h.map(r=>Object.assign({},r,
     {Problem:(r._needRef?'Needs referring provider; ':'')+(r._probs||[]).join('; ')})),cols));
 }
-function dlMet(){
-  const m=submittable().filter(r=>/Metasta|Palliat/i.test(r._intent||''));
-  if(!m.length){alert('No metastatic or palliative lines.');return;}
-  dl('RT_Metastatic_512_'+stamp()+'.csv',toCSV(m));
-}
+
 </script>
 </body>
 </html>
