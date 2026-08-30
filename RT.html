@@ -271,6 +271,45 @@ const BRACHY={
   'GYN IS HDR':['X313A','X324A','J162C','C343A','E082A'],
   'GYN IVA':['X312A','X323A','A343A','X334A','A348A','X334A','A348A']
 };
+/* ── H&N brachytherapy ─────────────────────────────────────────────────
+   The source carries only "H&N HDR" and a start date; the length of stay is
+   not in the export, so the biller supplies it. Each day of the stay then
+   expands to its own set of codes.
+     HOP rows  -> ServiceLocationType HOP, MasterNumber 4406, no admission date
+     HIP rows  -> HIP / 3910, admission date = the FIRST day of the stay
+   The last day's pattern replaces whatever the day number would otherwise
+   give, so a 3-day stay uses first / second / last.                        */
+const HN_MATCH=/H\s*&\s*N|(^|\s)HN(\s|$)/i;
+/* Days that carry X313A (the first and last of the stay) do not get X322A;
+   every other day carries X322A x1 in its place. */
+const HN_PATTERN_VERSION=2;
+let HN_PATTERN={
+  first:  [{code:'X313A',qty:1,ctx:'HOP'},{code:'X324A',qty:2,ctx:'HOP'},
+           {code:'C343A',qty:1,ctx:'HIP'},{code:'E082A',qty:1,ctx:'HIP'}],
+  second: [{code:'X322A',qty:1,ctx:'HOP'},{code:'X324A',qty:2,ctx:'HOP'},
+           {code:'C122A',qty:1,ctx:'HIP'},{code:'E083A',qty:1,ctx:'HIP'}],
+  third:  [{code:'X322A',qty:1,ctx:'HOP'},{code:'X324A',qty:2,ctx:'HOP'},
+           {code:'C123A',qty:1,ctx:'HIP'},{code:'E083A',qty:1,ctx:'HIP'}],
+  middle: [{code:'X322A',qty:1,ctx:'HOP'},{code:'X324A',qty:2,ctx:'HOP'},
+           {code:'C348A',qty:1,ctx:'HIP'},{code:'E083A',qty:1,ctx:'HIP'}],
+  last:   [{code:'X313A',qty:1,ctx:'HOP'},{code:'X324A',qty:2,ctx:'HOP'},
+           {code:'C124A',qty:1,ctx:'HIP'},{code:'E083A',qty:1,ctx:'HIP'}]
+};
+/* Which pattern applies to day `d` of an `n`-day stay (1-based). */
+function hnDayPattern(d,n){
+  if(d===1)return 'first';        // admission day always bills the admission codes
+  if(d===n)return 'last';         // overrides second/third/middle
+  if(d===2)return 'second';
+  if(d===3)return 'third';
+  return 'middle';
+}
+function isHN(code){return HN_MATCH.test(String(code||''));}
+/* Stable key for a H&N case so the entered length of stay survives a re-run. */
+function hnKey(r){
+  const hn=String(r.HealthNumber==null?'':r.HealthNumber).trim();
+  return (hn||String(r.LastName||'')+','+String(r.FirstName||''))+'|'+normD(r.ServiceDate);
+}
+
 /* Codes needing a referring provider the source file never supplies.
    The VBA wrote the literal "REFERRING" here as a to-do marker. */
 const NEEDS_REF=['J138C','J162C'];
@@ -364,6 +403,61 @@ function transform(rows,opts){
 
     const svcD=parseD(base.ServiceDate);
     const tech=base.ServiceCode;
+
+    /* H&N brachy: expand across the stay once its length is known. */
+    if(isHN(tech)){
+      const hk=hnKey(r);
+      const days=parseInt((opts.hnDays||{})[hk],10);
+      if(!days||days<1||!svcD){
+        const line=Object.assign({},base);
+        line._srcRow=srcRow; line._pk=pk; line._hn=true; line._hnKey=hk;
+        line._hnDays=days||0;
+        line._needHN=true;
+        line._intent=String(r.Intent==null?'':r.Intent).trim();
+        line._probs=probs.concat(svcD?['H&N brachy — enter the number of treatment days']
+                                     :['H&N brachy — no service date, cannot expand']);
+        out.push(line);
+        exceptions.push({row:srcRow,pk:pk,name:base.LastName+', '+base.FirstName,
+          mrn:String(r.Mrn||'').trim(),date:base.ServiceDate,code:tech,
+          probs:line._probs,hn:base.HealthNumber,vc:base.VersionCode,dob:base.DateOfBirth,
+          gender:base.Gender,prov:base.ProviderNumber,province:base.ProvinceCode,dx:base.DiagnosticCode});
+        return;
+      }
+      const admission=fmtD(svcD);
+      for(let dnum=1;dnum<=days;dnum++){
+        const dayDate=fmtD(addDays(svcD,dnum-1));
+        const patName=hnDayPattern(dnum,days);
+        (HN_PATTERN[patName]||[]).forEach(spec=>{
+          const line=Object.assign({},base);
+          line.ServiceCode=spec.code;
+          line.ServiceQty=String(spec.qty);
+          line.ServiceDate=dayDate;
+          if(spec.ctx==='HIP'){
+            line.ServiceLocationType='HIP';
+            line.MasterNumber='3910';
+            line.AdmissionDate=admission;      // always the first day of the stay
+          }else{
+            line.AdmissionDate='';
+          }
+          line._srcRow=srcRow; line._pk=pk; line._hn=true; line._hnKey=hk;
+          line._hnDays=days; line._hnDay=dnum; line._hnPattern=patName;
+          line._tech=tech;
+          line._intent=String(r.Intent==null?'':r.Intent).trim();
+          line._tpg=String(r.TpgDiagCode==null?'':r.TpgDiagCode).trim();
+          line._topo=String(r.TopologyDescription==null?'':r.TopologyDescription).trim();
+          line._morph=String(r.MorphologyDescription==null?'':r.MorphologyDescription).trim();
+          line._probs=probs;
+          out.push(line);
+        });
+      }
+      if(probs.length)exceptions.push({row:srcRow,pk:pk,
+        name:base.LastName+', '+base.FirstName,mrn:String(r.Mrn||'').trim(),
+        date:base.ServiceDate,code:tech,probs:probs,
+        hn:base.HealthNumber,vc:base.VersionCode,dob:base.DateOfBirth,
+        gender:base.Gender,prov:base.ProviderNumber,province:base.ProvinceCode,dx:base.DiagnosticCode});
+      return;
+    }
+
     const isBrachy=Object.prototype.hasOwnProperty.call(BRACHY,tech);
     // Step 2a: a non-UHN approver means MIRA already put them in as referring;
     // those admissions bill C343A/E082A only, never the X-codes.
@@ -416,7 +510,19 @@ function transform(rows,opts){
       gender:base.Gender,prov:base.ProviderNumber,province:base.ProvinceCode,
       dx:base.DiagnosticCode});
   });
-  return{rows:out,exceptions:exceptions,needRef:needRef};
+  /* H&N cases still waiting on a length of stay. */
+  const hnCases=[]; const seenHN={};
+  rows.forEach((raw,idx)=>{
+    if(!isHN(raw.ServiceCode))return;
+    const k=hnKey(raw);
+    if(seenHN[k])return; seenHN[k]=1;
+    hnCases.push({key:k,row:idx+2,
+      name:String(raw.LastName||'')+', '+String(raw.FirstName||''),
+      mrn:String(raw.Mrn||'').trim(),date:normD(raw.ServiceDate),
+      code:String(raw.ServiceCode||'').trim(),
+      days:parseInt((opts.hnDays||{})[k],10)||0});
+  });
+  return{rows:out,exceptions:exceptions,needRef:needRef,hnCases:hnCases};
 }
 
 function toCSV(rows,cols){
@@ -444,7 +550,8 @@ function toCSV(rows,cols){
   <button class="nav-btn" onclick="go('integrity',this)"><span class="ni">🔍</span>2 · Integrity<span class="dot" id="dot-i"></span></button>
   <button class="nav-btn" onclick="go('dx',this)"><span class="ni">🔬</span>3 · Diagnosis<span class="dot" id="dot-d"></span></button>
   <button class="nav-btn" onclick="go('ref',this)"><span class="ni">👤</span>4 · Referring<span class="dot" id="dot-r"></span></button>
-  <button class="nav-btn" onclick="go('review',this)"><span class="ni">⚡</span>5 · Review &amp; Export<span class="dot" id="dot-x"></span></button>
+  <button class="nav-btn" onclick="go('hn',this)"><span class="ni">🏥</span>5 · H&amp;N Stay<span class="dot" id="dot-h"></span></button>
+  <button class="nav-btn" onclick="go('review',this)"><span class="ni">⚡</span>6 · Review &amp; Export<span class="dot" id="dot-x"></span></button>
   <div class="nav-gap"></div>
   <button class="nav-btn" onclick="go('rules',this)"><span class="ni">📖</span>Rules applied</button>
   <div class="sb-note">Processed locally. Nothing leaves this device.</div>
@@ -506,8 +613,46 @@ function toCSV(rows,cols){
   <div id="ref-body" style="display:none">
     <div id="ref-warn"></div>
     <div class="card" style="margin-top:12px">
-      <div class="card-hd"><div class="ct">👤 Lines awaiting a referring provider</div></div>
+      <div class="card-hd"><div class="ct">👤 Referring provider by line</div>
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+          <span style="font-size:11.5px;color:var(--muted)" id="ref-count"></span>
+          <label class="btn btn-g" style="margin:0">⬆ Import from data file
+            <input type="file" accept=".json" style="display:none" onchange="importRefs(this)"></label>
+          <button class="btn btn-g" onclick="exportRefs()">⬇ Export names</button>
+          <button class="btn btn-g" onclick="clearRefs()">Reset</button>
+        </div></div>
       <div class="card-body" style="padding:0;overflow:auto"><table class="dtbl" id="ref-table"></table></div>
+    </div>
+    <div id="ref-io" style="margin-top:12px"></div>
+    <div class="note" style="margin-top:10px">Start typing a number <em>or</em> a name in the provider box —
+      anyone already on file will be suggested. Enter a name beside a new number and it is remembered for
+      next time. <strong>Export names</strong> writes an <code>om_referrers</code> block you can paste into
+      your data file so the whole practice shares it.</div>
+  </div>
+</div>
+
+<div class="panel" id="panel-hn">
+  <div class="pg-title">H&amp;N Brachytherapy Stay</div>
+  <div class="pg-sub">The export gives only a start date, so enter how many days each treatment ran.
+    The codes for every day are then generated automatically.</div>
+  <div id="hn-empty" class="empty"><div class="empty-ic">🏥</div>No H&amp;N brachytherapy in this file.</div>
+  <div id="hn-body" style="display:none">
+    <div id="hn-warn"></div>
+    <div class="card" style="margin-top:12px">
+      <div class="card-hd"><div class="ct">🏥 Cases needing a length of stay</div></div>
+      <div class="card-body" style="padding:0;overflow:auto"><table class="dtbl" id="hn-table"></table></div>
+    </div>
+    <div class="card" style="margin-top:12px">
+      <div class="card-hd"><div class="ct">📋 Codes generated per day</div>
+        <button class="btn btn-g" onclick="resetHN()">Restore defaults</button></div>
+      <div class="card-body">
+        <div class="note" style="margin-bottom:10px">Edit any of these if the schedule changes.
+          <strong>HOP</strong> rows go out as HOP / 4406 with no admission date;
+          <strong>HIP</strong> rows as HIP / 3910 with the admission date set to the first day of the stay.
+          The last day's set replaces whatever the day number would otherwise give, so a 3-day stay runs
+          first &rarr; second &rarr; last.</div>
+        <table class="dtbl" id="hn-pattern"></table>
+      </div>
     </div>
   </div>
 </div>
@@ -545,7 +690,10 @@ function toCSV(rows,cols){
   <strong>4 · Admission codes</strong> — <code>C343A</code> and <code>E082A</code> switch the location from HOP to <code>HIP</code>, master number <code>3910</code>, admission date set to the service date.<br>
   <strong>5 · Referring gap</strong> — <code>J138C</code> and <code>J162C</code> are held until a referring provider is entered.<br>
   <strong>6 · XNone</strong> → <code>X312A</code>.<br>
-  <strong>7 · H&amp;N brachy</strong> — left exactly as found, for manual coding.<br>
+  <strong>7 · H&amp;N brachy</strong> — you enter the length of stay and each day is expanded:
+  first day X313A + X324A with the C343A/E082A admission pair, middle days their own codes, and the last
+  day's set replacing whatever the day number would give. HIP rows carry the first day as the admission
+  date. Until a length is entered the row is held out of the submission.<br>
   <strong>8 · Metastatic / palliative</strong> — kept in the main file and also offered as a separate subset for the 512 submission.
   </div></div></div>
 </div>
@@ -563,6 +711,29 @@ const esc=s=>String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;',
 const stat=(l,v,c)=>'<div class="ssi"><div class="ssl">'+l+'</div><div class="ssv '+(c||'')+'">'+v+'</div></div>';
 
 let corrections=ls('corr',{}), refFills=ls('ref',{}), dxOverrides=ls('dxo',{});
+var PROV_SEED={"013498": "David Hodgson","015995": "C. Anne Koch","016456": "Laura Dawson","017979": "John Cho","017998": "Peter Chung","018014": "Barbara-Ann Millar","021723": "Andrew Hope","027861": "Meredith Giuliani","028783": "Kathy Han","031003": "Tatiana Conrad","031992": "Scott Bratman","033806": "Jennifer Croke","033851": "David Shultz","033998": "Alejandro Berlin","036650": "Derek Tsang","036654": "Ali Hosni Abdalaty","038219": "Benjamin Lok","039841": "Danielle Rodin","041695": "Ezra Hahn","042212": "Philip Wong","042449": "Jelena Lukovic","044498": "Rachel Glicksman","044691": "Aruz Mesci","046775": "Michael Yan","046818": "Andrew McPartlin","048341": "Chiaojung Jillian Tsai","048960": "David Kirsch","049563": "Jennifer Kwan","049810": "Nauman Malik","050023": "Dana Keilty","055174": "Badr Id Said","071134": "Andrea Bezjak","097709": "M Milosevic","104828": "John Kim","161307": "J Waldron","164046": "Andrew Bayley","212639": "Charles Catton","218552": "Alex Sun","243584": "Fei-fei Liu","250068": "Richard Tsang","251223": "Woody Wells","285486": "Rebecca Wong"};
+/* Referring-provider repository: number -> name. Seeded from names already in
+   the practice's RT exports, then grows as numbers are entered. Held here and
+   exportable, so it can be pasted into the shared data file. */
+let hnDays=ls('hnd',{});
+let refBook=Object.assign({},PROV_SEED,ls('refbook',{}));
+const refKeyNum=v=>String(v==null?'':v).trim().replace(/\D/g,'').padStart(6,'0');
+function refName(num){const k=refKeyNum(num);return (k==='000000')?'':(refBook[k]||'');}
+function learnRef(num,name){
+  const k=refKeyNum(num), n=String(name==null?'':name).trim();
+  if(k==='000000'||!n)return false;
+  if(refBook[k]===n)return false;
+  refBook[k]=n;
+  const own=ls('refbook',{}); own[k]=n; lsp('refbook',own);
+  return true;
+}
+const HN_DEFAULT=JSON.parse(JSON.stringify(HN_PATTERN));
+/* Only reuse a saved table if it was saved against this version of the code
+   list, so a corrected default is not masked by a stale copy in the browser. */
+const savedPat=(ls('hnpatv',0)===HN_PATTERN_VERSION)?ls('hnpat',null):null;
+if(savedPat)HN_PATTERN=savedPat; else lsp('hnpatv',HN_PATTERN_VERSION);
+const HN_LABEL={first:'First day',second:'Second day',third:'Third day',
+                middle:'Any later day',last:'Last day'};
 let srcRows=[], R={rows:[],exceptions:[],needRef:[]};
 
 function go(id,btn){
@@ -615,13 +786,95 @@ function loadCSV(input){
   rd.readAsText(f);
 }
 
+function opts(){return{corrections,refFills,dxOverrides,hnDays};}
 function rebuild(){
-  R=transform(srcRows,{corrections,refFills,dxOverrides});
-  renderInt();renderDx();renderRef();renderReview();
+  R=transform(srcRows,opts());
+  renderInt();renderDx();renderRef();renderHN();renderReview();
 }
 function rebuildQuiet(){
-  R=transform(srcRows,{corrections,refFills,dxOverrides});
+  R=transform(srcRows,opts());
   renderReview();refreshDots();
+}
+
+/* ── H&N ── */
+function setHNDays(k,v){
+  const n=parseInt(String(v).trim(),10);
+  if(n>0&&n<=60)hnDays[k]=n; else delete hnDays[k];
+  lsp('hnd',hnDays);
+  R=transform(srcRows,opts());
+  renderHNStatus();renderReview();
+}
+function setHNPat(pat,i,field,v){
+  if(!HN_PATTERN[pat]||!HN_PATTERN[pat][i])return;
+  if(field==='qty'){const n=parseInt(String(v).trim(),10);HN_PATTERN[pat][i].qty=(n>0?n:1);}
+  else HN_PATTERN[pat][i][field]=String(v).trim().toUpperCase();
+  lsp('hnpat',HN_PATTERN);lsp('hnpatv',HN_PATTERN_VERSION);
+  R=transform(srcRows,opts());
+  renderReview();
+}
+function resetHN(){
+  if(!confirm('Restore the default H&N code table?'))return;
+  HN_PATTERN=JSON.parse(JSON.stringify(HN_DEFAULT));
+  lsp('hnpat',HN_PATTERN);lsp('hnpatv',HN_PATTERN_VERSION);
+  R=transform(srcRows,opts());
+  renderHN();renderReview();
+}
+function renderHN(){
+  const cases=(R&&R.hnCases)||[];
+  document.getElementById('hn-empty').style.display=cases.length?'none':'';
+  document.getElementById('hn-body').style.display=cases.length?'':'none';
+  if(!cases.length){document.getElementById('dot-h').className='dot ok';return;}
+  document.getElementById('hn-table').innerHTML=
+    '<thead><tr><th>Patient</th><th>MRN</th><th>Start date</th><th>Source code</th>'+
+    '<th>Days of treatment</th><th style="text-align:right">Status</th></tr></thead><tbody>'+
+    cases.map(c=>'<tr data-hk="'+esc(c.key)+'"><td style="white-space:nowrap">'+esc(c.name)+'</td>'+
+      '<td>'+esc(c.mrn)+'</td><td style="white-space:nowrap">'+esc(c.date)+'</td>'+
+      '<td><code>'+esc(c.code)+'</code></td>'+
+      '<td><input value="'+(c.days||'')+'" placeholder="e.g. 3" inputmode="numeric" maxlength="2" '+
+        'style="width:70px;font-family:monospace" '+
+        'oninput="setHNDays('+JSON.stringify(c.key).replace(/"/g,'&quot;')+',this.value)"></td>'+
+      '<td data-role="hnst" style="text-align:right">'+hnBadge(c.days)+'</td></tr>').join('')+'</tbody>';
+  renderHNPattern();renderHNStatus();
+}
+function hnBadge(d){return d>0?'<span class="badge b-ok">'+d+' day'+(d!==1?'s':'')+'</span>'
+  :'<span class="badge b-err">needs days</span>';}
+function renderHNStatus(){
+  const cases=(R&&R.hnCases)||[]; if(!cases.length)return;
+  const pending=cases.filter(c=>!(hnDays[c.key]>0)).length;
+  cases.forEach(c=>{
+    const tr=document.querySelector('#hn-table tr[data-hk="'+CSS.escape(c.key)+'"]');
+    const cell=tr&&tr.querySelector('[data-role="hnst"]');
+    if(cell)cell.innerHTML=hnBadge(hnDays[c.key]||0);
+    if(tr)tr.style.background=(hnDays[c.key]>0)?'':'var(--warn-bg)';
+  });
+  document.getElementById('hn-warn').innerHTML = pending
+    ? '<div class="alert a-warn"><strong>⚠ '+pending+' H&amp;N case'+(pending!==1?'s':'')+
+      ' still needs a length of stay</strong><div style="margin-top:6px">Until then the row passes '+
+      'through unexpanded and is held out of the submission file.</div></div>'
+    : '<div class="alert a-ok"><strong>✓ Every H&amp;N case has a length of stay.</strong> '+
+      'Check the generated days in Review before submitting.</div>';
+  document.getElementById('dot-h').className='dot '+(pending?'warn':'ok');
+}
+function renderHNPattern(){
+  const order=['first','second','third','middle','last'];
+  let html='<thead><tr><th>Day</th><th>Code</th><th style="text-align:center">Qty</th>'+
+    '<th style="text-align:center">Context</th></tr></thead><tbody>';
+  order.forEach(pat=>{
+    (HN_PATTERN[pat]||[]).forEach((sp,i)=>{
+      html+='<tr>'+(i===0?'<td rowspan="'+HN_PATTERN[pat].length+
+          '" style="vertical-align:top;font-weight:600;white-space:nowrap">'+HN_LABEL[pat]+'</td>':'')+
+        '<td><input value="'+esc(sp.code)+'" maxlength="6" style="width:78px;font-family:monospace" '+
+          'oninput="setHNPat('+JSON.stringify(pat)+','+i+',\'code\',this.value)"></td>'+
+        '<td style="text-align:center"><input value="'+sp.qty+'" inputmode="numeric" maxlength="2" '+
+          'style="width:48px;font-family:monospace" '+
+          'oninput="setHNPat('+JSON.stringify(pat)+','+i+',\'qty\',this.value)"></td>'+
+        '<td style="text-align:center"><select style="width:80px" '+
+          'onchange="setHNPat('+JSON.stringify(pat)+','+i+',\'ctx\',this.value)">'+
+          ['HOP','HIP'].map(x=>'<option '+(sp.ctx===x?'selected':'')+'>'+x+'</option>').join('')+
+          '</select></td></tr>';
+    });
+  });
+  document.getElementById('hn-pattern').innerHTML=html+'</tbody>';
 }
 function refreshDots(){
   const held=R.rows.filter(r=>r._needRef).length;
@@ -642,9 +895,36 @@ function setCorr(pk,field,val){
 function clearCorr(){if(!confirm('Remove all row corrections?'))return;corrections={};lsp('corr',corrections);rebuild();}
 function clearDx(){if(!confirm('Remove all diagnosis overrides?'))return;dxOverrides={};lsp('dxo',dxOverrides);rebuild();}
 function setRef(k,val){
-  const v=String(val).trim();
+  let v=String(val).trim();
+  /* Picking "034610 — Jane Smith" from the suggestion list leaves the whole
+     label in the box; keep only the number. */
+  const m=v.match(/^\s*(\d{3,6})/);
+  if(m&&/[^\d]/.test(v))v=m[1];
   if(v)refFills[k]=v; else delete refFills[k];
-  lsp('ref',refFills); rebuildQuiet();
+  lsp('ref',refFills);
+  const tr=document.querySelector('tr[data-rk="'+CSS.escape(k)+'"]');
+  if(tr){
+    const numI=tr.querySelector('[data-role="refnum"]');
+    if(numI&&numI.value!==v)numI.value=v;
+    const nameI=tr.querySelector('[data-role="refname"]');
+    const known=refName(v);
+    if(nameI&&known&&nameI.value!==known)nameI.value=known;
+  }
+  rebuildQuiet(); refreshRefRow(k);
+}
+function setRefName(k,val){
+  const num=(refFills[k]||'');
+  if(learnRef(num,val))refreshRefStats();
+  refreshRefRow(k);
+}
+function refreshRefRow(k){
+  const tr=document.querySelector('tr[data-rk="'+CSS.escape(k)+'"]');
+  if(!tr)return;
+  const num=refFills[k]||'';
+  const st=tr.querySelector('[data-role="refst"]');
+  if(st)st.innerHTML=num?'<span class="badge b-ok">ready</span>'
+                       :'<span class="badge b-err">held</span>';
+  tr.style.background=num?'':'var(--warn-bg)';
 }
 function setDx(tpg,val){
   const v=String(val).trim();
@@ -729,38 +1009,108 @@ function renderRef(){
       'These are excluded from the submission CSV until a referring provider is entered.</div></div>'
     : '<div class="alert a-ok"><strong>✓ All consult lines have a referring provider.</strong></div>';
   document.getElementById('ref-table').innerHTML=
-    '<thead><tr><th>Patient</th><th>MRN</th><th>Code</th><th>Service date</th><th>Referring provider #</th><th style="text-align:right">Status</th></tr></thead><tbody>'+
-    all.map(r=>'<tr><td style="white-space:nowrap">'+esc(r.LastName+', '+r.FirstName)+'</td>'+
+    '<datalist id="reflist">'+Object.keys(refBook).sort().map(n=>
+      '<option value="'+esc(n)+'">'+esc(n+' \u2014 '+refBook[n])+'</option>').join('')+'</datalist>'+
+    '<thead><tr><th>Patient</th><th>MRN</th><th>Code</th><th>Service date</th>'+
+    '<th>Referring provider #</th><th>Name</th><th style="text-align:right">Status</th></tr></thead><tbody>'+
+    all.map(r=>{
+      const k=JSON.stringify(r._refKey).replace(/"/g,'&quot;');
+      const num=r.ReferringProviderNumber||'';
+      return '<tr data-rk="'+esc(r._refKey)+'"'+(num?'':' style="background:var(--warn-bg)"')+'>'+
+      '<td style="white-space:nowrap">'+esc(r.LastName+', '+r.FirstName)+'</td>'+
       '<td>'+esc((srcRows.find(s=>pkey(s)===r._pk)||{}).Mrn||'')+'</td>'+
       '<td><code>'+esc(r.ServiceCode)+'</code></td><td style="white-space:nowrap">'+esc(r.ServiceDate)+'</td>'+
-      '<td><input value="'+esc(r.ReferringProviderNumber)+'" placeholder="6 digits" maxlength="6" '+
-        'style="width:96px;font-family:monospace" oninput="setRef('+JSON.stringify(r._refKey).replace(/"/g,'&quot;')+',this.value)"></td>'+
-      '<td style="text-align:right">'+(r._needRef?'<span class="badge b-err">held</span>':'<span class="badge b-ok">ready</span>')+'</td></tr>').join('')+'</tbody>';
+      '<td><input data-role="refnum" list="reflist" value="'+esc(num)+'" placeholder="number or name" '+
+        'style="width:150px;font-family:monospace" oninput="setRef('+k+',this.value)"></td>'+
+      '<td><input data-role="refname" value="'+esc(refName(num))+'" placeholder="Surname, First" '+
+        'style="width:170px" oninput="setRefName('+k+',this.value)"></td>'+
+      '<td data-role="refst" style="text-align:right">'+(r._needRef?'<span class="badge b-err">held</span>'
+        :'<span class="badge b-ok">ready</span>')+'</td></tr>';
+    }).join('')+'</tbody>';
+  refreshRefStats();
   document.getElementById('dot-r').className='dot '+(held?'warn':'ok');
+}
+function refreshRefStats(){
+  const el=document.getElementById('ref-count');
+  if(el)el.textContent=Object.keys(refBook).length+' names on file';
+}
+/* Merge the doctors registry out of a saved data file. */
+function importRefs(input){
+  const f=input.files[0]; if(!f){return;}
+  const rd=new FileReader();
+  rd.onload=e=>{
+    let added=0,skipped=0,msg='';
+    try{
+      const d=JSON.parse(e.target.result);
+      const grab=k=>{const v=d[k];if(v==null)return null;
+        try{return typeof v==='string'?JSON.parse(v):v;}catch(_){return null;}};
+      const lists=[grab('om_prov'),grab('om_referrers')].filter(Array.isArray);
+      if(!lists.length)msg='<div class="alert a-warn"><strong>\u26a0 No doctor registry in that file</strong></div>';
+      else{
+        lists.forEach(L=>L.forEach(p=>{
+          const num=String(p.num==null?'':p.num).trim();
+          const nm=String(p.name==null?'':p.name).trim();
+          if(!num||!nm){skipped++;return;}
+          if(learnRef(num,nm))added++;
+        }));
+        msg='<div class="alert a-'+(added?'ok':'info')+'"><strong>'+
+          (added?'\u2713 '+added+' name'+(added!==1?'s':'')+' added':'\u2139 Nothing new to add')+
+          '</strong>'+(skipped?'<div style="margin-top:6px">'+skipped+
+          ' entr'+(skipped!==1?'ies':'y')+' skipped for having no billing number or no name.</div>':'')+
+          '</div>';
+      }
+    }catch(err){
+      msg='<div class="alert a-warn"><strong>\u26a0 Could not read that file</strong>'+
+          '<div style="margin-top:6px">'+esc(err.message)+'</div></div>';
+    }
+    document.getElementById('ref-io').innerHTML=msg;
+    if(R)renderRef();
+    input.value='';
+  };
+  rd.readAsText(f);
+}
+/* Write the repository out in the same shape the data file uses. */
+function exportRefs(){
+  const list=Object.keys(refBook).sort().map(n=>({num:n,name:refBook[n]}));
+  if(!list.length){alert('No names on file yet.');return;}
+  const blob=new Blob([JSON.stringify({om_referrers:JSON.stringify(list)},null,1)],
+    {type:'application/json'});
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(blob); a.download='om_referrers.json'; a.click();
+  URL.revokeObjectURL(a.href);
+}
+function clearRefs(){
+  if(!confirm('Remove the names you have added? The built-in list stays.'))return;
+  lsp('refbook',{});
+  refBook=Object.assign({},PROV_SEED);
+  if(R)renderRef();
+  document.getElementById('ref-io').innerHTML='';
 }
 
 /* ── review ── */
 function submittable(){return R.rows.filter(r=>!r._needRef&&!blocked(r));}
-function blocked(r){return (r._probs||[]).some(p=>/No health number|not 10 digits|No date of birth|No gender|No provider number|No diagnostic/i.test(p));}
+function blocked(r){return r._needHN||(r._probs||[]).some(p=>/No health number|not 10 digits|No date of birth|No gender|No provider number|No diagnostic/i.test(p));}
 function renderReview(){
   const ok=submittable(), held=R.rows.filter(r=>r._needRef).length, blk=R.rows.filter(r=>blocked(r)).length;
   document.getElementById('rv-empty').style.display=R.rows.length?'none':'';
   document.getElementById('rv-body').style.display=R.rows.length?'':'none';
   if(!R.rows.length)return;
   const hn=R.rows.filter(r=>r._tech).length, met=R.rows.filter(r=>/Metasta|Palliat/i.test(r._intent||'')).length;
+  const hnExp=R.rows.filter(r=>r._hn&&!r._needHN).length;
   document.getElementById('rv-stats').innerHTML=
     stat('Source rows',srcRows.length)+stat('Claim lines',R.rows.length)+
     stat('Ready to submit',ok.length,'ok')+stat('Held',held+blk,(held+blk)?'warn':'ok')+
-    stat('Brachy expanded',hn)+stat('Metastatic',met);
-  const hn2=srcRows.filter(r=>/H&N/i.test(r.ServiceCode||'')).length;
+    stat('Brachy expanded',hn)+stat('H&N rows',hnExp)+stat('Metastatic',met);
+  const hn2=R.rows.filter(r=>r._needHN).length;
   document.getElementById('rv-warn').innerHTML=
     ((held+blk)?'<div class="alert a-warn"><strong>⚠ '+(held+blk)+' line'+((held+blk)!==1?'s':'')+
       ' are not in the submission CSV</strong><div style="margin-top:6px">'+
       (held?held+' waiting for a referring provider. ':'')+
       (blk?blk+' with missing patient data. ':'')+
       'They are in the <strong>Held rows</strong> download so nothing is lost.</div></div>':'')+
-    (hn2?'<div class="alert a-info"><strong>ℹ '+hn2+' H&amp;N row'+(hn2!==1?'s':'')+' left unexpanded</strong>'+
-      '<div style="margin-top:6px">H&amp;N brachytherapy needs manual coding, so those rows pass through untouched.</div></div>':'');
+    (hn2?'<div class="alert a-warn"><strong>⚠ '+hn2+' H&amp;N row'+(hn2!==1?'s':'')+
+      ' not expanded</strong><div style="margin-top:6px">Enter the length of stay under '+
+      '<strong>H&amp;N Stay</strong>. Until then they are held out of the submission file.</div></div>':'');
   const head='<thead><tr>'+OUT_COLS.map(c=>'<th style="white-space:nowrap">'+c+'</th>').join('')+'<th>Status</th></tr></thead>';
   document.getElementById('rv-table').innerHTML=head+'<tbody>'+R.rows.slice(0,400).map(r=>{
     const bad=r._needRef||blocked(r);
