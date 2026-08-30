@@ -402,13 +402,13 @@ const MODULES = {
 /* ══ PRACTICE SECTIONS ══ */
 const SECTIONS = {
   radonc: { label:'Radiation Oncology',
-            modules:['ifhp_radonc','qc','rnc','rpr','oncall','hope','rt'] },
+            modules:['ifhp_radonc','qc','rnc','rpr','oncall','hope'] },
   medonc: { label:'DMOH',
             modules:['ifhp_gen','qc','mhdu','repeats'] },
   // Admin-only. Not referenced by the radonc or medonc roles, so those users
   // never see these cards.
   admin:  { label:'Administration',
-            modules:['abr','inv'] }
+            modules:['abr','inv','rt','repeats'] }
 };
 
 /* ══════════════════════════════════════════════════════════════════
