@@ -1,0 +1,814 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>OM Billing Inc.™ — G512 Palliative Management</title>
+<link href="https://fonts.googleapis.com/css2?family=Libre+Baskerville:ital,wght@0,400;0,700;1,400&family=Source+Sans+3:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --g1:#1a4070;--g2:#1e5494;--g3:#4080c0;--g4:#d0e4f5;--g5:#f0f5fb;
+  --gold:#c8a84b;--gold2:#e0bc60;
+  --ink:#12271b;--ink2:#1a3060;--muted:#4a6080;
+  --bg:#eef3fa;--card:#fff;--border:#c8d8ec;
+  --ok:#1a7a4a;--ok-bg:#e3f5ed;
+  --warn:#7a5010;--warn-bg:#fdf3e0;
+  --err:#991b1b;--err-bg:#fef2f2;
+  --r:11px;--rs:6px;--sh:0 1px 3px rgba(0,0,0,.06),0 4px 14px rgba(0,0,0,.05);
+}
+body{font-family:"Source Sans 3",sans-serif;background:var(--bg);color:var(--ink);min-height:100vh;font-size:14px}
+.hdr{background:var(--g1);color:#fff;height:68px;display:flex;align-items:center;gap:18px;padding:0 28px;
+     position:sticky;top:0;z-index:300;box-shadow:0 2px 16px rgba(0,0,0,.3)}
+.hdr-title{font-family:"Libre Baskerville",serif;font-size:17px;font-weight:700;color:#fff;letter-spacing:-.2px;line-height:1.2}
+.hdr-module{font-size:11px;color:rgba(255,255,255,.6);margin-top:2px;letter-spacing:.03em}
+.hdr-brand{font-family:"Libre Baskerville",serif;font-size:13px;font-weight:700;color:rgba(255,255,255,.55);margin-left:auto;white-space:nowrap}
+.hdr-tm{font-size:9px;vertical-align:super;color:var(--gold2)}
+.hdr-prop{margin-left:auto;font-size:10.5px;color:rgba(255,255,255,.45);font-weight:600;text-align:right;line-height:1.4}
+.hdr-prop strong{color:rgba(255,255,255,.7)}
+.form-tabs{background:var(--g2);display:flex;padding:0 28px;border-bottom:1px solid rgba(255,255,255,.15)}
+.form-tab{padding:11px 22px;font-size:13px;font-weight:700;color:rgba(255,255,255,.55);cursor:pointer;
+          border-bottom:3px solid transparent;margin-bottom:-1px;background:none;
+          border-top:none;border-left:none;border-right:none;font-family:inherit;transition:all .15s}
+.form-tab:hover{color:rgba(255,255,255,.85)}
+.form-tab.active{color:#fff;border-bottom-color:var(--gold2)}
+.tab-badge{font-size:10px;padding:1px 6px;border-radius:8px;margin-left:7px;background:rgba(255,255,255,.15);font-weight:600}
+.form-tab.active .tab-badge{background:var(--gold);color:var(--g1)}
+.form-section{display:none}
+.form-section.active{display:grid;grid-template-columns:230px 1fr;min-height:calc(100vh - 68px)}
+.sidebar{background:var(--card);border-right:1px solid var(--border);padding:20px 12px;
+         position:sticky;top:68px;height:calc(100vh - 68px);overflow-y:auto;display:flex;flex-direction:column}
+.nav-sec{font-size:9.5px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);
+         margin:0 8px 8px;padding-top:4px}
+.nav-btn{display:flex;align-items:center;gap:9px;padding:9px 10px;border-radius:var(--rs);cursor:pointer;
+         color:var(--ink2);font-size:13px;font-weight:500;transition:all .15s;border:none;background:none;
+         width:100%;text-align:left;font-family:inherit;margin-bottom:2px}
+.nav-btn:hover{background:var(--g5)}
+.nav-btn.active{background:var(--g1);color:#fff}
+.ni{font-size:14px;width:18px;text-align:center;flex-shrink:0}
+.dot{width:7px;height:7px;border-radius:50%;background:var(--border);flex-shrink:0;margin-left:auto;transition:background .15s}
+.dot.ok{background:#3aaa7a}.dot.warn{background:#f59e0b}
+.nav-gap{flex:1}
+.sb-note{font-size:11px;color:var(--muted);padding:10px 12px;background:var(--g5);border-radius:var(--rs);
+         line-height:1.65;border-left:3px solid var(--g3);margin-top:4px}
+.content{padding:28px 32px 40px;max-width:900px;flex:1}
+.panel{display:none}.panel.active{display:block}
+.pg-title{font-family:"Libre Baskerville",serif;font-size:22px;font-weight:700;color:var(--g1);margin-bottom:4px}
+.pg-sub{font-size:13px;color:var(--muted);margin-bottom:24px}
+.card{background:var(--card);border:1px solid var(--border);border-radius:var(--r);
+      margin-bottom:16px;overflow:hidden;box-shadow:var(--sh)}
+.card-hd{padding:13px 18px;border-bottom:1px solid var(--border);display:flex;align-items:center;
+         gap:10px;background:#fafdfb}
+.ct{font-size:14px;font-weight:700;color:var(--g1)}.cd{font-size:12px;color:var(--muted);margin-top:1px}
+.card-body{padding:16px 18px}
+.fg{display:flex;flex-direction:column;gap:4px}
+.fg-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.fg-grid.c3{grid-template-columns:1fr 1fr 1fr}
+.fg-grid.full,.fg.full{grid-column:1/-1}
+.fl{font-size:10.5px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--muted)}
+.fi{padding:8px 10px;border:1px solid var(--border);border-radius:var(--rs);font-size:13px;
+    font-family:inherit;color:var(--ink);background:#fff;transition:all .15s}
+.fi:focus{outline:none;border-color:var(--g3);box-shadow:0 0 0 3px rgba(58,170,122,.12)}
+.upg{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px}
+.upz{border:2px dashed var(--border);border-radius:var(--r);padding:26px 14px;text-align:center;
+     cursor:pointer;position:relative;transition:all .2s}
+.upz:hover{border-color:var(--g3);background:var(--g5)}
+.upz.loaded{border-style:solid;border-color:var(--ok);background:var(--ok-bg)}
+.upz.form-loaded{border-style:solid;border-color:var(--gold);background:#fdf8ec}
+.upz input[type=file]{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%}
+.uz-icon{font-size:28px;margin-bottom:7px;opacity:.7}
+.uz-lbl{font-size:13px;font-weight:700;color:var(--g1);margin-bottom:3px}
+.uz-hint{font-size:11px;color:var(--muted)}
+.uz-file{font-size:11px;font-weight:700;margin-top:6px;word-break:break-all}
+.mode-banner{display:flex;align-items:center;gap:10px;padding:8px 16px;border-radius:var(--rs);
+             font-size:12.5px;font-weight:600;margin-bottom:14px}
+.mode-form{background:var(--ok-bg);color:var(--ok);border:1px solid #a3d9bc}
+.mode-flat{background:var(--warn-bg);color:var(--warn);border:1px solid #f6d88a}
+.mode-dot{width:9px;height:9px;border-radius:50%;flex-shrink:0}
+.mode-form .mode-dot{background:var(--ok)}.mode-flat .mode-dot{background:#d97706}
+.dtbl{width:100%;border-collapse:collapse;font-size:12.5px}
+.dtbl thead tr{background:var(--g1)}
+.dtbl th{padding:7px 10px;text-align:left;color:#fff;font-size:10px;font-weight:700;letter-spacing:.07em;text-transform:uppercase}
+.dtbl th:first-child{border-radius:5px 0 0 0}.dtbl th:last-child{border-radius:0 5px 0 0;width:38px}
+.dtbl td{padding:4px 5px;border-bottom:1px solid var(--border);vertical-align:middle}
+.dtbl tr:last-child td{border-bottom:none}
+.dtbl tr:nth-child(even) td{background:#fafdfb}
+.dtbl input,.dtbl input[type=number]{width:100%;border:1px solid transparent;padding:4px 6px;border-radius:4px;
+  font-size:12px;font-family:inherit;background:transparent;transition:all .15s;color:var(--ink)}
+.dtbl input:focus{outline:none;border-color:var(--g3);background:#fff;box-shadow:0 0 0 2px rgba(58,170,122,.1)}
+.bdel{background:none;border:none;color:#e05252;cursor:pointer;font-size:14px;padding:2px 6px;
+      border-radius:4px;transition:background .15s;line-height:1}
+.bdel:hover{background:var(--err-bg)}
+.badd{display:inline-flex;align-items:center;gap:5px;margin-top:10px;padding:6px 13px;background:none;
+      border:1.5px dashed var(--g3);color:var(--g3);border-radius:var(--rs);font-size:12px;font-weight:700;
+      cursor:pointer;font-family:inherit;transition:all .15s}
+.badd:hover{background:var(--g5)}
+.sstrip{display:flex;gap:0;background:var(--g1);border-radius:var(--rs);overflow:hidden;margin-bottom:14px}
+.ssi{flex:1;padding:11px 14px;border-right:1px solid rgba(255,255,255,.1)}
+.ssi:last-child{border-right:none}
+.ssl{font-size:9.5px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:rgba(255,255,255,.5);margin-bottom:2px}
+.ssv{font-size:17px;font-weight:800;color:#fff;font-family:"Libre Baskerville",serif}
+.ssv.warn{color:#fbbf24}.ssv.ok{color:#6ee7b7}
+.pt-row{display:flex;align-items:center;gap:11px;padding:10px 0;border-bottom:1px solid var(--border)}
+.pt-row:last-child{border-bottom:none}
+.ava{width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;
+     font-weight:800;font-size:12px;color:#fff;flex-shrink:0;background:var(--g1)}
+.ava.multi{background:var(--gold)}
+.pi{flex:1;min-width:0}.pn{font-size:13px;font-weight:700}.pm{font-size:11.5px;color:var(--muted);margin-top:1px}
+.badge{font-size:10px;font-weight:700;padding:3px 8px;border-radius:10px;letter-spacing:.03em;white-space:nowrap}
+.b-ok{background:var(--ok-bg);color:var(--ok)}.b-warn{background:var(--warn-bg);color:var(--warn)}
+.b-err{background:var(--err-bg);color:var(--err)}.b-multi{background:#fdf3e0;color:#92400e}
+.alert{border-radius:var(--rs);padding:10px 13px;font-size:13px;margin-bottom:12px}
+.a-warn{background:var(--warn-bg);color:var(--warn);border:1px solid #f6d88a}
+.a-info{background:#eff6ff;color:#1e40af;border:1px solid #bfdbfe}
+.a-ok{background:var(--ok-bg);color:var(--ok);border:1px solid #b8e2ce}
+.alert ul{margin-top:5px;padding-left:15px}.alert li{margin-top:3px}
+.note{background:var(--g5);border-left:3px solid var(--g3);padding:9px 13px;
+      border-radius:0 var(--rs) var(--rs) 0;font-size:12px;color:var(--ink2);margin-top:12px;line-height:1.6}
+.btn{display:inline-flex;align-items:center;gap:7px;padding:9px 18px;border:none;border-radius:var(--rs);
+     font-size:13.5px;font-weight:700;cursor:pointer;font-family:inherit;transition:all .15s}
+.btn-g{background:var(--g1);color:#fff}.btn-g:hover{background:var(--g2)}
+.btn-g:disabled{opacity:.45;cursor:not-allowed}
+.btn-gold{background:var(--gold);color:var(--g1)}.btn-gold:hover{background:var(--gold2)}
+.btn-dl{display:inline-flex;align-items:center;gap:5px;padding:5px 11px;background:var(--g3);color:#fff;
+        border:none;border-radius:var(--rs);font-size:11.5px;font-weight:700;cursor:pointer;
+        text-decoration:none;font-family:inherit;transition:all .15s}
+.btn-dl:hover{background:var(--g2)}
+.btn-zip{display:inline-flex;align-items:center;gap:7px;margin-top:16px;padding:10px 20px;
+         background:var(--g1);color:#fff;border:none;border-radius:var(--rs);
+         font-size:13.5px;font-weight:700;cursor:pointer;font-family:inherit;transition:all .15s}
+.btn-zip:hover{background:var(--g2)}
+.pgb{height:4px;background:var(--border);border-radius:2px;overflow:hidden;margin:10px 0}
+.pgf{height:100%;background:linear-gradient(90deg,var(--gold),var(--g3));transition:width .3s;width:0}
+.empty{text-align:center;padding:44px 22px;color:var(--muted)}
+.empty-ic{font-size:42px;margin-bottom:12px;opacity:.5}.empty-tx{font-size:13px}
+/* ── Bookkeeping ── */
+.ledger-filters{display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap;align-items:center}
+.filter-btn{padding:6px 14px;border-radius:20px;font-size:12px;font-weight:700;border:1.5px solid var(--border);
+            background:var(--card);color:var(--muted);cursor:pointer;font-family:inherit;transition:all .15s}
+.filter-btn:hover{border-color:var(--g3);color:var(--g2)}
+.filter-btn.active{background:var(--g1);color:#fff;border-color:var(--g1)}
+.ledger-search{flex:1;min-width:160px;padding:6px 12px;border:1.5px solid var(--border);border-radius:20px;
+               font-size:12px;font-family:inherit;color:var(--ink);background:var(--card);outline:none}
+.ledger-search:focus{border-color:var(--g3)}
+.ledger-stats{display:flex;gap:0;background:var(--g1);border-radius:var(--rs);overflow:hidden;margin-bottom:16px}
+.ls-item{flex:1;padding:10px 14px;border-right:1px solid rgba(255,255,255,.1)}
+.ls-item:last-child{border-right:none}
+.ls-lbl{font-size:9.5px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:rgba(255,255,255,.5);margin-bottom:2px}
+.ls-val{font-size:16px;font-weight:800;color:#fff;font-family:"Libre Baskerville",serif}
+.ls-val.ok{color:#6ee7b7}.ls-val.warn{color:#fbbf24}
+.ledger-table{width:100%;border-collapse:collapse;font-size:12.5px}
+.ledger-table thead tr{background:var(--g1)}
+.ledger-table th{padding:9px 12px;text-align:left;color:#fff;font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase}
+.ledger-table th:first-child{border-radius:7px 0 0 0}.ledger-table th:last-child{border-radius:0 7px 0 0}
+.ledger-table th:hover{background:var(--g2)}
+.ledger-table td{padding:9px 12px;border-bottom:1px solid var(--border);vertical-align:middle}
+.ledger-table tr:nth-child(even) td{background:#fafdfb}
+.ledger-table tr:hover td{background:var(--g5)}
+.ledger-table tr.paid td{opacity:.65}
+.ledger-table tr.deleted td{opacity:.45;text-decoration:line-through;background:#fef2f2!important}
+.inv-num{font-family:monospace;font-size:12px;font-weight:700;color:var(--g2)}
+.paid-toggle{display:flex;align-items:center;gap:7px;cursor:pointer;white-space:nowrap}
+.paid-toggle input[type=checkbox]{width:16px;height:16px;accent-color:var(--g3);cursor:pointer;flex-shrink:0}
+.paid-lbl{font-size:12px;font-weight:600}
+.paid-lbl.paid{color:var(--ok)}.paid-lbl.unpaid{color:var(--muted)}
+.ledger-empty{text-align:center;padding:40px 20px;color:var(--muted);font-size:13px}
+.btn-clear-paid{display:inline-flex;align-items:center;gap:5px;padding:5px 12px;background:none;
+                border:1.5px solid var(--err);color:var(--err);border-radius:var(--rs);
+                font-size:11.5px;font-weight:700;cursor:pointer;font-family:inherit;transition:all .15s;margin-left:auto}
+.btn-clear-paid:hover{background:var(--err-bg)}
+.field-table{width:100%;border-collapse:collapse;font-size:12.5px;margin-top:10px}
+.field-table th{background:var(--g1);color:#fff;padding:7px 10px;text-align:left;font-size:11px;font-weight:700;letter-spacing:.05em}
+.field-table th:first-child{border-radius:5px 0 0 0}.field-table th:last-child{border-radius:0 5px 0 0}
+.field-table td{padding:5px 10px;border-bottom:1px solid var(--border);font-family:monospace;font-size:12px}
+.field-table tr:nth-child(even) td{background:#fafdfb}
+.field-table td.desc{font-family:"Source Sans 3",sans-serif;font-size:12px;color:var(--muted)}
+.guide-img{width:100%;border:1px solid var(--border);border-radius:var(--r);box-shadow:var(--sh)}
+.footer{background:var(--g1);color:rgba(255,255,255,.4);font-size:10.5px;padding:16px 28px;text-align:center;line-height:1.75;}
+.footer strong{color:rgba(255,255,255,.65)}
+@media(max-width:768px){
+  .form-section.active{grid-template-columns:1fr}
+  .sidebar{position:static;height:auto;border-right:none;border-bottom:1px solid var(--border)}
+  .content{padding:18px 14px}
+  .upg,.fg-grid,.fg-grid.c3{grid-template-columns:1fr}
+}
+
+/* ── Batch upload ── */
+.batch-bar{display:flex;align-items:center;gap:10px;padding:10px 14px;
+           background:var(--g5);border-radius:var(--rs);margin-bottom:0;border:1px solid var(--border)}
+.batch-bar span{font-size:12px;color:var(--muted);flex:1}
+.btn-csv-dl{display:inline-flex;align-items:center;gap:5px;padding:5px 12px;background:none;
+            border:1.5px solid var(--g3);color:var(--g3);border-radius:var(--rs);
+            font-size:11.5px;font-weight:700;cursor:pointer;font-family:inherit;transition:all .15s}
+.btn-csv-dl:hover{background:var(--g5)}
+.btn-csv-ul{position:relative;display:inline-flex;align-items:center;gap:5px;padding:5px 12px;
+            background:var(--g1);color:#fff;border:none;border-radius:var(--rs);
+            font-size:11.5px;font-weight:700;cursor:pointer;font-family:inherit;transition:all .15s}
+.btn-csv-ul:hover{background:var(--g2)}
+.btn-csv-ul input{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%}
+/* ── Premium codes table ── */
+.prem-note{font-size:12px;color:var(--muted);padding:10px 14px;background:var(--warn-bg);
+           border-radius:var(--rs);margin-bottom:12px;border:1px solid #f6d88a}
+
+
+
+
+
+/* ── File System storage ── */
+#fs-setup-modal{
+  position:fixed;inset:0;z-index:9998;background:rgba(26,92,58,.92);
+  display:flex;align-items:center;justify-content:center;padding:24px;
+}
+.fs-modal-box{background:var(--card);border-radius:16px;padding:36px 40px;
+              max-width:460px;width:100%;box-shadow:0 24px 60px rgba(0,0,0,.3)}
+.fs-modal-icon{font-size:44px;margin-bottom:14px}
+.fs-modal-title{font-family:"Libre Baskerville",serif;font-size:20px;font-weight:700;
+                color:var(--g1);margin-bottom:8px}
+.fs-modal-body{font-size:13px;color:var(--muted);line-height:1.7;margin-bottom:24px}
+.fs-modal-body strong{color:var(--ink)}
+.fs-btn-row{display:flex;gap:10px;flex-direction:column}
+.fs-btn-primary{padding:12px 20px;background:var(--g1);color:#fff;border:none;
+                border-radius:var(--rs);font-size:14px;font-weight:700;cursor:pointer;
+                font-family:inherit;transition:background .15s;text-align:left}
+.fs-btn-primary:hover{background:var(--g2)}
+.fs-btn-secondary{padding:10px 20px;background:none;color:var(--muted);
+                  border:1.5px solid var(--border);border-radius:var(--rs);
+                  font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;
+                  transition:all .15s;text-align:left}
+.fs-btn-secondary:hover{border-color:var(--g3);color:var(--g2)}
+.fs-note{font-size:11px;color:var(--muted);margin-top:14px;line-height:1.6}
+/* File status pill in header */
+#file-status-pill{
+  display:none;align-items:center;gap:6px;padding:4px 12px;
+  border-radius:20px;font-size:11.5px;font-weight:600;
+  background:rgba(255,255,255,.1);color:rgba(255,255,255,.7);
+  border:1px solid rgba(255,255,255,.2);cursor:default;
+  white-space:nowrap;max-width:200px;overflow:hidden;text-overflow:ellipsis;
+}
+#file-status-pill.saving{color:var(--gold2)}
+#file-status-pill.saved{color:#6ee7b7}
+#file-status-pill.fallback{color:#fbbf24}
+.fsp-dot{width:7px;height:7px;border-radius:50%;background:currentColor;flex-shrink:0}
+
+
+</style>
+<script>
+var DX_TPG_BEH={"171.3|3": "195", "174.9|3": "174", "185|": "185", "186.9|3": "186", "193.9|3": "199", "196.5|3": "202", "C00.4|3": "140", "C01.9|": "141", "C01.9|3": "141", "C02.2|3": "195", "C02.3|3": "141", "C02.9|3": "141", "C03.1|3": "143", "C06.0|3": "149", "C06.9|3": "149", "C07.9|": "142", "C07.9|1": "142", "C07.9|3": "142", "C08.0|3": "142", "C08.1|3": "142", "C09.0|3": "146", "C09.8|": "146", "C09.8|3": "146", "C09.9|": "146", "C09.9|3": "146", "C10.8|3": "146", "C10.9|3": "146", "C11.0|3": "195", "C11.9|": "147", "C13.0|3": "161", "C13.9|": "148", "C13.9|3": "148", "C14.8|": "146", "C14.8|3": "146", "C15.0|": "150", "C15.0|3": "150", "C15.1|": "150", "C15.3|": "195", "C15.5|": "199", "C15.5|3": "150", "C15.9|": "150", "C16.9|3": "151", "C17.9|1": "152", "C18.0|": "153", "C18.1|6": "158", "C18.3|": "195", "C18.9|": "153", "C18.9|3": "153", "C20.9|": "154", "C20.9|3": "154", "C21.0|3": "154", "C21.1|": "154", "C21.8|3": "154", "C22.0|": "155", "C22.0|3": "155", "C22.1|": "199", "C23.9|": "156", "C24.0|": "156", "C24.9|": "195", "C25.0|": "157", "C25.1|3": "157", "C25.9|": "157", "C25.9|6": "157", "C30.0|": "160", "C30.0|3": "160", "C31.0|3": "160", "C31.1|3": "160", "C31.8|3": "195", "C32.0|": "161", "C32.0|3": "161", "C32.1|3": "161", "C33.9|": "162", "C33.9|6": "162", "C34.0|": "162", "C34.1|": "162", "C34.1|3": "162", "C34.2|": "162", "C34.2|3": "162", "C34.3|": "162", "C34.3|3": "162", "C34.9|": "162", "C34.9|3": "162", "C34.9|6": "162", "C38.0|3": "427", "C38.3|3": "195", "C38.4|3": "163", "C41.2|3": "203", "C41.3|3": "172", "C41.4|3": "170", "C41.9|": "170", "C41.9|0": "195", "C41.9|3": "170", "C42.0|": "207", "C42.0|3": "207", "C42.1|0": "195", "C42.1|1": "207", "C42.1|3": "203", "C42.4|": "208", "C44.1|3": "173", "C44.2|0": "216", "C44.2|3": "173", "C44.3|": "173", "C44.3|3": "173", "C44.5|3": "173", "C44.6|3": "728", "C44.7|3": "173", "C44.9|": "173", "C44.9|3": "173", "C49.0|3": "171", "C49.1|": "171", "C49.1|0": "215", "C49.1|3": "171", "C49.2|": "171", "C49.2|3": "171", "C49.3|3": "171", "C49.4|": "171", "C49.4|3": "171", "C49.5|": "171", "C49.5|3": "171", "C49.9|": "195", "C50.1|2": "174", "C50.1|3": "174", "C50.2|3": "174", "C50.3|3": "174", "C50.4|2": "174", "C50.4|3": "174", "C50.5|2": "174", "C50.5|3": "174", "C50.6|3": "174", "C50.8|": "174", "C50.8|3": "174", "C50.9 01|3": "174", "C50.9|": "174", "C50.9|2": "174", "C50.9|3": "174", "C50.9|6": "174", "C51.0|3": "184", "C51.9|3": "184", "C52.9|": "195", "C53.9|": "180", "C53.9|3": "180", "C54.1|": "182", "C54.1|3": "182", "C55.9|": "182", "C55.9|3": "182", "C56.9|": "183", "C56.9|3": "183", "C57.4|0": "183", "C61.9 01|3": "185", "C61.9|": "185", "C61.9|3": "185", "C62.9|": "186", "C62.9|3": "186", "C63.2|": "195", "C64.9|": "189", "C64.9|0": "189", "C64.9|3": "189", "C67.9|": "188", "C67.9|3": "188", "C68.8|": "195", "C69.2|": "195", "C69.3|0": "224", "C69.3|3": "190", "C69.3|6": "190", "C69.6|3": "202", "C69.9|": "224", "C70.0|": "225", "C70.0|0": "225", "C70.0|1": "191", "C70.9|": "195", "C71.0|3": "191", "C71.1|3": "191", "C71.2|3": "191", "C71.3|3": "191", "C71.6|3": "191", "C71.6|6": "191", "C71.7|3": "191", "C71.8|0": "225", "C71.8|3": "191", "C71.9|": "191", "C71.9|1": "191", "C71.9|3": "225", "C72.0|": "192", "C72.0|0": "225", "C72.0|3": "195", "C72.5|3": "225", "C72.8|3": "191", "C73.9|": "193", "C73.9|3": "193", "C74.0|": "194", "C75.1|0": "227", "C75.1|3": "225", "C75.2|": "195", "C76.1|": "199", "C76.1|6": "199", "C76.2|3": "202", "C76.3|3": "199", "C76.4|1": "199", "C76.5|3": "199", "C77.0|3": "202", "C77.1|3": "201", "C77.2|1": "202", "C77.2|3": "202", "C77.8|3": "202", "C77.9|3": "201", "C80.9|": "195", "C80.9|3": "195"};
+var DX_TPG={"171.3": "195", "174.9": "174", "185": "185", "186.9": "186", "193.9": "199", "196.5": "202", "C00.4": "140", "C01.9": "141", "C02.2": "195", "C02.3": "141", "C02.9": "141", "C03.1": "143", "C06.0": "149", "C06.9": "149", "C07.9": "142", "C08.0": "142", "C08.1": "142", "C09.0": "146", "C09.8": "146", "C09.9": "146", "C10.8": "146", "C10.9": "146", "C11.0": "195", "C11.9": "147", "C13.0": "161", "C13.9": "148", "C14.8": "146", "C15.0": "150", "C15.1": "150", "C15.3": "195", "C15.5": "199", "C15.9": "150", "C16.9": "151", "C17.9": "152", "C18.0": "153", "C18.1": "158", "C18.3": "195", "C18.9": "153", "C20.9": "154", "C21.0": "154", "C21.1": "154", "C21.8": "154", "C22.0": "155", "C22.1": "199", "C23.9": "156", "C24.0": "156", "C24.9": "195", "C25.0": "157", "C25.1": "157", "C25.9": "157", "C30.0": "160", "C31.0": "160", "C31.1": "160", "C31.8": "195", "C32.0": "161", "C32.1": "161", "C33.9": "162", "C34.0": "162", "C34.1": "162", "C34.2": "162", "C34.3": "162", "C34.9": "162", "C38.0": "427", "C38.3": "195", "C38.4": "163", "C41.2": "203", "C41.3": "172", "C41.4": "170", "C41.9": "170", "C42.0": "207", "C42.1": "207", "C42.4": "208", "C44.1": "173", "C44.2": "173", "C44.3": "173", "C44.5": "173", "C44.6": "728", "C44.7": "173", "C44.9": "173", "C49.0": "171", "C49.1": "171", "C49.2": "171", "C49.3": "171", "C49.4": "171", "C49.5": "171", "C49.9": "195", "C50.1": "174", "C50.2": "174", "C50.3": "174", "C50.4": "174", "C50.5": "174", "C50.6": "174", "C50.8": "174", "C50.9": "174", "C50.9 01": "174", "C51.0": "184", "C51.9": "184", "C52.9": "195", "C53.9": "180", "C54.1": "182", "C55.9": "182", "C56.9": "183", "C57.4": "183", "C61.9": "185", "C61.9 01": "185", "C62.9": "186", "C63.2": "195", "C64.9": "189", "C67.9": "188", "C68.8": "195", "C69.2": "195", "C69.3": "190", "C69.6": "202", "C69.9": "224", "C70.0": "191", "C70.9": "195", "C71.0": "191", "C71.1": "191", "C71.2": "191", "C71.3": "191", "C71.6": "191", "C71.7": "191", "C71.8": "191", "C71.9": "225", "C72.0": "195", "C72.5": "225", "C72.8": "191", "C73.9": "193", "C74.0": "194", "C75.1": "225", "C75.2": "195", "C76.1": "199", "C76.2": "202", "C76.3": "199", "C76.4": "199", "C76.5": "199", "C77.0": "202", "C77.1": "201", "C77.2": "202", "C77.8": "202", "C77.9": "201", "C80.9": "195"};
+/* ══ G512 core — RT service record (metastatic) → PallMgmt G512A file ══
+   Replaces DeleteRowsAndDuplicatesSimplified() plus the manual code change.  */
+
+const OUT_COLS=['ProviderNumber','GroupNumber','ProvinceCode','HealthNumber','VersionCode',
+ 'FirstName','LastName','DateOfBirth','Gender','ReferringProviderNumber','DiagnosticCode',
+ 'ServiceLocationType','MasterNumber','AdmissionDate','ServiceDate','ServiceCode','ServiceQty'];
+
+const pad2=n=>String(n).padStart(2,'0');
+function parseD(v){
+  const s=String(v==null?'':v).trim(); if(!s)return null;
+  let m=s.match(/^(\d{1,2})[\/\-.](\d{1,2})[\/\-.](\d{4})$/);
+  if(m)return new Date(Date.UTC(+m[3],+m[1]-1,+m[2]));
+  m=s.match(/^(\d{4})[\/\-.](\d{1,2})[\/\-.](\d{1,2})$/);
+  if(m)return new Date(Date.UTC(+m[1],+m[2]-1,+m[3]));
+  if(/^\d+(\.0+)?$/.test(s)){const n=Math.floor(parseFloat(s));
+    if(n>=1&&n<=2958465)return new Date(Date.UTC(1899,11,30)+n*86400000);}
+  return null;
+}
+const fmtD=d=>d?pad2(d.getUTCMonth()+1)+'/'+pad2(d.getUTCDate())+'/'+d.getUTCFullYear():'';
+const normD=v=>{const d=parseD(v);return d?fmtD(d):String(v==null?'':v).trim();};
+
+/* Week runs Monday→Sunday. Keyed by the date of that week's Monday, which is
+   safer than a week NUMBER — week numbers restart each year, so a December and
+   a January row could otherwise collide. */
+function weekMonday(d){
+  const dt=(d instanceof Date)?d:parseD(d); if(!dt)return null;
+  const dow=dt.getUTCDay();                 // 0=Sun … 6=Sat
+  const back=(dow===0?6:dow-1);             // Sunday closes the week
+  return new Date(dt.getTime()-back*86400000);
+}
+const weekKey=d=>{const m=weekMonday(d);return m?fmtD(m):'';};
+
+/* The Monday strictly after a given date. Monday → +7, Sunday → +1. */
+function nextMonday(d){
+  const dt=(d instanceof Date)?d:parseD(d); if(!dt)return null;
+  const dow=dt.getUTCDay();
+  const add=(dow===0)?1:(8-dow);            // Sun→1, Mon→7, Tue→6 … Sat→2
+  return new Date(dt.getTime()+add*86400000);
+}
+
+const pad6=v=>{const s=String(v==null?'':v).trim().replace(/\D/g,'');return s?s.padStart(6,'0'):'';};
+const isMetastatic=v=>/metasta/i.test(String(v==null?'':v));
+
+/* Diagnosis fallback uses the same learned crosswalk as the RT module. */
+function icdoBeh(r){
+  const ic=String(r.IcdoCode==null?'':r.IcdoCode).trim().replace(/\./g,'');
+  return (ic.length>=5&&/^\d{5}/.test(ic))?ic[4]:'';
+}
+function mapDx(r,overrides){
+  const tpg=String(r.TpgDiagCode==null?'':r.TpgDiagCode).trim();
+  const beh=icdoBeh(r);
+  if(overrides&&tpg&&overrides[tpg])return{code:overrides[tpg],src:'override'};
+  if(tpg&&typeof DX_TPG_BEH!=='undefined'&&DX_TPG_BEH[tpg+'|'+beh])
+    return{code:DX_TPG_BEH[tpg+'|'+beh],src:'learned'};
+  if(tpg&&typeof DX_TPG!=='undefined'&&DX_TPG[tpg])return{code:DX_TPG[tpg],src:'learned'};
+  return{code:'',src:'unmapped'};
+}
+
+/* ══ MAIN ══
+   opts: {dxOverrides, dropCollisions, addFollowUp}                          */
+function transform(rows,opts){
+  opts=opts||{};
+  const dxo=opts.dxOverrides||{};
+  const dropCollisions=opts.dropCollisions!==false;
+  const addFollowUp=opts.addFollowUp!==false;
+
+  const issues=[], skippedNoDate=[];
+  /* Step 1 — keep only metastatic intent. */
+  const met=[];
+  rows.forEach((r,i)=>{
+    if(Object.values(r).every(v=>v==null||String(v).trim()===''))return;
+    if(!isMetastatic(r.Intent))return;
+    met.push({raw:r,srcRow:i+2});
+  });
+
+  /* Build the output shape, mapping any missing diagnosis. */
+  const built=met.map(m=>{
+    const r=m.raw, o={};
+    OUT_COLS.forEach(c=>o[c]=String(r[c]==null?'':r[c]).trim());
+    o.DateOfBirth=normD(o.DateOfBirth);
+    o.ServiceDate=normD(o.ServiceDate);
+    o.AdmissionDate='';
+    o.ServiceCode='G512A';                  // step 2
+    o.ServiceQty='1';                       // step 3 of the checklist
+    o.ReferringProviderNumber=pad6(o.ReferringProviderNumber);
+    if(!o.DiagnosticCode){
+      const d=mapDx(r,dxo); o.DiagnosticCode=d.code; o._dxSrc=d.src;
+    } else o._dxSrc='source';
+    o._srcRow=m.srcRow;
+    o._tpg=String(r.TpgDiagCode==null?'':r.TpgDiagCode).trim();
+    o._topo=String(r.TopologyDescription==null?'':r.TopologyDescription).trim();
+    o._morph=String(r.MorphologyDescription==null?'':r.MorphologyDescription).trim();
+    o._intent=String(r.Intent==null?'':r.Intent).trim();
+    o._origCode=String(r.ServiceCode==null?'':r.ServiceCode).trim();
+    return o;
+  });
+
+  /* Step 2 — one row per patient per week. Sorted by patient then date so the
+     earliest service in a week is the one kept, matching the VBA's sort-then-
+     delete-downwards behaviour. */
+  const pid=o=>String(o.HealthNumber||'').trim()||
+    ('nm:'+o.LastName+','+o.FirstName+'|'+o.DateOfBirth);
+  const sorted=built.slice().sort((a,b)=>{
+    const k=pid(a).localeCompare(pid(b)); if(k)return k;
+    const da=parseD(a.ServiceDate), db=parseD(b.ServiceDate);
+    return (da?da.getTime():0)-(db?db.getTime():0);
+  });
+  const kept=[], seen={}, removed=[];
+  sorted.forEach(o=>{
+    const wk=weekKey(o.ServiceDate);
+    if(!wk){ skippedNoDate.push(o); kept.push(o); return; }   // keep, but flag
+    const k=pid(o)+'|'+wk;
+    if(seen[k]){ removed.push({row:o,keptDate:seen[k].ServiceDate}); return; }
+    seen[k]=o; kept.push(o);
+  });
+
+  /* Step 3 — a follow-up copy on the Monday after each kept service date. */
+  const candidates=kept.slice();
+  if(addFollowUp){
+    kept.forEach(o=>{
+      const nm=nextMonday(o.ServiceDate);
+      if(!nm)return;
+      const copy=Object.assign({},o);
+      copy.ServiceDate=fmtD(nm); copy._followUp=true; copy._from=o.ServiceDate;
+      candidates.push(copy);
+    });
+  }
+
+  /* Step 4 — ONE row per patient per week across everything, follow-ups
+     included. A patient treated in consecutive weeks would otherwise have the
+     first week's follow-up land in the second week alongside its own service.
+     Where two rows compete for a week the real service date wins over a
+     generated follow-up, and the earlier date wins between equals. */
+  const ranked=candidates.slice().sort((a,b)=>{
+    const k=pid(a).localeCompare(pid(b)); if(k)return k;
+    const wa=weekKey(a.ServiceDate), wb=weekKey(b.ServiceDate);
+    if(wa!==wb)return wa<wb?-1:1;
+    const fa=a._followUp?1:0, fb=b._followUp?1:0;
+    if(fa!==fb)return fa-fb;                       // real service first
+    const da=parseD(a.ServiceDate), db=parseD(b.ServiceDate);
+    return (da?da.getTime():0)-(db?db.getTime():0);
+  });
+  const out=[], takenWeek={}, weekDrops=[];
+  ranked.forEach(o=>{
+    const wk=weekKey(o.ServiceDate);
+    if(!wk){ out.push(o); return; }                // undated: keep and flag
+    const k=pid(o)+'|'+wk;
+    if(takenWeek[k]){
+      weekDrops.push({row:o,keptDate:takenWeek[k].ServiceDate,
+        keptKind:takenWeek[k]._followUp?'follow-up':'service'});
+      return;
+    }
+    takenWeek[k]=o; out.push(o);
+  });
+  const followUps=out.filter(o=>o._followUp);
+  const collisions=weekDrops.filter(d=>d.row._followUp);
+
+  out.sort((a,b)=>{
+    const k=pid(a).localeCompare(pid(b)); if(k)return k;
+    const da=parseD(a.ServiceDate), db=parseD(b.ServiceDate);
+    return (da?da.getTime():0)-(db?db.getTime():0);
+  });
+
+  /* Integrity review. */
+  out.forEach(o=>{
+    const p=[];
+    if(!o.HealthNumber)p.push('No health number');
+    else if(!/^\d{10}$/.test(o.HealthNumber))p.push('Health number is not 10 digits');
+    if(!o.VersionCode)p.push('No version code — check if out-of-province');
+    if(!o.DateOfBirth)p.push('No date of birth');
+    if(!o.Gender)p.push('No gender');
+    if(!o.ProviderNumber)p.push('No provider number');
+    if(!o.DiagnosticCode)p.push('No diagnostic code and none could be mapped');
+    if(!o.ServiceDate)p.push('No service date');
+    o._probs=p;
+    if(p.length)issues.push({row:o._srcRow,name:o.LastName+', '+o.FirstName,
+      date:o.ServiceDate,probs:p,ref:o});
+  });
+
+  return{rows:out,kept,followUps,removed,collisions,weekDrops,issues,
+         metCount:built.length,srcCount:rows.length};
+}
+
+/* Today, as a UTC-midnight Date, so comparisons against service dates (which are
+   parsed as UTC midnight) are pure date comparisons with no timezone drift. */
+function todayUTC(){
+  const n=new Date();
+  return new Date(Date.UTC(n.getFullYear(),n.getMonth(),n.getDate()));
+}
+/* Split into what can be submitted now and what must wait. A row dated today
+   counts as submittable; anything later is held. Undated rows stay with the
+   current batch, where the integrity check already flags them. */
+function splitByDate(rows,today){
+  const t=today||todayUTC();
+  const current=[],future=[];
+  rows.forEach(o=>{
+    const d=parseD(o.ServiceDate);
+    if(!d){current.push(o);return;}
+    (d.getTime()>t.getTime()?future:current).push(o);
+  });
+  let latest=null;
+  future.forEach(o=>{const d=parseD(o.ServiceDate);
+    if(d&&(!latest||d.getTime()>latest.getTime()))latest=d;});
+  return{current,future,latest};
+}
+const ymd=d=>d?d.getUTCFullYear()+'-'+pad2(d.getUTCMonth()+1)+'-'+pad2(d.getUTCDate()):'';
+
+/* rt_service_record_20260614-20260626_-_ORIGINAL.csv → PallMgmt_20260614-20260626.csv */
+function outName(srcName){
+  const s=String(srcName||'');
+  const m=s.match(/(\d{8}-\d{8})/);
+  if(m)return 'PallMgmt_'+m[1]+'.csv';
+  let base=s.replace(/\.csv$/i,'').replace(/^rt[_ ]?service[_ ]?record[_ ]?/i,'')
+            .replace(/[_ -]*(ORIGINAL|FINAL)$/i,'').replace(/^[-_ ]+/,'');
+  return 'PallMgmt_'+(base||'export')+'.csv';
+}
+
+/* The held file carries its send-on date in the name so it is obvious in a
+   downloads folder when it can be uploaded. */
+function futureName(srcName,latest){
+  const base=outName(srcName).replace(/\.csv$/i,'');
+  return base+'_UPLOAD_ON_OR_AFTER_'+ymd(latest)+'.csv';
+}
+
+function toCSV(rows,cols){
+  cols=cols||OUT_COLS;
+  const esc=v=>{const s=String(v==null?'':v);return /[",\r\n]/.test(s)?'"'+s.replace(/"/g,'""')+'"':s;};
+  return [cols.join(',')].concat(rows.map(r=>cols.map(c=>esc(r[c])).join(','))).join('\r\n');
+}
+
+
+</script>
+</head>
+<body>
+<header class="hdr">
+  <div><div class="hdr-title">OM Billing Inc.™</div>
+  <div class="hdr-module">G512 · Palliative Management from X-Codes</div></div>
+  <div class="hdr-brand">OM Billing Inc.<span class="hdr-tm">™</span></div>
+</header>
+
+<div class="form-section active" style="display:grid">
+<aside class="sidebar">
+  <div class="nav-sec">Workflow</div>
+  <button class="nav-btn active" onclick="go('upload',this)"><span class="ni">📁</span>1 · Upload<span class="dot" id="dot-u"></span></button>
+  <button class="nav-btn" onclick="go('dx',this)"><span class="ni">🔬</span>2 · Diagnosis<span class="dot" id="dot-d"></span></button>
+  <button class="nav-btn" onclick="go('review',this)"><span class="ni">⚡</span>3 · Review &amp; Export<span class="dot" id="dot-x"></span></button>
+  <div class="nav-gap"></div>
+  <button class="nav-btn" onclick="go('rules',this)"><span class="ni">📖</span>Rules applied</button>
+  <button class="nav-btn" onclick="go('settings',this)"><span class="ni">⚙️</span>Settings</button>
+  <div class="sb-note">Processed locally. Nothing leaves this device.</div>
+</aside>
+
+<div style="display:flex;flex-direction:column;flex:1;overflow:auto"><div class="content">
+
+<div class="panel active" id="panel-upload">
+  <div class="pg-title">Upload the RT service record</div>
+  <div class="pg-sub">The same full export the X-Code module takes. Only rows whose Intent mentions
+    &ldquo;metastatic&rdquo; are used.</div>
+  <div class="card"><div class="card-body">
+    <label class="upz" for="csv-in"><div class="uz-icon">📄</div>
+      <div class="uz-lbl">Choose the rt_service_record CSV</div>
+      <div class="uz-hint">the ORIGINAL export, with all its columns</div></label>
+    <input type="file" id="csv-in" accept=".csv" style="display:none" onchange="loadCSV(this)">
+    <div id="up-res" style="margin-top:14px"></div>
+  </div></div>
+</div>
+
+<div class="panel" id="panel-dx">
+  <div class="pg-title">Diagnosis Mapping</div>
+  <div class="pg-sub">Rows with no diagnostic code are matched from the tumour site and morphology
+    columns, using the same crosswalk as the X-Code module.</div>
+  <div id="dx-empty" class="empty"><div class="empty-ic">🔬</div>Upload a file first.</div>
+  <div id="dx-body" style="display:none">
+    <div class="sstrip" id="dx-stats"></div>
+    <div id="dx-warn"></div>
+    <div class="card" style="margin-top:12px">
+      <div class="card-hd"><div class="ct">🔬 Sites needing a code</div>
+        <button class="btn btn-g" onclick="clearDx()">Reset overrides</button></div>
+      <div class="card-body" style="padding:0;overflow:auto"><table class="dtbl" id="dx-table"></table></div>
+    </div>
+  </div>
+</div>
+
+<div class="panel" id="panel-review">
+  <div class="pg-title">Review &amp; Export</div>
+  <div class="pg-sub">Every row that will be written to the PallMgmt file.</div>
+  <div id="rv-empty" class="empty"><div class="empty-ic">⚡</div>Upload a file first.</div>
+  <div id="rv-body" style="display:none">
+    <div class="sstrip" id="rv-stats"></div>
+    <div id="rv-warn"></div>
+    <div class="card" style="margin-top:12px">
+      <div class="card-hd"><div class="ct">📄 Generated rows</div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <button class="btn btn-g" onclick="dlRemoved()">⬇ Removed duplicates</button>
+          <button class="btn btn-g" id="btn-future" onclick="dlFuture()">⬇ Held file</button>
+          <button class="btn btn-gold" onclick="dlMain()">⬇ Submit-now CSV</button></div></div>
+      <div class="card-body" style="padding:0;overflow:auto;max-height:520px">
+        <table class="dtbl" id="rv-table"></table></div>
+    </div>
+  </div>
+</div>
+
+<div class="panel" id="panel-settings">
+  <div class="pg-title">Settings</div>
+  <div class="card"><div class="card-hd"><div class="ct">⚙️ Generation</div></div><div class="card-body">
+    <div class="fg"><label class="fl" style="display:flex;align-items:center;gap:8px">
+      <input type="checkbox" id="s-followup" checked onchange="rebuild()">
+      Add the follow-up copy on the Monday after each service date</label></div>
+    <div class="note" style="margin-top:12px">Every row — service or follow-up — is held to
+      <strong>one per patient per Monday-to-Sunday week</strong>. Where two compete for the same week the
+      real service date is kept and the generated follow-up is dropped. Dropped rows are listed under
+      &ldquo;Removed duplicates&rdquo;.</div>
+  </div></div>
+</div>
+
+<div class="panel" id="panel-rules">
+  <div class="pg-title">Rules applied</div>
+  <div class="card"><div class="card-body"><div class="note" style="line-height:2">
+  <strong>1 · Keep metastatic only</strong> — rows whose <code>Intent</code> contains
+  &ldquo;metastatic&rdquo;. Primary intent rows are left out entirely.<br>
+  <strong>2 · Service code and quantity</strong> — every row becomes <code>G512A</code> with a
+  quantity of <code>1</code>.<br>
+  <strong>3 · One row per patient per week</strong> — weeks run Monday to Sunday inclusive. Where a
+  patient has several services in the same week, the earliest is kept and the rest are listed under
+  &ldquo;Removed duplicates&rdquo;.<br>
+  <strong>4 · Follow-up copy</strong> — each surviving row is duplicated onto the Monday
+  <em>after</em> its service date. A Monday service moves a full week; a Sunday service moves one day.<br>
+  <strong>5 · One per week, whatever its origin</strong> — the weekly rule is then applied again across
+  everything. A service and a follow-up cannot share a week; the real service date wins.<br>
+  <strong>6 · Two output files</strong> — rows dated today or earlier go in the submit-now file.
+  Anything later is held in a second file whose name carries the last date it contains, so it is obvious
+  when it can be uploaded.<br>
+  <strong>7 · Integrity</strong> — missing health number, version code, date of birth, gender, provider
+  number or diagnosis are flagged before export.<br><br>
+  Weeks are keyed by the date of that week's Monday rather than a week number, so a service in late
+  December cannot be confused with one in early January.
+  </div></div></div>
+</div>
+
+</div>
+<div class="footer">Copyright © <script>document.write(new Date().getFullYear())</script> <strong>OM Billing Inc.™</strong> All rights reserved.</div>
+</div></div>
+
+<script>
+const LS='om_g512_';
+const ls=(k,d)=>{try{const s=localStorage.getItem(LS+k);return s?JSON.parse(s):d}catch(e){return d}};
+const lsp=(k,v)=>{try{localStorage.setItem(LS+k,JSON.stringify(v))}catch(e){}};
+const esc=s=>String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const stat=(l,v,c)=>'<div class="ssi"><div class="ssl">'+l+'</div><div class="ssv '+(c||'')+'">'+v+'</div></div>';
+
+let dxOverrides=ls('dxo',{}), srcRows=[], srcName='', R=null;
+
+function go(id,btn){document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
+  document.getElementById('panel-'+id).classList.add('active');
+  document.querySelectorAll('.nav-btn').forEach(b=>b.classList.remove('active'));
+  if(btn)btn.classList.add('active');}
+
+function parseCSV(t){
+  t=t.replace(/^\uFEFF/,'');const rows=[];let cur='',row=[],q=false;
+  for(let i=0;i<t.length;i++){const c=t[i];
+    if(q){if(c==='"'){if(t[i+1]==='"'){cur+='"';i++;}else q=false;}else cur+=c;}
+    else if(c==='"')q=true;
+    else if(c===','){row.push(cur);cur='';}
+    else if(c==='\n'){row.push(cur);rows.push(row);row=[];cur='';}
+    else if(c!=='\r')cur+=c;}
+  if(cur!==''||row.length){row.push(cur);rows.push(row);}
+  if(!rows.length)return[];
+  const h=rows[0].map(x=>x.trim());
+  return rows.slice(1).filter(r=>r.some(x=>x&&x.trim()))
+    .map(r=>{const o={};h.forEach((k,i)=>o[k]=(r[i]==null?'':r[i]).trim());return o;});
+}
+
+function loadCSV(input){
+  const f=input.files[0];if(!f)return;
+  srcName=f.name;
+  const rd=new FileReader();
+  rd.onload=e=>{
+    try{
+      const rows=parseCSV(e.target.result);
+      const first=rows[0]||{};
+      if(!('Intent' in first)){
+        document.getElementById('up-res').innerHTML=
+          '<div class="alert a-warn"><strong>⚠ No Intent column</strong><div style="margin-top:6px">'+
+          'This file has no <code>Intent</code> column, so metastatic rows cannot be identified. '+
+          'Use the full RT export rather than a trimmed one.</div></div>';
+        return;
+      }
+      srcRows=rows; rebuild();
+      const noTpg=!('TpgDiagCode' in first);
+      document.getElementById('up-res').innerHTML=
+        '<div class="alert a-ok"><strong>✓ '+esc(f.name)+'</strong><div style="margin-top:6px">'+
+        rows.length+' source rows → <strong>'+R.metCount+'</strong> metastatic → <strong>'+
+        R.rows.length+'</strong> rows out.<br>Will download as <code>'+esc(outName(srcName))+'</code>.</div></div>'+
+        (noTpg?'<div class="alert a-warn" style="margin-top:8px"><strong>⚠ No clinical columns</strong>'+
+          '<div style="margin-top:6px">Missing diagnoses cannot be matched automatically.</div></div>':'');
+      document.getElementById('dot-u').className='dot ok';
+    }catch(err){
+      document.getElementById('up-res').innerHTML=
+        '<div class="alert a-warn"><strong>⚠ Could not read that file</strong><div style="margin-top:6px">'+
+        esc(err.message)+'</div></div>';
+    }
+  };
+  rd.readAsText(f);
+}
+
+function rebuild(){
+  if(!srcRows.length)return;
+  R=transform(srcRows,{dxOverrides,
+    addFollowUp:document.getElementById('s-followup').checked});
+  renderDx();renderReview();
+}
+function setDx(tpg,val){
+  const v=String(val).trim();
+  if(v)dxOverrides[tpg]=v; else delete dxOverrides[tpg];
+  lsp('dxo',dxOverrides);
+  R=transform(srcRows,{dxOverrides,
+    addFollowUp:document.getElementById('s-followup').checked});
+  renderReview();refreshDxStats();
+}
+function clearDx(){if(!confirm('Remove all diagnosis overrides?'))return;
+  dxOverrides={};lsp('dxo',dxOverrides);rebuild();}
+
+function dxList(){
+  const seen=new Map();
+  (R?R.rows:[]).forEach(r=>{
+    if(r._dxSrc==='source')return;
+    const k=r._tpg||'(none)';
+    if(!seen.has(k))seen.set(k,{tpg:r._tpg,topo:r._topo,morph:r._morph,code:r.DiagnosticCode,src:r._dxSrc,n:0});
+    seen.get(k).n++;});
+  return [...seen.values()].sort((a,b)=>b.n-a.n);
+}
+function renderDx(){
+  const list=dxList();
+  document.getElementById('dx-empty').style.display=list.length?'none':'';
+  document.getElementById('dx-body').style.display=list.length?'':'none';
+  if(!list.length){document.getElementById('dot-d').className='dot ok';return;}
+  document.getElementById('dx-table').innerHTML=
+    '<thead><tr><th>Tumour site (ICD-O)</th><th>Morphology</th><th style="text-align:center">Rows</th>'+
+    '<th>OHIP</th><th style="text-align:right">Source</th></tr></thead><tbody>'+
+    list.map(d=>'<tr data-tpg="'+esc(d.tpg)+'"><td><code>'+esc(d.tpg||'—')+'</code> '+esc(d.topo||'')+'</td>'+
+      '<td style="font-size:11.5px;color:var(--muted)">'+esc(d.morph||'')+'</td>'+
+      '<td style="text-align:center">'+d.n+'</td>'+
+      '<td><input value="'+esc(d.code)+'" placeholder="OHIP" maxlength="4" style="width:70px;font-family:monospace" '+
+        'oninput="setDx('+JSON.stringify(d.tpg).replace(/"/g,'&quot;')+',this.value)"></td>'+
+      '<td data-role="badge" style="text-align:right">'+dxBadge(d)+'</td></tr>').join('')+'</tbody>';
+  refreshDxStats();
+}
+function dxBadge(d){return d.src==='override'?'<span class="badge b-ok">manual</span>'
+  :d.code?'<span class="badge b-ok">matched</span>':'<span class="badge b-err">no match</span>';}
+function refreshDxStats(){
+  const list=dxList(); if(!list.length)return;
+  const un=list.filter(d=>!d.code).length;
+  document.getElementById('dx-stats').innerHTML=
+    stat('Sites filled in',list.length)+stat('Matched',list.length-un)+
+    stat('No match',un,un?'warn':'ok');
+  document.getElementById('dx-warn').innerHTML = un
+    ? '<div class="alert a-warn"><strong>⚠ '+un+' site'+(un!==1?'s':'')+' could not be matched</strong>'+
+      '<div style="margin-top:6px">Those rows export with an empty diagnostic code and will be rejected.</div></div>'
+    : '<div class="alert a-ok"><strong>✓ Every missing diagnosis was matched.</strong> These come from your own past files — check them before submitting.</div>';
+  list.forEach(d=>{
+    const tr=document.querySelector('#dx-table tr[data-tpg="'+CSS.escape(d.tpg||'')+'"]');
+    const b=tr&&tr.querySelector('[data-role="badge"]'); if(b)b.innerHTML=dxBadge(d);});
+  document.getElementById('dot-d').className='dot '+(un?'warn':'ok');
+}
+
+function blocked(r){return (r._probs||[]).some(p=>/No health number|not 10 digits|No date of birth|No gender|No provider number|No diagnostic|No service date/i.test(p));}
+function renderReview(){
+  document.getElementById('rv-empty').style.display=R&&R.rows.length?'none':'';
+  document.getElementById('rv-body').style.display=R&&R.rows.length?'':'none';
+  if(!R||!R.rows.length)return;
+  const blk=R.rows.filter(blocked).length;
+  const sp=splitByDate(R.rows);
+  document.getElementById('rv-stats').innerHTML=
+    stat('Metastatic rows',R.metCount)+stat('After weekly dedupe',R.kept.length)+
+    stat('Follow-up copies',R.followUps.length)+
+    stat('Submit now',sp.current.length,'ok')+
+    stat('Held for later',sp.future.length,sp.future.length?'warn':'ok')+
+    stat('Needs attention',blk,blk?'warn':'ok');
+  const fb=document.getElementById('btn-future');
+  if(fb)fb.style.display=sp.future.length?'':'none';
+  const bits=[];
+  if(sp.future.length){
+    const byDate={};
+    sp.future.forEach(o=>{(byDate[o.ServiceDate]=byDate[o.ServiceDate]||[]).push(o);});
+    const lines=Object.keys(byDate).sort((a,b)=>parseD(a)-parseD(b))
+      .map(d=>'<li><strong>'+esc(d)+'</strong> — '+byDate[d].length+' row'+
+        (byDate[d].length!==1?'s':'')+'</li>');
+    bits.push('<div class="alert a-warn"><strong>🗓 '+sp.future.length+
+      ' row'+(sp.future.length!==1?'s are':' is')+' dated after today</strong>'+
+      '<div style="margin-top:6px">These go in a separate held file, '+
+      '<code>'+esc(futureName(srcName,sp.latest))+'</code>. '+
+      'Upload it on or after <strong>'+esc(ymd(sp.latest))+'</strong>, once every date in it has passed, '+
+      'so nothing is rejected as future-dated.</div>'+
+      '<ul style="margin:8px 0 0 18px;line-height:1.8">'+lines.join('')+'</ul></div>');
+  }
+  bits.push('<div class="alert a-info"><strong>ℹ '+R.removed.length+' duplicate row'+
+    (R.removed.length!==1?'s':'')+' removed</strong><div style="margin-top:6px">Same patient, same '+
+    'Monday-to-Sunday week. The earliest service in each week was kept. Download them to check.</div></div>');
+  if(R.collisions.length)bits.push('<div class="alert a-info"><strong>ℹ '+R.collisions.length+
+    ' follow-up'+(R.collisions.length!==1?'s':'')+' dropped — that week already had a row</strong>'+
+    '<div style="margin-top:6px">This happens when a patient is treated in consecutive weeks. '+
+    'The real service date was kept in each case.</div></div>');
+  if(blk)bits.push('<div class="alert a-warn"><strong>⚠ '+blk+' row'+(blk!==1?'s':'')+
+    ' have missing patient data</strong><div style="margin-top:6px">They are still exported. '+
+    'Fix them in CabMD or they will be rejected.</div></div>');
+  document.getElementById('rv-warn').innerHTML=bits.join('');
+  const futureSet=new Set(sp.future);
+  document.getElementById('rv-table').innerHTML=
+    '<thead><tr>'+OUT_COLS.map(c=>'<th style="white-space:nowrap">'+c+'</th>').join('')+
+    '<th>Origin</th></tr></thead><tbody>'+
+    R.rows.slice(0,400).map(r=>'<tr'+(blocked(r)?' style="background:var(--warn-bg)"':
+      (r._followUp?' style="background:var(--ok-bg)"':''))+'>'+
+      OUT_COLS.map(c=>'<td style="white-space:nowrap;font-size:11.5px;font-family:'+
+        (['FirstName','LastName','Gender'].includes(c)?'inherit':'ui-monospace,monospace')+'">'+
+        esc(r[c])+'</td>').join('')+
+      '<td style="white-space:nowrap;font-size:11.5px">'+(r._followUp
+        ?'<span class="badge b-multi">follow-up</span>'
+        :'<span class="badge b-ok">'+esc(r._origCode||'service')+'</span>')+
+        (futureSet.has(r)?' <span class="badge b-err">held</span>':'')+'</td></tr>').join('')+
+    '</tbody>'+(R.rows.length>400?'<tfoot><tr><td colspan="18" style="color:var(--muted);padding:10px">'+
+      'Showing first 400 of '+R.rows.length+' — the download has all of them.</td></tr></tfoot>':'');
+  document.getElementById('dot-x').className='dot '+(blk?'warn':'ok');
+}
+
+function dl(name,text){const a=document.createElement('a');
+  a.href=URL.createObjectURL(new Blob([text],{type:'text/csv;charset=utf-8'}));
+  a.download=name;a.click();URL.revokeObjectURL(a.href);}
+function dlMain(){
+  if(!R||!R.rows.length){alert('Nothing to export.');return;}
+  const sp=splitByDate(R.rows);
+  if(!sp.current.length){alert('Every row is dated after today — use the held file instead.');return;}
+  const blk=sp.current.filter(blocked).length;
+  if(blk&&!confirm(blk+' row(s) have missing patient data and will likely be rejected.\n\nDownload anyway?'))return;
+  if(sp.future.length&&!confirm(sp.future.length+' row(s) are dated after today and are NOT in this file.\n\n'+
+     'Download the held file separately and upload it on or after '+ymd(sp.latest)+'.\n\nContinue?'))return;
+  dl(outName(srcName),toCSV(sp.current));
+}
+function dlFuture(){
+  if(!R||!R.rows.length){alert('Nothing to export.');return;}
+  const sp=splitByDate(R.rows);
+  if(!sp.future.length){alert('No rows are dated after today.');return;}
+  dl(futureName(srcName,sp.latest),toCSV(sp.future));
+}
+function dlRemoved(){
+  if(!R||(!R.removed.length&&!(R.weekDrops||[]).length)){alert('No duplicates were removed.');return;}
+  const cols=OUT_COLS.concat(['RemovedBecause']);
+  dl(outName(srcName).replace(/\.csv$/i,'')+'_removed.csv',
+     toCSV(R.removed.map(x=>Object.assign({},x.row,
+       {RemovedBecause:'Same week as the kept service on '+x.keptDate})).concat(
+     (R.weekDrops||[]).map(x=>Object.assign({},x.row,
+       {RemovedBecause:(x.row._followUp?'Follow-up dropped — ':'Dropped — ')+
+        'that week already had the '+x.keptKind+' on '+x.keptDate}))),cols));
+}
+</script>
+</body>
+</html>

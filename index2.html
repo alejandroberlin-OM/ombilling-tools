@@ -112,6 +112,7 @@ body::after{
 .card-rt   {--card-a:#2f9bbf;--card-b:#0f4a63}
 .card-abr  {--card-a:#c8a84b;--card-b:#6b5416}
 .card-inv  {--card-a:#8a9a5b;--card-b:#3f4a22}
+.card-g512 {--card-a:#c05a7d;--card-b:#5e2338}
 
 .card-flag{
   display:inline-flex;align-items:center;gap:7px;
@@ -132,6 +133,7 @@ body::after{
 .card-rt   .flag-dot{background:#4fc0e0;box-shadow:0 0 8px #4fc0e0}
 .card-abr  .flag-dot{background:#e0c469;box-shadow:0 0 8px #e0c469}
 .card-inv  .flag-dot{background:#b3c47d;box-shadow:0 0 8px #b3c47d}
+.card-g512 .flag-dot{background:#e08aa6;box-shadow:0 0 8px #e08aa6}
 
 .card-title{font-family:"Cormorant Garamond",serif;font-size:26px;font-weight:600;
              color:#fff;line-height:1.15;margin-bottom:8px;position:relative;z-index:1}
@@ -396,6 +398,11 @@ const MODULES = {
     cls:'card-inv', file:'INV.html',
     flag:'Admin · Invoicing', title:'INV<br>Claims Report PDFs',
     sub:'CabMD entered claims<br>One PDF per doctor · zip', btn:'Open Tool'
+  },
+  g512: {
+    cls:'card-g512', file:'G512.html',
+    flag:'Admin · Palliative', title:'G512<br>Palliative Management',
+    sub:'Metastatic X-code rows<br>Weekly dedupe · PallMgmt CSV', btn:'Open Tool'
   }
 };
 
@@ -408,7 +415,7 @@ const SECTIONS = {
   // Admin-only. Not referenced by the radonc or medonc roles, so those users
   // never see these cards.
   admin:  { label:'Administration',
-            modules:['abr','inv','rt','repeats'] }
+            modules:['abr','inv','rt','g512','repeats'] }
 };
 
 /* ══════════════════════════════════════════════════════════════════
