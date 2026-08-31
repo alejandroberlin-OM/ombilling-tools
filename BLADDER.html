@@ -1,0 +1,709 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>OM Billing Inc.™ — Bladder Clinic</title>
+<link href="https://fonts.googleapis.com/css2?family=Libre+Baskerville:ital,wght@0,400;0,700;1,400&family=Source+Sans+3:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --g1:#1a4070;--g2:#1e5494;--g3:#4080c0;--g4:#d0e4f5;--g5:#f0f5fb;
+  --gold:#c8a84b;--gold2:#e0bc60;
+  --ink:#12271b;--ink2:#1a3060;--muted:#4a6080;
+  --bg:#eef3fa;--card:#fff;--border:#c8d8ec;
+  --ok:#1a7a4a;--ok-bg:#e3f5ed;
+  --warn:#7a5010;--warn-bg:#fdf3e0;
+  --err:#991b1b;--err-bg:#fef2f2;
+  --r:11px;--rs:6px;--sh:0 1px 3px rgba(0,0,0,.06),0 4px 14px rgba(0,0,0,.05);
+}
+body{font-family:"Source Sans 3",sans-serif;background:var(--bg);color:var(--ink);min-height:100vh;font-size:14px}
+.hdr{background:var(--g1);color:#fff;height:68px;display:flex;align-items:center;gap:18px;padding:0 28px;
+     position:sticky;top:0;z-index:300;box-shadow:0 2px 16px rgba(0,0,0,.3)}
+.hdr-title{font-family:"Libre Baskerville",serif;font-size:17px;font-weight:700;color:#fff;letter-spacing:-.2px;line-height:1.2}
+.hdr-module{font-size:11px;color:rgba(255,255,255,.6);margin-top:2px;letter-spacing:.03em}
+.hdr-brand{font-family:"Libre Baskerville",serif;font-size:13px;font-weight:700;color:rgba(255,255,255,.55);margin-left:auto;white-space:nowrap}
+.hdr-tm{font-size:9px;vertical-align:super;color:var(--gold2)}
+.hdr-prop{margin-left:auto;font-size:10.5px;color:rgba(255,255,255,.45);font-weight:600;text-align:right;line-height:1.4}
+.hdr-prop strong{color:rgba(255,255,255,.7)}
+.form-tabs{background:var(--g2);display:flex;padding:0 28px;border-bottom:1px solid rgba(255,255,255,.15)}
+.form-tab{padding:11px 22px;font-size:13px;font-weight:700;color:rgba(255,255,255,.55);cursor:pointer;
+          border-bottom:3px solid transparent;margin-bottom:-1px;background:none;
+          border-top:none;border-left:none;border-right:none;font-family:inherit;transition:all .15s}
+.form-tab:hover{color:rgba(255,255,255,.85)}
+.form-tab.active{color:#fff;border-bottom-color:var(--gold2)}
+.tab-badge{font-size:10px;padding:1px 6px;border-radius:8px;margin-left:7px;background:rgba(255,255,255,.15);font-weight:600}
+.form-tab.active .tab-badge{background:var(--gold);color:var(--g1)}
+.form-section{display:none}
+.form-section.active{display:grid;grid-template-columns:230px 1fr;min-height:calc(100vh - 68px)}
+.sidebar{background:var(--card);border-right:1px solid var(--border);padding:20px 12px;
+         position:sticky;top:68px;height:calc(100vh - 68px);overflow-y:auto;display:flex;flex-direction:column}
+.nav-sec{font-size:9.5px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);
+         margin:0 8px 8px;padding-top:4px}
+.nav-btn{display:flex;align-items:center;gap:9px;padding:9px 10px;border-radius:var(--rs);cursor:pointer;
+         color:var(--ink2);font-size:13px;font-weight:500;transition:all .15s;border:none;background:none;
+         width:100%;text-align:left;font-family:inherit;margin-bottom:2px}
+.nav-btn:hover{background:var(--g5)}
+.nav-btn.active{background:var(--g1);color:#fff}
+.ni{font-size:14px;width:18px;text-align:center;flex-shrink:0}
+.dot{width:7px;height:7px;border-radius:50%;background:var(--border);flex-shrink:0;margin-left:auto;transition:background .15s}
+.dot.ok{background:#3aaa7a}.dot.warn{background:#f59e0b}
+.nav-gap{flex:1}
+.sb-note{font-size:11px;color:var(--muted);padding:10px 12px;background:var(--g5);border-radius:var(--rs);
+         line-height:1.65;border-left:3px solid var(--g3);margin-top:4px}
+.content{padding:28px 32px 40px;max-width:900px;flex:1}
+.panel{display:none}.panel.active{display:block}
+.pg-title{font-family:"Libre Baskerville",serif;font-size:22px;font-weight:700;color:var(--g1);margin-bottom:4px}
+.pg-sub{font-size:13px;color:var(--muted);margin-bottom:24px}
+.card{background:var(--card);border:1px solid var(--border);border-radius:var(--r);
+      margin-bottom:16px;overflow:hidden;box-shadow:var(--sh)}
+.card-hd{padding:13px 18px;border-bottom:1px solid var(--border);display:flex;align-items:center;
+         gap:10px;background:#fafdfb}
+.ct{font-size:14px;font-weight:700;color:var(--g1)}.cd{font-size:12px;color:var(--muted);margin-top:1px}
+.card-body{padding:16px 18px}
+.fg{display:flex;flex-direction:column;gap:4px}
+.fg-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.fg-grid.c3{grid-template-columns:1fr 1fr 1fr}
+.fg-grid.full,.fg.full{grid-column:1/-1}
+.fl{font-size:10.5px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--muted)}
+.fi{padding:8px 10px;border:1px solid var(--border);border-radius:var(--rs);font-size:13px;
+    font-family:inherit;color:var(--ink);background:#fff;transition:all .15s}
+.fi:focus{outline:none;border-color:var(--g3);box-shadow:0 0 0 3px rgba(58,170,122,.12)}
+.upg{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px}
+.upz{border:2px dashed var(--border);border-radius:var(--r);padding:26px 14px;text-align:center;
+     cursor:pointer;position:relative;transition:all .2s}
+.upz:hover{border-color:var(--g3);background:var(--g5)}
+.upz.loaded{border-style:solid;border-color:var(--ok);background:var(--ok-bg)}
+.upz.form-loaded{border-style:solid;border-color:var(--gold);background:#fdf8ec}
+.upz input[type=file]{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%}
+.uz-icon{font-size:28px;margin-bottom:7px;opacity:.7}
+.uz-lbl{font-size:13px;font-weight:700;color:var(--g1);margin-bottom:3px}
+.uz-hint{font-size:11px;color:var(--muted)}
+.uz-file{font-size:11px;font-weight:700;margin-top:6px;word-break:break-all}
+.mode-banner{display:flex;align-items:center;gap:10px;padding:8px 16px;border-radius:var(--rs);
+             font-size:12.5px;font-weight:600;margin-bottom:14px}
+.mode-form{background:var(--ok-bg);color:var(--ok);border:1px solid #a3d9bc}
+.mode-flat{background:var(--warn-bg);color:var(--warn);border:1px solid #f6d88a}
+.mode-dot{width:9px;height:9px;border-radius:50%;flex-shrink:0}
+.mode-form .mode-dot{background:var(--ok)}.mode-flat .mode-dot{background:#d97706}
+.dtbl{width:100%;border-collapse:collapse;font-size:12.5px}
+.dtbl thead tr{background:var(--g1)}
+.dtbl th{padding:7px 10px;text-align:left;color:#fff;font-size:10px;font-weight:700;letter-spacing:.07em;text-transform:uppercase}
+.dtbl th:first-child{border-radius:5px 0 0 0}.dtbl th:last-child{border-radius:0 5px 0 0;width:38px}
+.dtbl td{padding:4px 5px;border-bottom:1px solid var(--border);vertical-align:middle}
+.dtbl tr:last-child td{border-bottom:none}
+.dtbl tr:nth-child(even) td{background:#fafdfb}
+.dtbl input,.dtbl input[type=number]{width:100%;border:1px solid transparent;padding:4px 6px;border-radius:4px;
+  font-size:12px;font-family:inherit;background:transparent;transition:all .15s;color:var(--ink)}
+.dtbl input:focus{outline:none;border-color:var(--g3);background:#fff;box-shadow:0 0 0 2px rgba(58,170,122,.1)}
+.bdel{background:none;border:none;color:#e05252;cursor:pointer;font-size:14px;padding:2px 6px;
+      border-radius:4px;transition:background .15s;line-height:1}
+.bdel:hover{background:var(--err-bg)}
+.badd{display:inline-flex;align-items:center;gap:5px;margin-top:10px;padding:6px 13px;background:none;
+      border:1.5px dashed var(--g3);color:var(--g3);border-radius:var(--rs);font-size:12px;font-weight:700;
+      cursor:pointer;font-family:inherit;transition:all .15s}
+.badd:hover{background:var(--g5)}
+.sstrip{display:flex;gap:0;background:var(--g1);border-radius:var(--rs);overflow:hidden;margin-bottom:14px}
+.ssi{flex:1;padding:11px 14px;border-right:1px solid rgba(255,255,255,.1)}
+.ssi:last-child{border-right:none}
+.ssl{font-size:9.5px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:rgba(255,255,255,.5);margin-bottom:2px}
+.ssv{font-size:17px;font-weight:800;color:#fff;font-family:"Libre Baskerville",serif}
+.ssv.warn{color:#fbbf24}.ssv.ok{color:#6ee7b7}
+.pt-row{display:flex;align-items:center;gap:11px;padding:10px 0;border-bottom:1px solid var(--border)}
+.pt-row:last-child{border-bottom:none}
+.ava{width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;
+     font-weight:800;font-size:12px;color:#fff;flex-shrink:0;background:var(--g1)}
+.ava.multi{background:var(--gold)}
+.pi{flex:1;min-width:0}.pn{font-size:13px;font-weight:700}.pm{font-size:11.5px;color:var(--muted);margin-top:1px}
+.badge{font-size:10px;font-weight:700;padding:3px 8px;border-radius:10px;letter-spacing:.03em;white-space:nowrap}
+.b-ok{background:var(--ok-bg);color:var(--ok)}.b-warn{background:var(--warn-bg);color:var(--warn)}
+.b-err{background:var(--err-bg);color:var(--err)}.b-multi{background:#fdf3e0;color:#92400e}
+.alert{border-radius:var(--rs);padding:10px 13px;font-size:13px;margin-bottom:12px}
+.a-warn{background:var(--warn-bg);color:var(--warn);border:1px solid #f6d88a}
+.a-info{background:#eff6ff;color:#1e40af;border:1px solid #bfdbfe}
+.a-ok{background:var(--ok-bg);color:var(--ok);border:1px solid #b8e2ce}
+.alert ul{margin-top:5px;padding-left:15px}.alert li{margin-top:3px}
+.note{background:var(--g5);border-left:3px solid var(--g3);padding:9px 13px;
+      border-radius:0 var(--rs) var(--rs) 0;font-size:12px;color:var(--ink2);margin-top:12px;line-height:1.6}
+.btn{display:inline-flex;align-items:center;gap:7px;padding:9px 18px;border:none;border-radius:var(--rs);
+     font-size:13.5px;font-weight:700;cursor:pointer;font-family:inherit;transition:all .15s}
+.btn-g{background:var(--g1);color:#fff}.btn-g:hover{background:var(--g2)}
+.btn-g:disabled{opacity:.45;cursor:not-allowed}
+.btn-gold{background:var(--gold);color:var(--g1)}.btn-gold:hover{background:var(--gold2)}
+.btn-dl{display:inline-flex;align-items:center;gap:5px;padding:5px 11px;background:var(--g3);color:#fff;
+        border:none;border-radius:var(--rs);font-size:11.5px;font-weight:700;cursor:pointer;
+        text-decoration:none;font-family:inherit;transition:all .15s}
+.btn-dl:hover{background:var(--g2)}
+.btn-zip{display:inline-flex;align-items:center;gap:7px;margin-top:16px;padding:10px 20px;
+         background:var(--g1);color:#fff;border:none;border-radius:var(--rs);
+         font-size:13.5px;font-weight:700;cursor:pointer;font-family:inherit;transition:all .15s}
+.btn-zip:hover{background:var(--g2)}
+.pgb{height:4px;background:var(--border);border-radius:2px;overflow:hidden;margin:10px 0}
+.pgf{height:100%;background:linear-gradient(90deg,var(--gold),var(--g3));transition:width .3s;width:0}
+.empty{text-align:center;padding:44px 22px;color:var(--muted)}
+.empty-ic{font-size:42px;margin-bottom:12px;opacity:.5}.empty-tx{font-size:13px}
+/* ── Bookkeeping ── */
+.ledger-filters{display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap;align-items:center}
+.filter-btn{padding:6px 14px;border-radius:20px;font-size:12px;font-weight:700;border:1.5px solid var(--border);
+            background:var(--card);color:var(--muted);cursor:pointer;font-family:inherit;transition:all .15s}
+.filter-btn:hover{border-color:var(--g3);color:var(--g2)}
+.filter-btn.active{background:var(--g1);color:#fff;border-color:var(--g1)}
+.ledger-search{flex:1;min-width:160px;padding:6px 12px;border:1.5px solid var(--border);border-radius:20px;
+               font-size:12px;font-family:inherit;color:var(--ink);background:var(--card);outline:none}
+.ledger-search:focus{border-color:var(--g3)}
+.ledger-stats{display:flex;gap:0;background:var(--g1);border-radius:var(--rs);overflow:hidden;margin-bottom:16px}
+.ls-item{flex:1;padding:10px 14px;border-right:1px solid rgba(255,255,255,.1)}
+.ls-item:last-child{border-right:none}
+.ls-lbl{font-size:9.5px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:rgba(255,255,255,.5);margin-bottom:2px}
+.ls-val{font-size:16px;font-weight:800;color:#fff;font-family:"Libre Baskerville",serif}
+.ls-val.ok{color:#6ee7b7}.ls-val.warn{color:#fbbf24}
+.ledger-table{width:100%;border-collapse:collapse;font-size:12.5px}
+.ledger-table thead tr{background:var(--g1)}
+.ledger-table th{padding:9px 12px;text-align:left;color:#fff;font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase}
+.ledger-table th:first-child{border-radius:7px 0 0 0}.ledger-table th:last-child{border-radius:0 7px 0 0}
+.ledger-table th:hover{background:var(--g2)}
+.ledger-table td{padding:9px 12px;border-bottom:1px solid var(--border);vertical-align:middle}
+.ledger-table tr:nth-child(even) td{background:#fafdfb}
+.ledger-table tr:hover td{background:var(--g5)}
+.ledger-table tr.paid td{opacity:.65}
+.ledger-table tr.deleted td{opacity:.45;text-decoration:line-through;background:#fef2f2!important}
+.inv-num{font-family:monospace;font-size:12px;font-weight:700;color:var(--g2)}
+.paid-toggle{display:flex;align-items:center;gap:7px;cursor:pointer;white-space:nowrap}
+.paid-toggle input[type=checkbox]{width:16px;height:16px;accent-color:var(--g3);cursor:pointer;flex-shrink:0}
+.paid-lbl{font-size:12px;font-weight:600}
+.paid-lbl.paid{color:var(--ok)}.paid-lbl.unpaid{color:var(--muted)}
+.ledger-empty{text-align:center;padding:40px 20px;color:var(--muted);font-size:13px}
+.btn-clear-paid{display:inline-flex;align-items:center;gap:5px;padding:5px 12px;background:none;
+                border:1.5px solid var(--err);color:var(--err);border-radius:var(--rs);
+                font-size:11.5px;font-weight:700;cursor:pointer;font-family:inherit;transition:all .15s;margin-left:auto}
+.btn-clear-paid:hover{background:var(--err-bg)}
+.field-table{width:100%;border-collapse:collapse;font-size:12.5px;margin-top:10px}
+.field-table th{background:var(--g1);color:#fff;padding:7px 10px;text-align:left;font-size:11px;font-weight:700;letter-spacing:.05em}
+.field-table th:first-child{border-radius:5px 0 0 0}.field-table th:last-child{border-radius:0 5px 0 0}
+.field-table td{padding:5px 10px;border-bottom:1px solid var(--border);font-family:monospace;font-size:12px}
+.field-table tr:nth-child(even) td{background:#fafdfb}
+.field-table td.desc{font-family:"Source Sans 3",sans-serif;font-size:12px;color:var(--muted)}
+.guide-img{width:100%;border:1px solid var(--border);border-radius:var(--r);box-shadow:var(--sh)}
+.footer{background:var(--g1);color:rgba(255,255,255,.4);font-size:10.5px;padding:16px 28px;text-align:center;line-height:1.75;}
+.footer strong{color:rgba(255,255,255,.65)}
+@media(max-width:768px){
+  .form-section.active{grid-template-columns:1fr}
+  .sidebar{position:static;height:auto;border-right:none;border-bottom:1px solid var(--border)}
+  .content{padding:18px 14px}
+  .upg,.fg-grid,.fg-grid.c3{grid-template-columns:1fr}
+}
+
+/* ── Batch upload ── */
+.batch-bar{display:flex;align-items:center;gap:10px;padding:10px 14px;
+           background:var(--g5);border-radius:var(--rs);margin-bottom:0;border:1px solid var(--border)}
+.batch-bar span{font-size:12px;color:var(--muted);flex:1}
+.btn-csv-dl{display:inline-flex;align-items:center;gap:5px;padding:5px 12px;background:none;
+            border:1.5px solid var(--g3);color:var(--g3);border-radius:var(--rs);
+            font-size:11.5px;font-weight:700;cursor:pointer;font-family:inherit;transition:all .15s}
+.btn-csv-dl:hover{background:var(--g5)}
+.btn-csv-ul{position:relative;display:inline-flex;align-items:center;gap:5px;padding:5px 12px;
+            background:var(--g1);color:#fff;border:none;border-radius:var(--rs);
+            font-size:11.5px;font-weight:700;cursor:pointer;font-family:inherit;transition:all .15s}
+.btn-csv-ul:hover{background:var(--g2)}
+.btn-csv-ul input{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%}
+/* ── Premium codes table ── */
+.prem-note{font-size:12px;color:var(--muted);padding:10px 14px;background:var(--warn-bg);
+           border-radius:var(--rs);margin-bottom:12px;border:1px solid #f6d88a}
+
+
+
+
+
+/* ── File System storage ── */
+#fs-setup-modal{
+  position:fixed;inset:0;z-index:9998;background:rgba(26,92,58,.92);
+  display:flex;align-items:center;justify-content:center;padding:24px;
+}
+.fs-modal-box{background:var(--card);border-radius:16px;padding:36px 40px;
+              max-width:460px;width:100%;box-shadow:0 24px 60px rgba(0,0,0,.3)}
+.fs-modal-icon{font-size:44px;margin-bottom:14px}
+.fs-modal-title{font-family:"Libre Baskerville",serif;font-size:20px;font-weight:700;
+                color:var(--g1);margin-bottom:8px}
+.fs-modal-body{font-size:13px;color:var(--muted);line-height:1.7;margin-bottom:24px}
+.fs-modal-body strong{color:var(--ink)}
+.fs-btn-row{display:flex;gap:10px;flex-direction:column}
+.fs-btn-primary{padding:12px 20px;background:var(--g1);color:#fff;border:none;
+                border-radius:var(--rs);font-size:14px;font-weight:700;cursor:pointer;
+                font-family:inherit;transition:background .15s;text-align:left}
+.fs-btn-primary:hover{background:var(--g2)}
+.fs-btn-secondary{padding:10px 20px;background:none;color:var(--muted);
+                  border:1.5px solid var(--border);border-radius:var(--rs);
+                  font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;
+                  transition:all .15s;text-align:left}
+.fs-btn-secondary:hover{border-color:var(--g3);color:var(--g2)}
+.fs-note{font-size:11px;color:var(--muted);margin-top:14px;line-height:1.6}
+/* File status pill in header */
+#file-status-pill{
+  display:none;align-items:center;gap:6px;padding:4px 12px;
+  border-radius:20px;font-size:11.5px;font-weight:600;
+  background:rgba(255,255,255,.1);color:rgba(255,255,255,.7);
+  border:1px solid rgba(255,255,255,.2);cursor:default;
+  white-space:nowrap;max-width:200px;overflow:hidden;text-overflow:ellipsis;
+}
+#file-status-pill.saving{color:var(--gold2)}
+#file-status-pill.saved{color:#6ee7b7}
+#file-status-pill.fallback{color:#fbbf24}
+.fsp-dot{width:7px;height:7px;border-radius:50%;background:currentColor;flex-shrink:0}
+
+
+</style>
+<script>
+/* ══ Bladder Clinic core — MDBCC workbook → CabMD CSV ══ */
+
+/* The output header matches the file the clinic already submits, including the
+   "(DD/MM/YYYY)" note on the DOB column and "ServiceLocation" rather than
+   "ServiceLocationType". */
+const OUT_COLS=['ProviderNumber','GroupNumber','ProvinceCode','HealthNumber','VersionCode',
+ 'FirstName','LastName','DateOfBirth (DD/MM/YYYY)','Gender','ReferringProviderNumber',
+ 'DiagnosticCode','ServiceLocation','MasterNumber','AdmissionDate','ServiceDate',
+ 'ServiceCode','ServiceQty'];
+
+/* Clinic constants. The master number differs from the usual 4406. */
+let BL_CONST={location:'HOP',master:'4265'};
+
+/* Radiation oncologists running the clinic. */
+let BL_PROV={'A BERLIN':'033998','P CHUNG':'017998','B ID SAID':'055174'};
+/* Urologists in the MDBCC. Their number becomes the referring provider. */
+let BL_UROL={'KULKARNI':'026657','FLESHNER':'085209','ZLOTTA':'020237',
+             'SATKUNASIVAM':'033599'};
+
+const pad2=n=>String(n).padStart(2,'0');
+const norm=v=>String(v==null?'':v).replace(/[\u00A0\s]+/g,' ').trim();
+const keyOf=v=>norm(v).toUpperCase().replace(/[.,]/g,'').replace(/\s+/g,' ');
+
+/* Dates arrive either as a real date cell or as DD/MM/YYYY text — the clinic's
+   own header says so. Output is MM-DD-YYYY, matching the submitted file. */
+function parseDMY(v){
+  if(v==null||v==='')return null;
+  if(v instanceof Date&&!isNaN(v))
+    return{y:v.getFullYear(),m:v.getMonth()+1,d:v.getDate()};
+  const s=norm(v);
+  let m=s.match(/^(\d{4})[-\/.](\d{1,2})[-\/.](\d{1,2})/);      // ISO from a date cell
+  if(m)return{y:+m[1],m:+m[2],d:+m[3]};
+  m=s.match(/^(\d{1,2})[-\/.](\d{1,2})[-\/.](\d{4})$/);          // DD/MM/YYYY
+  if(m){
+    let d=+m[1],mo=+m[2];
+    /* Guard against a row typed the other way round: a first part above 12 can
+       only be a day, and a second part above 12 can only be a day. */
+    if(d<=12&&mo>12){const t=d;d=mo;mo=t;}
+    return{y:+m[3],m:mo,d:d};
+  }
+  if(/^\d+(\.0+)?$/.test(s)){                                     // Excel serial
+    const n=Math.floor(parseFloat(s));
+    if(n>=1&&n<=2958465){
+      const dt=new Date(Date.UTC(1899,11,30)+n*86400000);
+      return{y:dt.getUTCFullYear(),m:dt.getUTCMonth()+1,d:dt.getUTCDate()};
+    }
+  }
+  return null;
+}
+function fmtMDY(v){
+  const p=parseDMY(v);
+  if(!p||p.m<1||p.m>12||p.d<1||p.d>31)return norm(v);
+  return pad2(p.m)+'-'+pad2(p.d)+'-'+p.y;
+}
+function dateOK(v){const p=parseDMY(v);return !!p&&p.m>=1&&p.m<=12&&p.d>=1&&p.d<=31;}
+/* Ambiguous only when both parts could be a month and they differ. */
+function dateAmbiguous(v){
+  const s=norm(v);
+  const m=s.match(/^(\d{1,2})[-\/.](\d{1,2})[-\/.](\d{4})$/);
+  return !!m&&+m[1]<=12&&+m[2]<=12&&+m[1]!==+m[2];
+}
+
+const pad6=v=>{const s=norm(v).replace(/\D/g,'');return s?s.padStart(6,'0'):'';};
+
+/* The urologist is supposed to sit in "Urologist in MDBCC", but it has also
+   been typed into the ServiceLocationType column. Look across the row rather
+   than trusting one position. */
+function findUrologist(row,cols){
+  for(const c of cols){
+    const k=keyOf(row[c]);
+    if(!k)continue;
+    if(BL_UROL[k])return{name:norm(row[c]),num:BL_UROL[k],col:c};
+    for(const u in BL_UROL){ if(k.indexOf(u)!==-1)return{name:norm(row[c]),num:BL_UROL[u],col:c}; }
+  }
+  return null;
+}
+function provNumFor(v){
+  const k=keyOf(v);
+  if(!k)return '';
+  if(BL_PROV[k])return BL_PROV[k];
+  for(const p in BL_PROV){ if(k.indexOf(p)!==-1||p.indexOf(k)!==-1)return BL_PROV[p]; }
+  return '';
+}
+
+/* ══ MAIN ══ */
+function transform(rows,opts){
+  opts=opts||{};
+  const provFills=opts.provFills||{}, urolFills=opts.urolFills||{};
+  const out=[],issues=[];
+  const cols=rows.length?Object.keys(rows[0]):[];
+  const col=(r,name)=>{
+    for(const c of cols){ if(c.toLowerCase().indexOf(name)===0)return r[c]; }
+    return '';
+  };
+
+  rows.forEach((r,i)=>{
+    if(Object.values(r).every(v=>v==null||norm(v)===''))return;
+    const srcRow=i+2;
+    const probs=[];
+
+    const provRaw=norm(col(r,'provider'));
+    let prov=provFills[srcRow]||provNumFor(provRaw);
+    if(!prov)probs.push(provRaw?'Provider "'+provRaw+'" is not in the list'
+                              :'No provider on this row');
+
+    const u=findUrologist(r,cols);
+    const svcCodeRaw=norm(col(r,'servicecode'));
+    const code=svcCodeRaw?svcCodeRaw.slice(0,4).toUpperCase()+'A':'';
+    const isConsult=/^A345/i.test(code);
+    let ref=urolFills[srcRow]!==undefined?urolFills[srcRow]:(u?u.num:'');
+    if(isConsult&&!ref)probs.push('Consult with no urologist — referring provider is required');
+
+    const dob=col(r,'dateofbirth');
+    const svc=col(r,'servicedate');
+    if(!dateOK(dob))probs.push('Date of birth cannot be read');
+    if(!dateOK(svc))probs.push('Service date cannot be read');
+    if(dateAmbiguous(dob))probs.push('Date of birth is ambiguous — read as day/month');
+    if(dateAmbiguous(svc))probs.push('Service date is ambiguous — read as day/month');
+
+    const hn=norm(col(r,'healthnumber')).replace(/\D/g,'');
+    if(!hn)probs.push('No health number');
+    else if(hn.length!==10)probs.push('Health number is not 10 digits');
+    if(!norm(col(r,'gender')))probs.push('No gender');
+    const dx=norm(col(r,'diagnosticcode')).slice(0,3);
+    if(!dx)probs.push('No diagnostic code');
+    if(!code)probs.push('No service code');
+
+    const o={};
+    o['ProviderNumber']=pad6(prov);
+    o['GroupNumber']=norm(col(r,'groupnumber'));
+    o['ProvinceCode']=norm(col(r,'provincecode'));
+    o['HealthNumber']=hn;
+    o['VersionCode']=norm(col(r,'versioncode')).toUpperCase();
+    o['FirstName']=norm(col(r,'firstname'));
+    o['LastName']=norm(col(r,'lastname'));
+    o['DateOfBirth (DD/MM/YYYY)']=fmtMDY(dob);
+    o['Gender']=norm(col(r,'gender'));
+    o['ReferringProviderNumber']=ref?pad6(ref):'';
+    o['DiagnosticCode']=dx;
+    o['ServiceLocation']=BL_CONST.location;     // always HOP
+    o['MasterNumber']=BL_CONST.master;          // 4265, not the usual 4406
+    o['AdmissionDate']='';
+    o['ServiceDate']=fmtMDY(svc);
+    o['ServiceCode']=code;
+    o['ServiceQty']=norm(col(r,'serviceqty'))||'1';
+    o._srcRow=srcRow; o._probs=probs;
+    o._provRaw=provRaw; o._urol=u?u.name:''; o._urolCol=u?u.col:'';
+    o._isConsult=isConsult;
+    out.push(o);
+    if(probs.length)issues.push({row:srcRow,name:o['LastName']+', '+o['FirstName'],
+      date:o['ServiceDate'],probs:probs,ref:o});
+  });
+  return{rows:out,issues};
+}
+
+/* Id_Said_19AUG26_for_Billing_Bladder_Clinic.xlsx
+     → Bladder_Clinic_Id_Said__19AUG2026.csv                                  */
+function outName(srcName){
+  const s=String(srcName||'').replace(/\.(xlsx?|csv)$/i,'');
+  const m=s.match(/^(.*?)_(\d{1,2}[A-Za-z]{3})(\d{2,4})_/);
+  if(m){
+    let yr=m[3];
+    if(yr.length===2)yr='20'+yr;
+    return 'Bladder_Clinic_'+m[1]+'__'+m[2].toUpperCase()+yr+'.csv';
+  }
+  return 'Bladder_Clinic_'+(s||'export')+'.csv';
+}
+
+function toCSV(rows,cols){
+  cols=cols||OUT_COLS;
+  const esc=v=>{const s=String(v==null?'':v);return /[",\r\n]/.test(s)?'"'+s.replace(/"/g,'""')+'"':s;};
+  return [cols.join(',')].concat(rows.map(r=>cols.map(c=>esc(r[c])).join(','))).join('\r\n');
+}
+
+
+</script>
+</head>
+<body>
+<header class="hdr">
+  <div><div class="hdr-title">OM Billing Inc.™</div>
+  <div class="hdr-module">Bladder Clinic · MDBCC → CabMD</div></div>
+  <div class="hdr-brand">OM Billing Inc.<span class="hdr-tm">™</span></div>
+</header>
+
+<div class="form-section active" style="display:grid">
+<aside class="sidebar">
+  <div class="nav-sec">Workflow</div>
+  <button class="nav-btn active" onclick="go('upload',this)"><span class="ni">📁</span>1 · Upload<span class="dot" id="dot-u"></span></button>
+  <button class="nav-btn" onclick="go('review',this)"><span class="ni">⚡</span>2 · Review &amp; Export<span class="dot" id="dot-x"></span></button>
+  <div class="nav-gap"></div>
+  <button class="nav-btn" onclick="go('people',this)"><span class="ni">👥</span>Doctors<span class="dot ok"></span></button>
+  <button class="nav-btn" onclick="go('rules',this)"><span class="ni">📖</span>Rules applied</button>
+  <div class="sb-note">Processed locally. Nothing leaves this device.</div>
+</aside>
+
+<div style="display:flex;flex-direction:column;flex:1;overflow:auto"><div class="content">
+
+<div class="panel active" id="panel-upload">
+  <div class="pg-title">Upload the clinic workbook</div>
+  <div class="pg-sub">The &ldquo;for Billing Bladder Clinic&rdquo; file, as filled in after the clinic.</div>
+  <div class="card"><div class="card-body">
+    <label class="upz" for="xl-in"><div class="uz-icon">📊</div>
+      <div class="uz-lbl">Choose the clinic workbook</div>
+      <div class="uz-hint">.xlsx or .xls &nbsp;·&nbsp; first sheet is used</div></label>
+    <input type="file" id="xl-in" accept=".xlsx,.xls" style="display:none" onchange="loadXL(this)">
+    <div id="up-res" style="margin-top:14px"></div>
+  </div></div>
+</div>
+
+<div class="panel" id="panel-review">
+  <div class="pg-title">Review &amp; Export</div>
+  <div class="pg-sub">Every row that will be submitted. Fix anything flagged before downloading.</div>
+  <div id="rv-empty" class="empty"><div class="empty-ic">⚡</div>Upload a workbook first.</div>
+  <div id="rv-body" style="display:none">
+    <div class="sstrip" id="rv-stats"></div>
+    <div id="rv-warn"></div>
+    <div class="card" style="margin-top:12px">
+      <div class="card-hd"><div class="ct">📄 Claim lines</div>
+        <button class="btn btn-gold" onclick="dlCSV()">⬇ Download CabMD CSV</button></div>
+      <div class="card-body" style="padding:0;overflow:auto;max-height:520px">
+        <table class="dtbl" id="rv-table"></table></div>
+    </div>
+  </div>
+</div>
+
+<div class="panel" id="panel-people">
+  <div class="pg-title">Doctors &amp; Clinic Constants</div>
+  <div class="pg-sub">Change these only if someone joins the clinic or a number changes.</div>
+  <div class="card"><div class="card-hd"><div class="ct">🏥 Clinic constants</div></div><div class="card-body">
+    <div class="fg-grid c3">
+      <div class="fg"><label class="fl">Service location</label>
+        <input class="fi" id="c-loc" style="font-family:monospace" oninput="saveConst()"></div>
+      <div class="fg"><label class="fl">Master number</label>
+        <input class="fi" id="c-master" style="font-family:monospace" oninput="saveConst()"></div>
+    </div>
+    <div class="note" style="margin-top:8px">The bladder clinic uses master number <code>4265</code>,
+      not the <code>4406</code> used elsewhere.</div>
+  </div></div>
+  <div class="card" style="margin-top:12px">
+    <div class="card-hd"><div class="ct">🧑‍⚕️ Radiation oncologists</div>
+      <button class="btn btn-g" onclick="addPerson('prov')">+ Add</button></div>
+    <div class="card-body" style="padding:0"><table class="dtbl" id="prov-table"></table></div>
+  </div>
+  <div class="card" style="margin-top:12px">
+    <div class="card-hd"><div class="ct">🩺 Urologists in the MDBCC</div>
+      <button class="btn btn-g" onclick="addPerson('urol')">+ Add</button></div>
+    <div class="card-body" style="padding:0"><table class="dtbl" id="urol-table"></table></div>
+  </div>
+  <div style="margin-top:12px"><button class="btn btn-g" onclick="resetPeople()">Restore defaults</button></div>
+</div>
+
+<div class="panel" id="panel-rules">
+  <div class="pg-title">Rules applied</div>
+  <div class="card"><div class="card-body"><div class="note" style="line-height:2">
+  <strong>1 · Provider</strong> — the oncologist's name becomes their billing number.<br>
+  <strong>2 · Referring provider</strong> — the urologist's name becomes their number. Consults
+  (<code>A345A</code>) are flagged when no urologist is named.<br>
+  <strong>3 · Dates</strong> — read as day/month/year, as the clinic's own headings say, and written
+  as <code>MM-DD-YYYY</code>. Real date cells are handled too. Anything that could be read either way
+  is flagged rather than guessed.<br>
+  <strong>4 · Diagnostic code</strong> — the first three characters, so
+  &ldquo;188 - Bladder Ca&rdquo; becomes <code>188</code>.<br>
+  <strong>5 · Service code</strong> — the first four characters plus <code>A</code>, so
+  &ldquo;A343A - Follow-up&rdquo; becomes <code>A343A</code>.<br>
+  <strong>6 · Location and master number</strong> — always <code>HOP</code> and <code>4265</code>,
+  whatever the sheet holds.<br>
+  <strong>7 · Blank rows</strong> — skipped, so the sheet's unused rows are ignored.<br><br>
+  The urologist is read from anywhere in the row, not just the &ldquo;Urologist in MDBCC&rdquo; column,
+  because it has been typed into the neighbouring column before now.
+  </div></div></div>
+</div>
+
+</div>
+<div class="footer">Copyright © <script>document.write(new Date().getFullYear())</script> <strong>OM Billing Inc.™</strong> All rights reserved.</div>
+</div></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script>
+const LS='om_bladder_';
+const ls=(k,d)=>{try{const s=localStorage.getItem(LS+k);return s?JSON.parse(s):d}catch(e){return d}};
+const lsp=(k,v)=>{try{localStorage.setItem(LS+k,JSON.stringify(v))}catch(e){}};
+const esc=s=>String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const stat=(l,v,c)=>'<div class="ssi"><div class="ssl">'+l+'</div><div class="ssv '+(c||'')+'">'+v+'</div></div>';
+
+const D_PROV=JSON.parse(JSON.stringify(BL_PROV));
+const D_UROL=JSON.parse(JSON.stringify(BL_UROL));
+const D_CONST=JSON.parse(JSON.stringify(BL_CONST));
+BL_PROV=ls('prov',BL_PROV); BL_UROL=ls('urol',BL_UROL); BL_CONST=ls('const',BL_CONST);
+
+let srcRows=[], srcName='', R={rows:[],issues:[]};
+let provFills=ls('pf',{}), urolFills=ls('uf',{});
+
+function go(id,btn){document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
+  document.getElementById('panel-'+id).classList.add('active');
+  document.querySelectorAll('.nav-btn').forEach(b=>b.classList.remove('active'));
+  if(btn)btn.classList.add('active');}
+
+function loadXL(input){
+  const f=input.files[0];if(!f)return;
+  srcName=f.name;
+  const rd=new FileReader();
+  rd.onload=e=>{
+    try{
+      const wb=XLSX.read(new Uint8Array(e.target.result),{type:'array',cellDates:true});
+      const rows=XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]],{defval:''});
+      const have=Object.keys(rows[0]||{}).map(x=>x.toLowerCase());
+      const need=['healthnumber','servicecode','servicedate'];
+      const miss=need.filter(n=>!have.some(h=>h.indexOf(n)===0));
+      if(miss.length){
+        document.getElementById('up-res').innerHTML=
+          '<div class="alert a-warn"><strong>⚠ Unexpected columns</strong><div style="margin-top:6px">'+
+          'Missing: <code>'+miss.join('</code>, <code>')+'</code></div></div>';
+        return;
+      }
+      srcRows=rows; provFills={}; urolFills={}; rebuild();
+      document.getElementById('up-res').innerHTML=
+        '<div class="alert a-ok"><strong>✓ '+esc(f.name)+'</strong><div style="margin-top:6px">'+
+        R.rows.length+' claim line'+(R.rows.length!==1?'s':'')+
+        '. Will download as <code>'+esc(outName(srcName))+'</code>.</div></div>';
+      document.getElementById('dot-u').className='dot ok';
+    }catch(err){
+      document.getElementById('up-res').innerHTML=
+        '<div class="alert a-warn"><strong>⚠ Could not read that file</strong><div style="margin-top:6px">'+
+        esc(err.message)+'</div></div>';
+    }
+  };
+  rd.readAsArrayBuffer(f);
+}
+
+function rebuild(){
+  if(!srcRows.length)return;
+  R=transform(srcRows,{provFills,urolFills});
+  renderReview();
+}
+function setFill(which,row,val){
+  const v=String(val).trim();
+  const store=(which==='prov')?provFills:urolFills;
+  if(v)store[row]=v; else delete store[row];
+  lsp(which==='prov'?'pf':'uf',store);
+  R=transform(srcRows,{provFills,urolFills});
+  renderReview();
+}
+
+function renderReview(){
+  document.getElementById('rv-empty').style.display=R.rows.length?'none':'';
+  document.getElementById('rv-body').style.display=R.rows.length?'':'none';
+  if(!R.rows.length)return;
+  const bad=R.rows.filter(r=>r._probs.length).length;
+  const consults=R.rows.filter(r=>r._isConsult).length;
+  const odd=R.rows.filter(r=>r._urolCol&&r._urolCol.toLowerCase().indexOf('urologist')!==0).length;
+  document.getElementById('rv-stats').innerHTML=
+    stat('Claim lines',R.rows.length)+stat('Consults',consults)+
+    stat('Follow-ups',R.rows.length-consults)+
+    stat('Needs attention',bad,bad?'warn':'ok');
+  const bits=[];
+  if(odd)bits.push('<div class="alert a-info"><strong>ℹ '+odd+' urologist name'+(odd!==1?'s were':' was')+
+    ' found outside its own column</strong><div style="margin-top:6px">Read anyway, but worth tidying '+
+    'in the sheet so the column stays meaningful.</div></div>');
+  if(bad){
+    const byMsg={};
+    R.issues.forEach(i=>i.probs.forEach(p=>{(byMsg[p]=byMsg[p]||[]).push(i);}));
+    bits.push('<div class="alert a-warn"><strong>⚠ '+bad+' row'+(bad!==1?'s':'')+' need a look</strong>'+
+      '<ul style="margin:8px 0 0 18px;line-height:1.8">'+
+      Object.keys(byMsg).map(m=>'<li><strong>'+esc(m)+'</strong> — '+
+        byMsg[m].map(x=>'row '+x.row).join(', ')+'</li>').join('')+'</ul></div>');
+  } else bits.push('<div class="alert a-ok"><strong>✓ No problems found.</strong></div>');
+  document.getElementById('rv-warn').innerHTML=bits.join('');
+
+  document.getElementById('rv-table').innerHTML=
+    '<thead><tr><th>Row</th>'+OUT_COLS.map(c=>'<th style="white-space:nowrap">'+esc(c)+'</th>').join('')+
+    '<th>Source names</th></tr></thead><tbody>'+
+    R.rows.map(r=>'<tr'+(r._probs.length?' style="background:var(--warn-bg)"':'')+'>'+
+      '<td style="color:var(--muted)">'+r._srcRow+'</td>'+
+      OUT_COLS.map(c=>{
+        const v=esc(r[c]);
+        if(c==='ProviderNumber'&&!r[c])
+          return '<td><input value="" placeholder="number" style="width:84px;font-family:monospace" '+
+            'oninput="setFill(\'prov\','+r._srcRow+',this.value)"></td>';
+        if(c==='ReferringProviderNumber'&&r._isConsult&&!r[c])
+          return '<td><input value="" placeholder="number" style="width:84px;font-family:monospace" '+
+            'oninput="setFill(\'urol\','+r._srcRow+',this.value)"></td>';
+        return '<td style="white-space:nowrap;font-size:11.5px;font-family:'+
+          (['FirstName','LastName','Gender'].includes(c)?'inherit':'ui-monospace,monospace')+'">'+v+'</td>';
+      }).join('')+
+      '<td style="white-space:nowrap;font-size:11.5px;color:var(--muted)">'+
+        esc(r._provRaw)+(r._urol?' / '+esc(r._urol):'')+'</td></tr>').join('')+'</tbody>';
+  document.getElementById('dot-x').className='dot '+(bad?'warn':'ok');
+}
+
+function dlCSV(){
+  if(!R.rows.length){alert('Nothing to export.');return;}
+  const bad=R.rows.filter(r=>r._probs.length).length;
+  if(bad&&!confirm(bad+' row(s) have problems and may be rejected.\n\nDownload anyway?'))return;
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(new Blob([toCSV(R.rows)],{type:'text/csv;charset=utf-8'}));
+  a.download=outName(srcName); a.click(); URL.revokeObjectURL(a.href);
+}
+
+/* ── doctors ── */
+function renderPeople(){
+  document.getElementById('c-loc').value=BL_CONST.location;
+  document.getElementById('c-master').value=BL_CONST.master;
+  const tbl=(id,obj,which)=>{
+    document.getElementById(id).innerHTML=
+      '<thead><tr><th>Name as it appears in the sheet</th><th>Billing number</th><th></th></tr></thead><tbody>'+
+      Object.keys(obj).sort().map(k=>'<tr>'+
+        '<td><input value="'+esc(k)+'" style="width:220px" '+
+          'onchange="renamePerson(\''+which+'\','+JSON.stringify(k).replace(/"/g,'&quot;')+',this.value)"></td>'+
+        '<td><input value="'+esc(obj[k])+'" style="width:100px;font-family:monospace" '+
+          'oninput="setPerson(\''+which+'\','+JSON.stringify(k).replace(/"/g,'&quot;')+',this.value)"></td>'+
+        '<td style="text-align:right"><button class="btn btn-g" '+
+          'onclick="delPerson(\''+which+'\','+JSON.stringify(k).replace(/"/g,'&quot;')+')">Remove</button></td>'+
+        '</tr>').join('')+'</tbody>';
+  };
+  tbl('prov-table',BL_PROV,'prov');
+  tbl('urol-table',BL_UROL,'urol');
+}
+function bag(w){return w==='prov'?BL_PROV:BL_UROL;}
+function savePeople(){lsp('prov',BL_PROV);lsp('urol',BL_UROL);rebuild();}
+function setPerson(w,k,v){bag(w)[k]=String(v).trim();savePeople();}
+function renamePerson(w,k,v){
+  const nk=String(v).trim().toUpperCase();
+  if(!nk||nk===k){renderPeople();return;}
+  const b=bag(w); b[nk]=b[k]; delete b[k]; savePeople(); renderPeople();
+}
+function delPerson(w,k){
+  if(!confirm('Remove '+k+'?'))return;
+  delete bag(w)[k]; savePeople(); renderPeople();
+}
+function addPerson(w){
+  const name=prompt('Name exactly as it appears in the sheet:');
+  if(!name)return;
+  const num=prompt('Billing number for '+name+':');
+  if(!num)return;
+  bag(w)[String(name).trim().toUpperCase()]=String(num).trim();
+  savePeople(); renderPeople();
+}
+function saveConst(){
+  BL_CONST.location=document.getElementById('c-loc').value.trim().toUpperCase();
+  BL_CONST.master=document.getElementById('c-master').value.trim();
+  lsp('const',BL_CONST); rebuild();
+}
+function resetPeople(){
+  if(!confirm('Restore the built-in doctors and clinic constants?'))return;
+  BL_PROV=JSON.parse(JSON.stringify(D_PROV));
+  BL_UROL=JSON.parse(JSON.stringify(D_UROL));
+  BL_CONST=JSON.parse(JSON.stringify(D_CONST));
+  savePeople(); renderPeople();
+}
+renderPeople();
+</script>
+</body>
+</html>
