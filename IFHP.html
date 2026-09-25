@@ -741,9 +741,14 @@ let premiums=ls('om_prem',JSON.parse(JSON.stringify(D_PREM)));
 let settings=ls('om_settings',JSON.parse(JSON.stringify(D_SET)));migrateSettings();
 // v2: the diagnosis column prints the ICD-10 code by default. Settings saved
 // before this still say 'short', so flip them once; a later manual choice sticks.
+// Runs during boot, before the file-save machinery exists, so it writes
+// localStorage directly (lsp() would call _scheduleSave too early and halt the script).
 function migrateSettings(){
-  if(!settings||(settings.diagFmtV||0)>=2)return;
-  settings.diagFmt='icd10';settings.diagFmtV=2;lsp('om_settings',settings);
+  try{
+    if(!settings||(settings.diagFmtV||0)>=2)return;
+    settings.diagFmt='icd10';settings.diagFmtV=2;
+    localStorage.setItem('om_settings',JSON.stringify(settings));
+  }catch(e){console.warn('settings migration skipped',e);}
 }
 let ledger=ls('om_ledger',[]);  // [{id, invNums[], patient, date, services, total, paid}]
 
