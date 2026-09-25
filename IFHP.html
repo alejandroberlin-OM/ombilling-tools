@@ -1210,7 +1210,7 @@ async function fillWithFormFields(doc, job, invoiceNum){
       feeAmt=feeE?parseFloat(feeE.fee)*units:0;
     }
     totalAmt+=feeAmt;
-    sf('inv_'+n,  invoiceNum);
+    sf('inv_'+n,  '');   // DMOH: invoice # kept internal (ledger only), left blank on the PDF
     sf('date_'+n, svcDate);
     sf('code_'+n, String(p.ServiceCode||''));
     sf('unit_'+n, String(units));
@@ -1283,7 +1283,8 @@ async function fillWithCoordinates(doc, job, invoiceNum){
         if(baseFeeE)feeAmt=(parseFloat(baseFeeE.fee)*baseUnits)*(parseFloat(prem.pct)/100);}
     }else{const feeE=fFee(p.ServiceCode);feeAmt=feeE?parseFloat(feeE.fee)*units:0;}
     totalAmt+=feeAmt;
-    draw(invoiceNum,43,ry,8);draw(svcDate,138,ry);draw(String(p.ServiceCode||''),233,ry);
+    // DMOH: invoice # kept internal (ledger only), not drawn on the PDF
+    draw(svcDate,138,ry);draw(String(p.ServiceCode||''),233,ry);
     draw(String(units),285,ry);
     drawFit(icd,329,ry,144);                 // keep clear of the P* column at x=477
     draw('MD',479,ry);
