@@ -123,23 +123,55 @@ footer strong{color:rgba(255,255,255,.65)}
   display:none;align-items:center;justify-content:center;padding:24px}
 
 /* ── CDC additions ───────────────────────────────────────────────── */
-/* Rows are grouped under a physician header, so the zebra stripe gives way
-   to an explicit band on the header row. */
-.date-table tr:nth-child(even) td{background:transparent}
-.date-table tr.ph-head td{background:#eef3f0;border-top:2px solid var(--g1)}
-.date-table tr.ph-head:first-child td{border-top:none}
-.date-table tr.moved td{background:var(--ok-bg)}
-/* The shared dropdown is positioned against its cell. */
-.date-table td{position:relative}
-/* .card hides overflow for its rounded corners, which would clip a dropdown
-   opening near the foot of the table. */
+/* .card clips its corners, which would cut off a dropdown opening near the
+   foot of a card. */
 .card.ovis{overflow:visible}
-.exp-btn{background:none;border:none;cursor:pointer;font-size:13px;color:var(--g1);
-         padding:2px 4px;line-height:1;font-family:inherit}
-.exp-btn:hover{color:var(--g3)}
-.ta-undo{background:none;border:none;color:var(--muted);cursor:pointer;font-size:15px;
-         line-height:1;padding:0 2px}
-.ta-undo:hover{color:var(--err)}
+
+/* Physician picker */
+.pick-wrap{position:relative;max-width:460px}
+.pick-wrap .ta-dropdown{max-height:280px}
+
+.hint-box{padding:22px;border:1px dashed var(--border);border-radius:var(--r);
+          text-align:center;color:var(--muted);font-size:13px;background:var(--g5)}
+
+/* Working on one physician */
+.work-head{display:flex;align-items:flex-start;gap:14px;padding:14px 16px;
+           background:var(--g5);border:1px solid var(--g4);border-radius:var(--r) var(--r) 0 0}
+.work-head button{margin-left:auto}
+.work-name{font-family:"Libre Baskerville",serif;font-size:18px;font-weight:700;color:var(--g1)}
+.work-sub{font-size:12px;color:var(--muted);margin-top:2px;font-family:ui-monospace,monospace}
+.work-bar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:10px 16px;
+          border-left:1px solid var(--border);border-right:1px solid var(--border);
+          border-bottom:1px solid var(--border);background:#fff}
+.work-count{font-size:12.5px;color:var(--muted);margin-left:auto}
+.work-count.on{color:var(--ok);font-weight:700}
+
+.date-list{max-height:330px;overflow-y:auto;border-left:1px solid var(--border);
+           border-right:1px solid var(--border)}
+.date-row{display:flex;align-items:center;gap:12px;padding:8px 16px;cursor:pointer;
+          border-bottom:1px solid var(--border);font-size:13px}
+.date-row:hover{background:var(--g5)}
+.date-row.on{background:var(--ok-bg)}
+.date-row input{flex:none;cursor:pointer}
+.dr-date{font-weight:700;width:98px;flex:none}
+.dr-rows{width:72px;flex:none;color:var(--muted);font-size:12px}
+.dr-codes{flex:1;color:var(--muted);font-size:11.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+
+.move-bar{display:flex;align-items:center;gap:12px;flex-wrap:wrap;padding:14px 16px;
+          background:var(--warn-bg);border:1px solid var(--border);border-top:none;
+          border-radius:0 0 var(--r) var(--r)}
+
+/* Split chips */
+.chip{display:inline-flex;align-items:center;gap:8px;padding:6px 8px 6px 12px;margin:0 8px 8px 0;
+      border-radius:99px;background:var(--g5);border:1px solid var(--g4);font-size:13px}
+.chip-num{font-family:ui-monospace,monospace;font-size:11.5px;color:var(--muted)}
+.chip-x{background:none;border:none;color:var(--muted);cursor:pointer;font-size:17px;
+        line-height:1;padding:0 4px;font-family:inherit}
+.chip-x:hover{color:var(--err)}
+
+/* Roster */
+.ta-input.nm{padding:5px 8px;font-size:12.5px}
+#roster-table tr.moved td{background:var(--g5)}
 </style>
 <script>
 /* ══ CDC core — 3B export grouped by physician, reassign, split ══
@@ -319,6 +351,66 @@ function buildCSV(rows, cols, groups, reassign, keepIdx, getCellText) {
   return [line(0)].concat(keepIdx.map(line)).join('\r\n');
 }
 
+/* ── names ─────────────────────────────────────────────────────────
+   The registry writes names as "First Last"; a CSV import may use
+   "Last, First". A comma tells the two apart.                             */
+function parseName(raw){
+  const s=String(raw==null?'':raw).trim().replace(/\s+/g,' ');
+  if(!s)return null;
+  if(s.indexOf(',')>=0){
+    const [l,f]=s.split(',');
+    return{last:(l||'').trim(),first:(f||'').trim()};
+  }
+  const parts=s.split(' ');
+  if(parts.length===1)return{last:parts[0],first:''};
+  return{last:parts[parts.length-1],first:parts.slice(0,-1).join(' ')};
+}
+/* "Berlin, A" — surname first, so the list reads and sorts the way a
+   clinic list does. Falls back to the billing number when unnamed. */
+function dispName(num,names){
+  const n=parseName((names||{})[pad6(num)]);
+  if(!n)return pad6(num);
+  return n.last+(n.first?', '+n.first.charAt(0).toUpperCase():'');
+}
+/* Two letters for the filename: first initial + surname initial. */
+function initialsOf(num,names){
+  const n=parseName((names||{})[pad6(num)]);
+  if(!n)return pad6(num).replace(/^0+/,'');
+  const a=(n.first||'').charAt(0).toUpperCase();
+  const b=(n.last||'').charAt(0).toUpperCase();
+  return (a+b)||b||pad6(num);
+}
+/* Unnamed physicians sort after named ones rather than scattering through. */
+function nameSortKey(num,names){
+  const n=parseName((names||{})[pad6(num)]);
+  if(!n)return '\uffff'+pad6(num);
+  return (n.last+' '+n.first).toLowerCase();
+}
+
+/* Trim a long export name down to something that still identifies it:
+   the first couple of segments plus the date embedded in the timestamp.
+   3B_export_without_issues_t70051uhn_20261007163229944 → 3B_export_20261007 */
+function shortName(srcName){
+  let b=String(srcName||'').replace(/\.(csv|xlsx?|xlsm)$/i,'').trim();
+  if(!b)return 'CDC_export';
+  const run=b.match(/(\d{8})\d*/);
+  const date=run?run[1]:'';
+  const segs=b.split(/[_\s]+/).filter(Boolean)
+    .filter(x=>!/^\d{6,}$/.test(x));                 // drop the raw timestamp
+  /* With no date to anchor it, keep a third segment so the name still says
+     something — "CDC_Aug" alone loses the year. */
+  let head=segs.slice(0,date?2:3).join('_');
+  if(!head)head=segs[0]||'CDC';
+  let out=head+(date?'_'+date:'');
+  if(out.length>36)out=out.slice(0,36).replace(/[_\s-]+$/,'');
+  return out;
+}
+/* <short>-AB PC CT.csv — the initials of everyone in that file. */
+function splitFileName(short,provs,names){
+  const ini=provs.map(p=>initialsOf(p,names)).filter(Boolean);
+  return short+(ini.length?'-'+ini.join(' '):'')+'.csv';
+}
+
 /* <base>.csv → <base>_CDC_main.csv / <base>_CDC_<label>.csv */
 function outName(srcName, suffix) {
   const b = String(srcName || '').replace(/\.(csv|xlsx?|xlsm)$/i, '').replace(/[_ -]+$/, '');
@@ -368,13 +460,13 @@ const safeLabel = s => String(s || '').trim().replace(/[^\w\-]+/g, '_').replace(
 <div class="wrap">
   <div class="pg-title">CDC Provider Reassignment</div>
   <div class="pg-sub">
-    Upload the CDC 3B export. Claims are grouped <strong>by physician</strong>, with the service dates under each.
-    Reassign a whole physician or just selected dates, then choose which physicians go into a separate CSV.
-    Only the ProviderNumber column is ever changed — every other column is written back exactly as it came in.
+    Upload the CDC 3B export. Pick a physician to see their service dates, move any or all of them to a
+    covering physician, then choose who goes into a separate file.
+    Only the ProviderNumber column is ever changed.
   </div>
 
   <!-- 1 · Upload -->
-  <div class="card" id="card-upload">
+  <div class="card">
     <div class="card-hd"><div><div class="ct">📁 Upload the CDC export</div>
       <div class="cd">3B export · ProviderNumber in column A</div></div></div>
     <div class="card-body">
@@ -391,55 +483,60 @@ const safeLabel = s => String(s || '').trim().replace(/[^\w\-]+/g, '_').replace(
     </div>
   </div>
 
-  <!-- 2 · Physicians -->
-  <div id="section-phys" style="display:none">
+  <div id="section-main" style="display:none">
+
+    <!-- Names notice -->
+    <div id="names-msg"></div>
+
+    <!-- 2 · Reassign -->
     <div class="card ovis">
       <div class="card-hd">
-        <div><div class="ct">👨‍⚕️ Claims by physician</div>
-          <div class="cd">Tick dates to move only those · a physician row moves everything</div></div>
-        <div id="phys-stats" style="margin-left:auto;display:flex;gap:10px;font-size:12px;align-items:center"></div>
+        <div><div class="ct">👨‍⚕️ Reassign claims</div>
+          <div class="cd">Search a physician, then pick the dates to move</div></div>
+        <div id="moves-stat" style="margin-left:auto;font-size:12px"></div>
       </div>
-      <div class="card-body" style="padding:0">
-        <div style="padding:12px 18px;border-bottom:1px solid var(--line);display:flex;gap:10px;
-             align-items:center;flex-wrap:wrap">
-          <input class="ta-input" id="phys-filter" style="max-width:260px" placeholder="Filter physicians…"
-                 autocomplete="off" oninput="renderPhys()">
-          <button class="btn btn-outline" onclick="expandAll(true)">Expand all</button>
-          <button class="btn btn-outline" onclick="expandAll(false)">Collapse all</button>
-          <span id="phys-filter-note" style="font-size:12px;color:var(--muted)"></span>
+      <div class="card-body">
+        <div class="pick-wrap">
+          <input class="ta-input" id="work-search" placeholder="Search physician by name or number…"
+                 autocomplete="off" oninput="pickOpen('work')" onfocus="pickOpen('work')"
+                 onblur="pickBlur('work')" onkeydown="pickKey(event,'work')">
+          <div class="ta-dropdown" id="pick-work"></div>
         </div>
-        <div id="bulk-bar" style="display:none;padding:12px 18px;background:#fdf8ec;border-bottom:1px solid var(--line);
-             align-items:center;gap:12px;flex-wrap:wrap">
-          <strong style="font-size:13px" id="bulk-count"></strong>
-          <div class="ta-wrap" style="flex:1;min-width:220px;max-width:340px">
-            <input class="ta-input" id="bulk-input" type="text" data-ta="bulk"
-              placeholder="Reassign the ticked dates to…" autocomplete="off"
-              oninput="taInput(this)" onfocus="taInput(this)" onblur="taBlur(this)" onkeydown="taKey(event,this)">
-          </div>
-          <button class="btn btn-outline" onclick="clearTicks()">Clear ticks</button>
-        </div>
-        <table class="date-table" id="phys-table"></table>
+
+        <div id="work-area" style="margin-top:16px"></div>
       </div>
     </div>
 
+    <!-- Moves log -->
+    <div class="card" id="log-card" style="display:none">
+      <div class="card-hd"><div><div class="ct">↩️ Moves made</div>
+        <div class="cd">Most recent first · undo any of them</div></div>
+        <div style="margin-left:auto"><button class="btn btn-outline" onclick="undoAll()">Undo all</button></div></div>
+      <div class="card-body" style="padding:0"><table class="date-table" id="log-table"></table></div>
+    </div>
+
     <!-- 3 · Split -->
-    <div class="card" style="margin-top:16px">
+    <div class="card ovis">
       <div class="card-hd">
         <div><div class="ct">✂️ Split the export</div>
-          <div class="cd">Ticked physicians go to their own file · everyone else to the main file</div></div>
-        <div style="margin-left:auto"><button class="btn btn-outline" onclick="splitNone()">Clear selection</button></div>
+          <div class="cd">Add physicians one by one · they go to their own file, everyone else to the main file</div></div>
       </div>
       <div class="card-body">
-        <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:12px">
-          <input class="ta-input" id="split-filter" style="max-width:240px" placeholder="Filter physicians…"
-                 autocomplete="off" oninput="renderSplit()">
-          <button class="btn btn-outline" onclick="splitAllShown()">Tick all shown</button>
+        <div class="pick-wrap">
+          <input class="ta-input" id="split-search" placeholder="Search a physician to add to the split file…"
+                 autocomplete="off" oninput="pickOpen('split')" onfocus="pickOpen('split')"
+                 onblur="pickBlur('split')" onkeydown="pickKey(event,'split')">
+          <div class="ta-dropdown" id="pick-split"></div>
         </div>
-        <div id="split-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:10px;
-             max-height:340px;overflow-y:auto"></div>
-        <div class="fl" style="margin-top:16px;display:block">Name for the split file</div>
-        <input class="ta-input" id="split-label" style="max-width:280px" value="selected"
-               placeholder="selected" oninput="renderSplit()">
+        <div id="chips" style="margin-top:14px"></div>
+        <div style="margin-top:18px">
+          <div class="fl" style="display:block;margin-bottom:6px">Split file name</div>
+          <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+            <input class="ta-input" id="split-name" style="max-width:420px;font-family:ui-monospace,monospace"
+                   oninput="nameEdited=true;renderSplitMsg()">
+            <button class="btn btn-outline" onclick="nameEdited=false;renderSplit()">Reset to suggested</button>
+          </div>
+        </div>
         <div id="split-msg" style="margin-top:14px"></div>
       </div>
     </div>
@@ -449,13 +546,22 @@ const safeLabel = s => String(s || '').trim().replace(/[^\w\-]+/g, '_').replace(
       <button class="btn btn-outline" onclick="clearAll()">✕ Start over</button>
       <span id="gen-status" style="font-size:12px;color:var(--muted)"></span>
     </div>
+
+    <!-- Roster -->
+    <div class="card" style="margin-top:16px">
+      <div class="card-hd"><div><div class="ct">📋 Physicians in this file</div>
+        <div class="cd">Alphabetical by surname · click a row to work on it · add a name where one is missing</div></div>
+        <div style="margin-left:auto;display:flex;gap:8px;align-items:center">
+          <label class="btn btn-outline" style="margin:0">⬆ Import names
+            <input type="file" accept=".csv,.json" style="display:none" onchange="importNames(this)"></label>
+          <button class="btn btn-outline" onclick="exportNames()">⬇ Export names</button>
+        </div></div>
+      <div class="card-body" style="padding:0;overflow:auto;max-height:420px">
+        <table class="date-table" id="roster-table"></table></div>
+    </div>
+
   </div>
-
 </div>
-
-<!-- One dropdown is reused by every typeahead: with ~2,000 possible inputs on a
-     real export, giving each its own would bloat the page for no benefit. -->
-<div id="dd-park" style="display:none"><div class="ta-dropdown" id="dd-shared"></div></div>
 
 <footer class="footer" style="margin-top:auto">
   <strong>OM Billing Inc.™</strong> &nbsp;|&nbsp; DMOH · Princess Margaret · CDC Provider Reassignment<br>
@@ -469,41 +575,39 @@ const safeLabel = s => String(s || '').trim().replace(/[^\w\-]+/g, '_').replace(
 const DATA_KEYS=['om_prov','om_diag','om_fees','om_prem','om_settings',
                  'om_ledger','om_inv_ctr','om_qc_diag','om_qc_loc','om_qc_set'];
 const ls=(k,d)=>{try{const s=localStorage.getItem(k);return s?JSON.parse(s):d}catch(e){return d}};
-let providers=ls('om_prov',[]);
-
+const lsp=(k,v)=>{try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}};
 const esc=s=>String(s==null?'':s).replace(/&/g,'&amp;').replace(/"/g,'&quot;')
   .replace(/</g,'&lt;').replace(/>/g,'&gt;');
-const slug=s=>String(s).replace(/[^a-zA-Z0-9]/g,'_');
+
+let providers=ls('om_prov',[]);
+let localNames=ls('om_cdc_names',{});     // numbers named here, not in the registry
 
 /* ── state ── */
 let srcName='', rowsAoA=[], cols=null, groups=[], ws=null;
-let reassign={};      // group key -> {num,name}
-let ticked={};        // group key -> true
-let splitSel={};      // effective provider -> true
-let expanded={};      // effective provider -> true (dates shown)
+let moves=[];          // the record of what was moved — reassign is derived from it
+let reassign={};
+let workProv=null;     // the physician being worked on
+let sel={};            // group key -> ticked, within the work area
+let splitList=[];      // effective providers going to the split file, in the order added
+let nameEdited=false;
 
-/* Every provider the typeahead can offer: the registry plus anyone already
-   in the file, since a locum may not be in the registry yet. */
-function provList(){
-  const seen={}, out=[];
-  providers.forEach(p=>{
-    const n=pad6(p.num); if(!n||seen[n])return;
-    seen[n]=1; out.push({num:n,name:String(p.name||''),spec:String(p.spec||'')});
-  });
-  groups.forEach(g=>{
-    const n=g.origProv; if(!n||seen[n]||n.charAt(0)==='~')return;
-    seen[n]=1; out.push({num:n,name:'',spec:'in this file'});
-  });
-  Object.keys(reassign).forEach(k=>{
-    const n=pad6(reassign[k].num); if(!n||seen[n])return;
-    seen[n]=1; out.push({num:n,name:reassign[k].name||'',spec:'reassigned'});
-  });
-  return out.sort((a,b)=>a.num<b.num?-1:1);
+/* Registry first, then anything named locally. */
+function nameMap(){
+  const m={};
+  providers.forEach(p=>{const n=pad6(p.num); if(n&&p.name)m[n]=String(p.name);});
+  Object.keys(localNames).forEach(k=>{if(localNames[k])m[pad6(k)]=localNames[k];});
+  return m;
 }
-function provName(num){
-  const n=pad6(num);
-  const p=providers.find(x=>pad6(x.num)===n);
-  return p?String(p.name||''):'';
+let NAMES={};
+function refreshNames(){NAMES=nameMap();}
+
+const dn   = num => dispName(num,NAMES);
+const dnFull = num => {const d=dn(num); return d===pad6(num)?pad6(num):d+' · '+pad6(num);};
+
+/* Rebuilt from the move log so undo is always exact. */
+function applyMoves(){
+  reassign={};
+  moves.forEach(m=>m.keys.forEach(k=>{reassign[k]={num:m.to};}));
 }
 
 /* ── load ── */
@@ -523,7 +627,7 @@ async function loadFile(input){
     cols=findCols(rowsAoA[0].map(c=>String(c||'')));
     groups=buildGroups(rowsAoA,cols);
     if(!groups.length){msg.innerHTML='<div class="alert a-warn">⚠ No claims could be read from that file.</div>';return;}
-    reassign={};ticked={};splitSel={};
+    moves=[];reassign={};workProv=null;sel={};splitList=[];nameEdited=false;
     const nRows=groups.reduce((a,g)=>a+g.rowIdx.length,0);
     const nProv=new Set(groups.map(g=>g.origProv)).size;
     const hdr=rowsAoA[0].map(c=>String(c||'').trim());
@@ -534,248 +638,359 @@ async function loadFile(input){
       new Set(groups.map(g=>g.iso)).size+' service dates</div>'+
       (named?'':'<div class="alert a-warn" style="margin-top:8px"><strong>⚠ Headers not recognised</strong><br>'+
         'Falling back to the standard 3B positions — provider in column A, service date in column O. '+
-        'Check the grouping below before exporting.</div>');
-    document.getElementById('section-phys').style.display='block';
+        'Check the roster below before exporting.</div>');
+    document.getElementById('section-main').style.display='block';
     renderAll();
   }catch(err){
     msg.innerHTML='<div class="alert a-warn"><strong>⚠ Could not read that file</strong><br>'+esc(err.message)+'</div>';
   }
 }
 
-/* ── render ── */
-function renderAll(){renderPhys();renderSplit();}
-
-function physFilter(){
-  const q=(document.getElementById('phys-filter')||{}).value||'';
-  return q.trim().toLowerCase();
-}
-function matchProv(prov,q){
-  if(!q)return true;
-  return prov.toLowerCase().includes(q)||provName(prov).toLowerCase().includes(q);
-}
-function expandAll(on){
-  const q=physFilter();
-  byPhysician(groups,reassign).forEach(p=>{
-    if(!matchProv(p.prov,q))return;
-    if(on)expanded[p.prov]=true; else delete expanded[p.prov];
-  });
-  renderPhys();
-}
-function toggleExpand(el){
-  const p=el.dataset.exp;
-  if(expanded[p])delete expanded[p]; else expanded[p]=true;
-  renderPhys();
+function renderAll(){
+  refreshNames();applyMoves();
+  renderNamesNotice();renderWork();renderLog();renderSplit();renderRoster();
 }
 
-function renderPhys(){
-  parkDropdown();
-  const q=physFilter();
-  const all=byPhysician(groups,reassign);
-  const phys=all.filter(p=>matchProv(p.prov,q));
-  const note=document.getElementById('phys-filter-note');
-  if(note)note.textContent=q
-    ? phys.length+' of '+all.length+' physicians'
-    : all.length+' physicians · '+groups.length+' physician-dates';
+/* ── names notice ── */
+function renderNamesNotice(){
+  const phys=byPhysician(groups,reassign);
+  const missing=phys.filter(p=>!NAMES[p.prov]).length;
+  const el=document.getElementById('names-msg');
+  if(!missing){el.innerHTML='';return;}
+  el.innerHTML='<div class="alert a-warn"><strong>⚠ '+missing+' of '+phys.length+
+    ' physicians have no name on file</strong><br>'+
+    'They show as billing numbers, sort to the bottom of the roster, and contribute their number '+
+    'rather than initials to the split file name. Add them in the roster at the foot of this page, '+
+    'import a CSV of <code>number,name</code>, or load a data file whose Doctors registry covers CDC.</div>';
+}
 
-  const tbl=document.getElementById('phys-table');
-  let h='<thead><tr>'+
-    '<th style="width:34px"></th>'+
-    '<th style="width:160px">Physician</th>'+
-    '<th style="width:90px;text-align:center">Rows</th>'+
-    '<th style="width:180px">Service date</th>'+
-    '<th>Reassign to</th>'+
-    '<th style="width:120px;text-align:center">Status</th></tr></thead><tbody>';
-  phys.forEach(p=>{
-    const nm=provName(p.prov);
-    const open=!!expanded[p.prov];
-    const nTick=p.groups.filter(g=>ticked[g.key]).length;
-    h+='<tr class="ph-head">'+
-      '<td style="text-align:center"><button class="exp-btn" data-exp="'+esc(p.prov)+'" '+
-        'onclick="toggleExpand(this)" title="'+(open?'Collapse':'Expand')+'">'+(open?'&#9662;':'&#9656;')+'</button></td>'+
-      '<td><strong style="font-family:ui-monospace,monospace">'+esc(p.prov)+'</strong>'+
-        (nm?'<br><span style="font-size:11.5px;color:var(--muted)">'+esc(nm)+'</span>':'')+'</td>'+
-      '<td style="text-align:center"><strong>'+p.rows+'</strong>'+
-        '<br><span style="font-size:11px;color:var(--muted)">'+p.groups.length+' date'+
-        (p.groups.length!==1?'s':'')+'</span></td>'+
-      '<td style="font-size:12px;color:var(--muted)">'+
-        esc(showDate(p.groups[0].iso))+' &ndash; '+esc(showDate(p.groups[p.groups.length-1].iso))+
-        (nTick?'<br><span style="color:var(--gold2,#8a6d1f);font-weight:700">'+nTick+' ticked</span>':'')+'</td>'+
-      '<td><input class="ta-input" type="text" data-ta="1" data-prov="'+esc(p.prov)+'" '+
-        'placeholder="Move every date for this physician…" autocomplete="off" '+
-        'oninput="taInput(this)" onfocus="taInput(this)" onblur="taBlur(this)" onkeydown="taKey(event,this)"></td>'+
-      '<td style="text-align:center">'+(p.moved
-        ? '<span class="date-badge db-ok">'+p.moved+' moved in</span>' : '')+'</td></tr>';
-    if(!open)return;
-    p.groups.forEach(g=>{
+/* ── physician picker (shared by the work area and the split list) ── */
+let pickIdx={work:-1,split:-1};
+function pickCandidates(which){
+  const q=(document.getElementById(which==='work'?'work-search':'split-search').value||'')
+    .trim().toLowerCase();
+  let list=byPhysician(groups,reassign);
+  if(which==='split')list=list.filter(p=>splitList.indexOf(p.prov)<0);
+  if(q)list=list.filter(p=>p.prov.toLowerCase().includes(q)||dn(p.prov).toLowerCase().includes(q));
+  list.sort((a,b)=>nameSortKey(a.prov,NAMES)<nameSortKey(b.prov,NAMES)?-1:1);
+  return list.slice(0,10);
+}
+function pickOpen(which){
+  const dd=document.getElementById('pick-'+which);
+  const list=pickCandidates(which);
+  pickIdx[which]=-1;
+  if(!list.length){dd.classList.remove('open');return;}
+  dd.innerHTML=list.map(p=>'<div class="ta-item" data-prov="'+esc(p.prov)+'">'+
+    '<strong>'+esc(dn(p.prov))+'</strong><span>'+esc(p.prov)+'</span>'+
+    '<span>· '+p.rows+' rows, '+p.groups.length+' dates</span></div>').join('');
+  dd.querySelectorAll('.ta-item').forEach(it=>it.addEventListener('mousedown',e=>{
+    e.preventDefault();pickChoose(which,it.dataset.prov);}));
+  dd.classList.add('open');
+}
+function pickBlur(which){setTimeout(()=>{
+  const dd=document.getElementById('pick-'+which); if(dd)dd.classList.remove('open');},180);}
+function pickKey(e,which){
+  const dd=document.getElementById('pick-'+which);
+  const items=[...dd.querySelectorAll('.ta-item')];
+  if(!items.length)return;
+  if(e.key==='ArrowDown'||e.key==='ArrowUp'){
+    e.preventDefault();
+    items.forEach(i=>i.classList.remove('active'));
+    pickIdx[which]+=(e.key==='ArrowDown'?1:-1);
+    if(pickIdx[which]<0)pickIdx[which]=items.length-1;
+    if(pickIdx[which]>=items.length)pickIdx[which]=0;
+    items[pickIdx[which]].classList.add('active');
+  }else if(e.key==='Enter'){
+    e.preventDefault();
+    const pick=pickIdx[which]>=0?items[pickIdx[which]]:items[0];
+    if(pick){dd.classList.remove('open');pickChoose(which,pick.dataset.prov);}
+  }else if(e.key==='Escape')dd.classList.remove('open');
+}
+function pickChoose(which,prov){
+  if(which==='work'){
+    workProv=prov;sel={};
+    document.getElementById('work-search').value='';
+    renderWork();
+  }else{
+    if(splitList.indexOf(prov)<0)splitList.push(prov);
+    document.getElementById('split-search').value='';
+    renderSplit();
+  }
+}
+
+/* ── work area ── */
+function renderWork(){
+  const area=document.getElementById('work-area');
+  if(!workProv){
+    area.innerHTML='<div class="hint-box">Search above, or click a physician in the roster at the '+
+      'foot of this page, to see their service dates.</div>';
+    return;
+  }
+  const p=byPhysician(groups,reassign).find(x=>x.prov===workProv);
+  if(!p){workProv=null;renderWork();return;}
+  const nSel=p.groups.filter(g=>sel[g.key]).length;
+  const rSel=p.groups.filter(g=>sel[g.key]).reduce((a,g)=>a+g.rowIdx.length,0);
+  area.innerHTML=
+    '<div class="work-head">'+
+      '<div><div class="work-name">'+esc(dn(workProv))+'</div>'+
+      '<div class="work-sub">'+esc(pad6(workProv))+' · '+p.rows+' rows across '+p.groups.length+' dates</div></div>'+
+      '<button class="btn btn-outline" onclick="workClose()">Close</button>'+
+    '</div>'+
+    '<div class="work-bar">'+
+      '<button class="btn btn-outline" onclick="selAll(true)">Choose all dates</button>'+
+      '<button class="btn btn-outline" onclick="selAll(false)">Choose none</button>'+
+      '<span class="work-count'+(nSel?' on':'')+'">'+
+        (nSel?nSel+' of '+p.groups.length+' dates · '+rSel+' rows':'no dates chosen')+'</span>'+
+    '</div>'+
+    '<div class="date-list">'+p.groups.map(g=>{
       const r=reassign[g.key];
-      const movedFrom=r&&g.origProv!==p.prov;
       const codes=[...g.codes.entries()].sort((a,b)=>b[1]-a[1])
         .map(([c,n])=>c+(n>1?'&times;'+n:'')).join(', ');
-      h+='<tr'+(movedFrom?' class="moved"':'')+'>'+
-        '<td style="text-align:center"><input type="checkbox" data-tick="'+esc(g.key)+'" '+
-          (ticked[g.key]?'checked':'')+' onchange="tick(this)"></td>'+
-        '<td></td>'+
-        '<td style="text-align:center">'+g.rowIdx.length+'</td>'+
-        '<td><strong>'+esc(showDate(g.iso))+'</strong>'+
-          '<br><span style="font-size:11px;color:var(--muted)">'+codes+'</span></td>'+
-        '<td><input class="ta-input'+(r?' assigned':'')+'" type="text" data-ta="1" '+
-          'data-group="'+esc(g.key)+'" value="'+esc(r?(r.name||r.num):'')+'" '+
-          'placeholder="Leave as '+esc(g.origProv)+'" autocomplete="off" '+
-          'oninput="taInput(this)" onfocus="taInput(this)" onblur="taBlur(this)" onkeydown="taKey(event,this)"></td>'+
-        '<td style="text-align:center">'+(movedFrom
-          ? '<span class="date-badge db-ok">from '+esc(g.origProv)+'</span>'
-            +' <button class="ta-undo" data-undo="'+esc(g.key)+'" onclick="undo(this)" title="Undo">&times;</button>'
-          : '')+'</td></tr>';
-    });
+      return '<label class="date-row'+(sel[g.key]?' on':'')+'">'+
+        '<input type="checkbox" data-k="'+esc(g.key)+'" '+(sel[g.key]?'checked':'')+' onchange="selOne(this)">'+
+        '<span class="dr-date">'+esc(showDate(g.iso))+'</span>'+
+        '<span class="dr-rows">'+g.rowIdx.length+' row'+(g.rowIdx.length!==1?'s':'')+'</span>'+
+        '<span class="dr-codes">'+codes+'</span>'+
+        (r&&g.origProv!==workProv
+          ? '<span class="date-badge db-ok">from '+esc(dn(g.origProv))+'</span>' : '')+
+        '</label>';
+    }).join('')+'</div>'+
+    '<div class="move-bar">'+
+      '<span style="font-size:13px;font-weight:700">Move the chosen dates to</span>'+
+      '<div class="pick-wrap" style="flex:1;min-width:230px;max-width:360px">'+
+        '<input class="ta-input" id="target-search" placeholder="covering physician…" autocomplete="off" '+
+        (nSel?'':'disabled ')+'oninput="targetOpen()" onfocus="targetOpen()" '+
+        'onblur="setTimeout(()=>{const d=document.getElementById(\'pick-target\');if(d)d.classList.remove(\'open\')},180)" '+
+        'onkeydown="targetKey(event)">'+
+        '<div class="ta-dropdown" id="pick-target"></div></div>'+
+      (nSel?'':'<span style="font-size:12px;color:var(--muted)">choose at least one date first</span>')+
+    '</div>';
+}
+function workClose(){workProv=null;sel={};renderWork();}
+function selOne(el){
+  if(el.checked)sel[el.dataset.k]=true; else delete sel[el.dataset.k];
+  renderWork();
+}
+function selAll(on){
+  const p=byPhysician(groups,reassign).find(x=>x.prov===workProv); if(!p)return;
+  sel={};
+  if(on)p.groups.forEach(g=>sel[g.key]=true);
+  renderWork();
+}
+
+/* Target picker — any physician in the file, plus anyone in the registry. */
+let targetIdx=-1;
+function targetCandidates(){
+  const q=(document.getElementById('target-search').value||'').trim().toLowerCase();
+  const seen={},out=[];
+  byPhysician(groups,reassign).forEach(p=>{
+    if(p.prov===workProv)return;                 // moving onto itself is a no-op
+    seen[p.prov]=1;out.push({num:p.prov,sub:p.rows+' rows in this file'});
   });
-  tbl.innerHTML=h+'</tbody>';
-  refreshBulk();
-  const moved=groups.filter(g=>reassign[g.key]).reduce((a,g)=>a+g.rowIdx.length,0);
-  document.getElementById('phys-stats').innerHTML=
-    '<span style="color:'+(moved?'var(--gold2,#8a6d1f)':'var(--muted)')+'">'+
-    (moved?moved+' row'+(moved!==1?'s':'')+' reassigned':'nothing reassigned yet')+'</span>';
+  providers.forEach(x=>{const n=pad6(x.num);
+    if(!n||seen[n]||n===workProv)return;seen[n]=1;out.push({num:n,sub:'registry'});});
+  let list=out;
+  if(q)list=list.filter(p=>p.num.includes(q)||dn(p.num).toLowerCase().includes(q));
+  list.sort((a,b)=>nameSortKey(a.num,NAMES)<nameSortKey(b.num,NAMES)?-1:1);
+  return list.slice(0,10);
 }
-
-/* Ticking must not rebuild the table — on a real export that is ~2,000 rows. */
-function refreshBulk(){
-  const keys=Object.keys(ticked);
-  const bar=document.getElementById('bulk-bar');
-  bar.style.display=keys.length?'flex':'none';
+function targetOpen(){
+  const dd=document.getElementById('pick-target'); if(!dd)return;
+  const list=targetCandidates();targetIdx=-1;
+  if(!list.length){dd.classList.remove('open');return;}
+  dd.innerHTML=list.map(p=>'<div class="ta-item" data-num="'+esc(p.num)+'">'+
+    '<strong>'+esc(dn(p.num))+'</strong><span>'+esc(p.num)+'</span>'+
+    '<span>· '+esc(p.sub)+'</span></div>').join('');
+  dd.querySelectorAll('.ta-item').forEach(it=>it.addEventListener('mousedown',e=>{
+    e.preventDefault();dd.classList.remove('open');doMove(it.dataset.num);}));
+  dd.classList.add('open');
+}
+function targetKey(e){
+  const dd=document.getElementById('pick-target');
+  const items=[...dd.querySelectorAll('.ta-item')];
+  if(e.key==='ArrowDown'||e.key==='ArrowUp'){
+    e.preventDefault();if(!items.length)return;
+    items.forEach(i=>i.classList.remove('active'));
+    targetIdx+=(e.key==='ArrowDown'?1:-1);
+    if(targetIdx<0)targetIdx=items.length-1;
+    if(targetIdx>=items.length)targetIdx=0;
+    items[targetIdx].classList.add('active');
+  }else if(e.key==='Enter'){
+    e.preventDefault();
+    const pick=targetIdx>=0?items[targetIdx]:items[0];
+    if(pick){dd.classList.remove('open');doMove(pick.dataset.num);return;}
+    const v=(document.getElementById('target-search').value||'').trim();
+    if(/^\d{4,6}$/.test(v))doMove(v);
+  }else if(e.key==='Escape')dd.classList.remove('open');
+}
+function doMove(num){
+  const to=pad6(num); if(!to)return;
+  const keys=Object.keys(sel).filter(k=>sel[k]);
   if(!keys.length)return;
-  const n=groups.filter(g=>ticked[g.key]).reduce((a,g)=>a+g.rowIdx.length,0);
-  document.getElementById('bulk-count').textContent=
-    keys.length+' date'+(keys.length!==1?'s':'')+' ticked · '+n+' row'+(n!==1?'s':'');
-}
-
-function splitAllShown(){
-  const q=((document.getElementById('split-filter')||{}).value||'').trim().toLowerCase();
-  byPhysician(groups,reassign).forEach(p=>{if(matchProv(p.prov,q))splitSel[p.prov]=true;});
-  renderSplit();
-}
-function renderSplit(){
-  const phys=byPhysician(groups,reassign);
-  const live={}; phys.forEach(p=>live[p.prov]=1);
-  /* A physician can disappear once all their dates are moved away. */
-  Object.keys(splitSel).forEach(k=>{if(!live[k])delete splitSel[k];});
-  const q=((document.getElementById('split-filter')||{}).value||'').trim().toLowerCase();
-  document.getElementById('split-grid').innerHTML=phys.filter(p=>matchProv(p.prov,q)).map(p=>{
-    const nm=provName(p.prov);
-    return '<label style="display:flex;gap:10px;align-items:flex-start;padding:10px 12px;border:1px solid '+
-      (splitSel[p.prov]?'var(--gold,#c8a84b)':'var(--line)')+';border-radius:9px;cursor:pointer;'+
-      'background:'+(splitSel[p.prov]?'#fdf8ec':'transparent')+'">'+
-      '<input type="checkbox" data-split="'+esc(p.prov)+'" '+(splitSel[p.prov]?'checked':'')+
-        ' onchange="toggleSplit(this)" style="margin-top:2px">'+
-      '<span><strong style="font-family:ui-monospace,monospace">'+esc(p.prov)+'</strong>'+
-      (nm?'<br><span style="font-size:11.5px;color:var(--muted)">'+esc(nm)+'</span>':'')+
-      '<br><span style="font-size:11.5px;color:var(--muted)">'+p.rows+' rows · '+
-      p.groups.length+' date'+(p.groups.length!==1?'s':'')+'</span></span></label>';
-  }).join('');
-
-  const sel=Object.keys(splitSel).filter(k=>splitSel[k]);
-  const {main,split}=splitRows(rowsAoA,cols,groups,reassign,splitSel);
-  const total=main.length+split.length;
-  const label=safeLabel(document.getElementById('split-label').value);
-  const msg=document.getElementById('split-msg');
-  if(!sel.length){
-    msg.innerHTML='<div class="alert a-info">No physicians ticked — everything goes into a single file, '+
-      '<code>'+esc(outName(srcName,'main'))+'</code> ('+total+' rows).</div>';
-  }else{
-    msg.innerHTML='<div class="alert a-ok"><strong>Two files will be produced</strong><br>'+
-      '<code>'+esc(outName(srcName,label))+'</code> — '+split.length+' rows · '+
-      sel.length+' physician'+(sel.length!==1?'s':'')+'<br>'+
-      '<code>'+esc(outName(srcName,'main'))+'</code> — '+main.length+' rows · '+
-      (byPhysician(groups,reassign).length-sel.length)+' physician(s)<br>'+
-      '<span style="font-size:11.5px">'+split.length+' + '+main.length+' = '+total+
-      ' rows · no claim appears in both.</span></div>';
-  }
-}
-
-/* ── interactions ── */
-function tick(el){
-  const k=el.dataset.tick;
-  if(el.checked)ticked[k]=true; else delete ticked[k];
-  refreshBulk();                       // cheap: the checkbox shows its own state
-}
-function clearTicks(){ticked={};renderPhys();}
-function toggleSplit(el){
-  const p=el.dataset.split;
-  if(el.checked)splitSel[p]=true; else delete splitSel[p];
-  renderSplit();
-}
-function splitNone(){splitSel={};renderSplit();}
-function undo(el){delete reassign[el.dataset.undo];renderAll();}
-
-function applyMove(el,num,name){
-  const n=pad6(num); if(!n)return;
-  if(el.dataset.group){
-    reassign[el.dataset.group]={num:n,name:name||provName(n)};
-  }else if(el.dataset.prov){
-    /* Move every date currently sitting with this physician. */
-    byPhysician(groups,reassign).filter(p=>p.prov===el.dataset.prov)
-      .forEach(p=>p.groups.forEach(g=>{reassign[g.key]={num:n,name:name||provName(n)};}));
-  }else{
-    Object.keys(ticked).forEach(k=>{reassign[k]={num:n,name:name||provName(n)};});
-    ticked={};
-  }
+  const rows=keys.reduce((a,k)=>a+(groups.find(g=>g.key===k)||{rowIdx:[]}).rowIdx.length,0);
+  moves.push({id:Date.now()+'_'+Math.random().toString(36).slice(2,7),
+    from:workProv,to:to,keys:keys,rows:rows,dates:keys.length});
+  sel={};
   renderAll();
 }
 
-/* ── typeahead ──
-   A single dropdown element is moved under whichever input has focus, then
-   parked again, so the page never holds thousands of hidden menus. */
-function parkDropdown(){
-  const dd=document.getElementById('dd-shared');
-  const park=document.getElementById('dd-park');
-  if(dd&&park&&dd.parentNode!==park){dd.classList.remove('open');park.appendChild(dd);}
+/* ── moves log ── */
+function renderLog(){
+  const card=document.getElementById('log-card');
+  card.style.display=moves.length?'block':'none';
+  const moved=groups.filter(g=>reassign[g.key]).reduce((a,g)=>a+g.rowIdx.length,0);
+  document.getElementById('moves-stat').innerHTML=moves.length
+    ? '<span style="color:var(--warn);font-weight:700">'+moves.length+' move'+
+      (moves.length!==1?'s':'')+' · '+moved+' rows reassigned</span>'
+    : '<span style="color:var(--muted)">nothing reassigned yet</span>';
+  if(!moves.length)return;
+  document.getElementById('log-table').innerHTML=
+    '<thead><tr><th>From</th><th>To</th><th style="width:150px">Moved</th>'+
+    '<th style="width:100px;text-align:right">Undo</th></tr></thead><tbody>'+
+    moves.slice().reverse().map(m=>'<tr>'+
+      '<td><strong>'+esc(dn(m.from))+'</strong><br><span style="font-size:11.5px;color:var(--muted)">'+
+        esc(pad6(m.from))+'</span></td>'+
+      '<td><strong>'+esc(dn(m.to))+'</strong><br><span style="font-size:11.5px;color:var(--muted)">'+
+        esc(pad6(m.to))+'</span></td>'+
+      '<td>'+m.dates+' date'+(m.dates!==1?'s':'')+'<br><span style="font-size:11.5px;color:var(--muted)">'+
+        m.rows+' row'+(m.rows!==1?'s':'')+'</span></td>'+
+      '<td style="text-align:right"><button class="btn btn-outline" data-undo="'+esc(m.id)+'" '+
+        'onclick="undoMove(this)">Undo</button></td></tr>').join('')+'</tbody>';
 }
-function taInput(el){
-  const dd=document.getElementById('dd-shared'); if(!dd)return;
-  const wrap=el.parentNode;
-  if(dd.parentNode!==wrap)wrap.appendChild(dd);
-  const q=el.value.trim().toLowerCase();
-  let list=provList();
-  if(q)list=list.filter(p=>p.name.toLowerCase().includes(q)||
-    p.num.includes(q)||p.num.replace(/^0+/,'').includes(q.replace(/^0+/,'')));
-  list=list.slice(0,8);
-  if(!list.length){dd.classList.remove('open');return;}
-  dd.innerHTML=list.map(p=>'<div class="ta-item" data-num="'+esc(p.num)+'" data-name="'+esc(p.name)+'">'+
-    '<strong>'+esc(p.name||'(not in registry)')+'</strong><span>'+esc(p.num)+'</span>'+
-    (p.spec?'<span>· '+esc(p.spec)+'</span>':'')+'</div>').join('');
-  dd.querySelectorAll('.ta-item').forEach(it=>it.addEventListener('mousedown',e=>{
-    e.preventDefault();
-    dd.classList.remove('open');
-    applyMove(el,it.dataset.num,it.dataset.name);
-  }));
-  dd.classList.add('open');
+function undoMove(el){
+  const id=el.dataset.undo;
+  moves=moves.filter(m=>m.id!==id);
+  renderAll();
 }
-function taBlur(el){
-  setTimeout(()=>{
-    parkDropdown();
-    /* Picking from the dropdown re-renders the table, which detaches this
-       input — without the check the stale value would be applied twice. */
-    if(!el.isConnected)return;
-    /* A bare number typed without picking a suggestion still counts. */
-    const v=el.value.trim();
-    if(/^\d{4,6}$/.test(v)){applyMove(el,v,provName(v));}
-  },180);
+function undoAll(){
+  if(!moves.length)return;
+  if(!confirm('Undo all '+moves.length+' move(s)?'))return;
+  moves=[];renderAll();
 }
-function taKey(e,el){
-  const dd=document.getElementById('dd-shared'); if(!dd)return;
-  const items=[...dd.querySelectorAll('.ta-item')];
-  const act=dd.querySelector('.ta-item.active');
-  if(e.key==='ArrowDown'){e.preventDefault();const n=act?items[items.indexOf(act)+1]:items[0];
-    if(n){if(act)act.classList.remove('active');n.classList.add('active');}}
-  else if(e.key==='ArrowUp'){e.preventDefault();const n=act?items[items.indexOf(act)-1]:items[items.length-1];
-    if(n){if(act)act.classList.remove('active');n.classList.add('active');}}
-  else if(e.key==='Enter'){e.preventDefault();
-    if(act){dd.classList.remove('open');applyMove(el,act.dataset.num,act.dataset.name);}
-    else{const v=el.value.trim();if(/^\d{4,6}$/.test(v)){dd.classList.remove('open');applyMove(el,v,provName(v));}}}
-  else if(e.key==='Escape'){dd.classList.remove('open');}
+
+/* ── split ── */
+function renderSplit(){
+  const live={}; byPhysician(groups,reassign).forEach(p=>live[p.prov]=1);
+  /* A physician can vanish once all their dates are moved away. */
+  splitList=splitList.filter(p=>live[p]);
+  document.getElementById('chips').innerHTML=splitList.length
+    ? splitList.map(p=>'<span class="chip"><strong>'+esc(dn(p))+'</strong>'+
+        '<span class="chip-num">'+esc(pad6(p))+'</span>'+
+        '<button class="chip-x" data-rm="'+esc(p)+'" onclick="chipRemove(this)" title="Remove">&times;</button>'+
+        '</span>').join('')
+    : '<span style="font-size:12.5px;color:var(--muted)">Nobody added yet — everything will go into a single file.</span>';
+  if(!nameEdited){
+    const box=document.getElementById('split-name');
+    box.value=splitList.length?splitFileName(shortName(srcName),splitList,NAMES):'';
+    box.placeholder=shortName(srcName)+'-XX YY.csv';
+  }
+  renderSplitMsg();
+}
+function chipRemove(el){
+  splitList=splitList.filter(p=>p!==el.dataset.rm);
+  renderSplit();
+}
+function mainFileName(){return shortName(srcName)+'-main.csv';}
+function splitFileNameNow(){
+  const v=(document.getElementById('split-name').value||'').trim();
+  if(v)return /\.csv$/i.test(v)?v:v+'.csv';
+  return splitFileName(shortName(srcName),splitList,NAMES);
+}
+function renderSplitMsg(){
+  const selMap={}; splitList.forEach(p=>selMap[p]=true);
+  const {main,split}=splitRows(rowsAoA,cols,groups,reassign,selMap);
+  const total=main.length+split.length;
+  const el=document.getElementById('split-msg');
+  if(!splitList.length){
+    el.innerHTML='<div class="alert a-info">One file: <code>'+esc(mainFileName())+
+      '</code> — '+total+' rows.</div>';
+    return;
+  }
+  const nMain=byPhysician(groups,reassign).length-splitList.length;
+  el.innerHTML='<div class="alert a-ok"><strong>Two files</strong><br>'+
+    '<code>'+esc(splitFileNameNow())+'</code> — '+split.length+' rows · '+
+      splitList.length+' physician'+(splitList.length!==1?'s':'')+'<br>'+
+    '<code>'+esc(mainFileName())+'</code> — '+main.length+' rows · '+
+      nMain+' physician'+(nMain!==1?'s':'')+'<br>'+
+    '<span style="font-size:11.5px">'+split.length+' + '+main.length+' = '+total+
+    ' rows · no claim appears in both.</span></div>';
+}
+
+/* ── roster ── */
+function renderRoster(){
+  const phys=byPhysician(groups,reassign).slice()
+    .sort((a,b)=>nameSortKey(a.prov,NAMES)<nameSortKey(b.prov,NAMES)?-1:1);
+  document.getElementById('roster-table').innerHTML=
+    '<thead><tr><th>Physician</th><th style="width:110px">Billing #</th>'+
+    '<th style="width:80px;text-align:center">Rows</th><th style="width:80px;text-align:center">Dates</th>'+
+    '<th style="width:120px;text-align:center">Reassigned in</th>'+
+    '<th style="width:90px;text-align:right"></th></tr></thead><tbody>'+
+    phys.map(p=>{
+      const known=!!NAMES[p.prov];
+      return '<tr'+(p.prov===workProv?' class="moved"':'')+'>'+
+      '<td>'+(known
+        ? '<strong>'+esc(dn(p.prov))+'</strong>'
+        : '<input class="ta-input nm" placeholder="Surname, First — add a name" '+
+          'data-nm="'+esc(p.prov)+'" onchange="setName(this)" style="max-width:230px">')+'</td>'+
+      '<td style="font-family:ui-monospace,monospace">'+esc(pad6(p.prov))+'</td>'+
+      '<td style="text-align:center">'+p.rows+'</td>'+
+      '<td style="text-align:center">'+p.groups.length+'</td>'+
+      '<td style="text-align:center">'+(p.moved?'<span class="date-badge db-ok">'+p.moved+' rows</span>':'')+'</td>'+
+      '<td style="text-align:right"><button class="btn btn-outline" data-work="'+esc(p.prov)+'" '+
+        'onclick="workFromRoster(this)">Open</button></td></tr>';
+    }).join('')+'</tbody>';
+}
+function workFromRoster(el){
+  workProv=el.dataset.work;sel={};
+  renderWork();renderRoster();
+  document.getElementById('work-area').scrollIntoView({behavior:'smooth',block:'center'});
+}
+function setName(el){
+  const n=pad6(el.dataset.nm), v=String(el.value||'').trim();
+  if(v)localNames[n]=v; else delete localNames[n];
+  lsp('om_cdc_names',localNames);
+  renderAll();
+}
+function importNames(input){
+  const f=input.files[0]; if(!f)return;
+  const rd=new FileReader();
+  rd.onload=e=>{
+    let added=0;
+    try{
+      const txt=e.target.result;
+      if(/^\s*[\{\[]/.test(txt)){
+        const d=JSON.parse(txt);
+        const arr=Array.isArray(d)?d:(d.om_prov?(typeof d.om_prov==='string'?JSON.parse(d.om_prov):d.om_prov):[]);
+        (arr||[]).forEach(p=>{const n=pad6(p.num);if(n&&p.name){localNames[n]=String(p.name);added++;}});
+      }else{
+        txt.split(/\r?\n/).forEach(line=>{
+          if(!line.trim())return;
+          const c=line.split(',');
+          if(c.length<2)return;
+          const n=pad6(c[0]);
+          const nm=c.slice(1).join(',').trim().replace(/^"|"$/g,'');
+          if(!n||!nm||/provider|number/i.test(c[0]))return;
+          localNames[n]=nm;added++;
+        });
+      }
+      lsp('om_cdc_names',localNames);
+      alert(added?'✓ '+added+' name(s) added.':'No names found in that file.');
+      renderAll();
+    }catch(err){alert('Could not read that file: '+err.message);}
+    input.value='';
+  };
+  rd.readAsText(f);
+}
+function exportNames(){
+  const m=nameMap();
+  const keys=Object.keys(m).sort();
+  if(!keys.length){alert('No names on file yet.');return;}
+  const csv='ProviderNumber,Name\r\n'+keys.map(k=>k+','+
+    (/[",]/.test(m[k])?'"'+m[k].replace(/"/g,'""')+'"':m[k])).join('\r\n');
+  download('CDC_physician_names.csv',csv);
 }
 
 /* ── export ── */
-/* Prefer the sheet's formatted text for date columns so an Excel serial is
-   never written in place of the date the clinic entered. */
 function cellText(r,c){
   if(!ws)return null;
   const cell=ws[XLSX.utils.encode_cell({r:r,c:c})];
@@ -790,22 +1005,18 @@ function download(name,text){
 }
 function generate(){
   if(!rowsAoA.length){alert('No file loaded.');return;}
-  const label=safeLabel(document.getElementById('split-label').value);
-  const sel=Object.keys(splitSel).filter(k=>splitSel[k]);
-  const {main,split}=splitRows(rowsAoA,cols,groups,reassign,splitSel);
-  if(sel.length&&!split.length){alert('The ticked physicians have no rows.');return;}
+  const selMap={}; splitList.forEach(p=>selMap[p]=true);
+  const {main,split}=splitRows(rowsAoA,cols,groups,reassign,selMap);
   const moved=groups.filter(g=>reassign[g.key]).reduce((a,g)=>a+g.rowIdx.length,0);
-
-  if(!sel.length){
-    download(outName(srcName,'main'),buildCSV(rowsAoA,cols,groups,reassign,main,cellText));
+  if(splitList.length&&!split.length){alert('Those physicians have no rows.');return;}
+  if(!splitList.length){
+    download(mainFileName(),buildCSV(rowsAoA,cols,groups,reassign,main,cellText));
     document.getElementById('gen-status').textContent=
       '✅ '+main.length+' rows · '+moved+' reassigned · 1 file';
     return;
   }
-  download(outName(srcName,label),buildCSV(rowsAoA,cols,groups,reassign,split,cellText));
-  setTimeout(()=>{
-    download(outName(srcName,'main'),buildCSV(rowsAoA,cols,groups,reassign,main,cellText));
-  },400);
+  download(splitFileNameNow(),buildCSV(rowsAoA,cols,groups,reassign,split,cellText));
+  setTimeout(()=>download(mainFileName(),buildCSV(rowsAoA,cols,groups,reassign,main,cellText)),400);
   document.getElementById('gen-status').textContent=
     '✅ '+split.length+' + '+main.length+' = '+(split.length+main.length)+
     ' rows · '+moved+' reassigned · 2 files';
@@ -813,8 +1024,8 @@ function generate(){
 
 function clearAll(){
   srcName='';rowsAoA=[];cols=null;groups=[];ws=null;
-  reassign={};ticked={};splitSel={};
-  document.getElementById('section-phys').style.display='none';
+  moves=[];reassign={};workProv=null;sel={};splitList=[];nameEdited=false;
+  document.getElementById('section-main').style.display='none';
   document.getElementById('zone-file').classList.remove('loaded');
   document.getElementById('file-fname').textContent='';
   document.getElementById('up-msg').innerHTML='';
@@ -925,7 +1136,7 @@ async function fsSetupOpen(){if(!FS_SUPPORTED)return;
     document.getElementById('fs-setup-modal').style.display='none';_initApp();
   }catch(e){if(e.name!=='AbortError')alert('Error: '+e.message);}}
 
-function _initApp(){providers=ls('om_prov',[]);}
+function _initApp(){providers=ls('om_prov',[]);refreshNames();}
 _fsStartup();
 </script>
 </body>
