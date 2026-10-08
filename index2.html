@@ -114,6 +114,7 @@ body::after{
 .card-inv  {--card-a:#8a9a5b;--card-b:#3f4a22}
 .card-g512 {--card-a:#c05a7d;--card-b:#5e2338}
 .card-blad {--card-a:#4a9d6e;--card-b:#1c4d33}
+.card-cdc  {--card-a:#7b5ea7;--card-b:#38275c}
 
 .card-flag{
   display:inline-flex;align-items:center;gap:7px;
@@ -136,6 +137,7 @@ body::after{
 .card-inv  .flag-dot{background:#b3c47d;box-shadow:0 0 8px #b3c47d}
 .card-g512 .flag-dot{background:#e08aa6;box-shadow:0 0 8px #e08aa6}
 .card-blad .flag-dot{background:#6fc496;box-shadow:0 0 8px #6fc496}
+.card-cdc  .flag-dot{background:#a98fd0;box-shadow:0 0 8px #a98fd0}
 
 .card-title{font-family:"Cormorant Garamond",serif;font-size:26px;font-weight:600;
              color:#fff;line-height:1.15;margin-bottom:8px;position:relative;z-index:1}
@@ -410,6 +412,11 @@ const MODULES = {
     cls:'card-blad', file:'BLADDER.html',
     flag:'RMP · MDBCC', title:'Bladder<br>Clinic',
     sub:'Multidisciplinary bladder clinic<br>Workbook · CabMD CSV', btn:'Open Tool'
+  },
+  cdc: {
+    cls:'card-cdc', file:'CDC.html',
+    flag:'DMOH · CDC', title:'CDC Provider<br>Reassignment',
+    sub:'Grouped by physician<br>Reassign + split · CSV output', btn:'Open Tool'
   }
 };
 
@@ -418,7 +425,7 @@ const SECTIONS = {
   radonc: { label:'Radiation Oncology',
             modules:['ifhp_radonc','qc','rnc','rpr','oncall','hope','bladder'] },
   medonc: { label:'DMOH',
-            modules:['ifhp_gen','qc','mhdu','repeats'] },
+            modules:['ifhp_gen','qc','mhdu','cdc','repeats'] },
   // Admin-only. Not referenced by the radonc or medonc roles, so those users
   // never see these cards.
   admin:  { label:'Administration',

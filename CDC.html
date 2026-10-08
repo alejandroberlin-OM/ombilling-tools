@@ -1,0 +1,932 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>DMOH · CDC Provider Reassignment</title>
+<link href="https://fonts.googleapis.com/css2?family=Libre+Baskerville:ital,wght@0,400;0,700;1,400&family=Source+Sans+3:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --g1:#1a5c3a;--g2:#2d7a52;--g3:#3aaa7a;--g4:#d4eddf;--g5:#f0f9f4;
+  --gold:#c8a84b;--gold2:#e0bc60;
+  --ink:#12271b;--ink2:#2a4a36;--muted:#5d7a68;
+  --bg:#edf4ef;--card:#fff;--border:#cfe3d6;
+  --ok:#186845;--ok-bg:#e3f5ed;
+  --warn:#7a5010;--warn-bg:#fdf3e0;
+  --err:#991b1b;--err-bg:#fef2f2;
+  --r:11px;--rs:6px;--sh:0 1px 3px rgba(0,0,0,.06),0 4px 14px rgba(0,0,0,.05)
+}
+body{font-family:"Source Sans 3",sans-serif;background:var(--bg);color:var(--ink);min-height:100vh;font-size:14px}
+.hdr{background:var(--g1);color:#fff;height:68px;display:flex;align-items:center;gap:18px;padding:0 28px;
+     position:sticky;top:0;z-index:300;box-shadow:0 2px 16px rgba(0,0,0,.3)}
+.hdr-title{font-family:"Libre Baskerville",serif;font-size:17px;font-weight:700;color:#fff;line-height:1.2}
+.hdr-module{font-size:11px;color:rgba(255,255,255,.6);margin-top:2px;letter-spacing:.03em}
+.hdr-brand{font-family:"Libre Baskerville",serif;font-size:13px;font-weight:700;color:rgba(255,255,255,.55);margin-left:auto}
+.hdr-tm{font-size:9px;vertical-align:super;color:var(--gold2)}
+#file-status-pill{display:none;align-items:center;gap:6px;padding:4px 12px;border-radius:20px;
+  font-size:11.5px;font-weight:600;background:rgba(255,255,255,.1);color:rgba(255,255,255,.7);
+  border:1px solid rgba(255,255,255,.2);white-space:nowrap}
+#file-status-pill.saving{color:var(--gold2)}
+#file-status-pill.saved{color:#6ee7b7}
+#file-status-pill.fallback{color:#fbbf24}
+.fsp-dot{width:7px;height:7px;border-radius:50%;background:currentColor;flex-shrink:0}
+.wrap{max-width:960px;margin:0 auto;padding:32px 24px 60px}
+.pg-title{font-family:"Libre Baskerville",serif;font-size:22px;font-weight:700;color:var(--g1);margin-bottom:4px}
+.pg-sub{font-size:13px;color:var(--muted);margin-bottom:28px;line-height:1.65}
+.card{background:var(--card);border:1px solid var(--border);border-radius:var(--r);margin-bottom:16px;overflow:hidden;box-shadow:var(--sh)}
+.card-hd{padding:13px 18px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px;background:#fafcff}
+.ct{font-size:14px;font-weight:700;color:var(--g1)}
+.cd{font-size:12px;color:var(--muted);margin-top:1px}
+.card-body{padding:18px}
+.upg{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.upz{border:2px dashed var(--border);border-radius:var(--r);padding:26px 14px;text-align:center;
+     cursor:pointer;position:relative;transition:all .2s}
+.upz:hover{border-color:var(--g3);background:var(--g5)}
+.upz.loaded{border-style:solid;border-color:var(--ok);background:var(--ok-bg)}
+.upz.optional{border-color:var(--border);background:#fafcff}
+.upz input[type=file]{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%}
+.uz-icon{font-size:28px;margin-bottom:7px;opacity:.7}
+.uz-lbl{font-size:13px;font-weight:700;color:var(--g1);margin-bottom:3px}
+.uz-hint{font-size:11px;color:var(--muted)}
+.uz-opt{font-size:10px;color:var(--muted);margin-top:4px;font-style:italic}
+.uz-file{font-size:11px;font-weight:700;margin-top:6px;word-break:break-all}
+.note{background:var(--g5);border-left:3px solid var(--g3);padding:9px 13px;
+      border-radius:0 var(--rs) var(--rs) 0;font-size:12px;color:var(--ink2);line-height:1.6}
+.alert{border-radius:var(--rs);padding:10px 13px;font-size:13px;margin-bottom:12px}
+.a-warn{background:var(--warn-bg);color:var(--warn);border:1px solid #f6d88a}
+.a-info{background:#eff6ff;color:#1e40af;border:1px solid #bfdbfe}
+.a-ok{background:var(--ok-bg);color:var(--ok);border:1px solid #86efac}
+.sstrip{display:flex;gap:0;background:var(--g1);border-radius:var(--rs);overflow:hidden;margin-bottom:16px}
+.ssi{flex:1;padding:11px 14px;border-right:1px solid rgba(255,255,255,.1)}
+.ssi:last-child{border-right:none}
+.ssl{font-size:9.5px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:rgba(255,255,255,.5);margin-bottom:2px}
+.ssv{font-size:17px;font-weight:800;color:#fff;font-family:"Libre Baskerville",serif}
+.ssv.warn{color:#fbbf24}.ssv.ok{color:#6ee7b7}
+/* Date assignment table */
+.date-table{width:100%;border-collapse:collapse}
+.date-table thead tr{background:var(--g1)}
+.date-table th{padding:9px 12px;text-align:left;color:#fff;font-size:10px;font-weight:700;letter-spacing:.07em;text-transform:uppercase}
+.date-table th:first-child{border-radius:5px 0 0 0}.date-table th:last-child{border-radius:0 5px 0 0}
+.date-table td{padding:8px 10px;border-bottom:1px solid var(--border);vertical-align:middle}
+.date-table tr:last-child td{border-bottom:none}
+.date-table tr:nth-child(even) td{background:#fafcff}
+.date-badge{display:inline-block;padding:3px 9px;border-radius:10px;font-size:11px;font-weight:700}
+.db-ok{background:var(--ok-bg);color:var(--ok)}
+.db-warn{background:var(--warn-bg);color:var(--warn)}
+.db-skip{background:#f3f4f6;color:#6b7280}
+/* Typeahead */
+.ta-wrap{position:relative;width:100%}
+.ta-input{width:100%;padding:7px 10px;border:1.5px solid var(--border);border-radius:var(--rs);
+          font-size:13px;font-family:inherit;color:var(--ink);background:#fff;outline:none;transition:border .15s}
+.ta-input:focus{border-color:var(--g3);box-shadow:0 0 0 3px rgba(64,128,192,.1)}
+.ta-input.assigned{border-color:var(--ok);background:var(--ok-bg)}
+.ta-input.unassigned{border-color:#f59e0b;background:#fef9ee}
+.ta-dropdown{position:absolute;top:calc(100% + 3px);left:0;right:0;z-index:100;
+             background:#fff;border:1.5px solid var(--g3);border-radius:var(--rs);
+             box-shadow:0 8px 24px rgba(0,0,0,.12);max-height:220px;overflow-y:auto;display:none}
+.ta-dropdown.open{display:block}
+.ta-item{padding:8px 12px;font-size:13px;cursor:pointer;transition:background .1s;border-bottom:1px solid var(--border)}
+.ta-item:last-child{border-bottom:none}
+.ta-item:hover,.ta-item.active{background:var(--g5)}
+.ta-item strong{color:var(--g1)}
+.ta-item span{font-size:11px;color:var(--muted);margin-left:6px}
+.ta-clear{position:absolute;right:8px;top:50%;transform:translateY(-50%);
+          background:none;border:none;color:var(--muted);cursor:pointer;font-size:16px;line-height:1;padding:2px}
+.ta-clear:hover{color:var(--err)}
+/* Buttons */
+.btn{display:inline-flex;align-items:center;gap:7px;padding:9px 18px;border:none;border-radius:var(--rs);
+     font-size:13.5px;font-weight:700;cursor:pointer;font-family:inherit;transition:all .15s}
+.btn-g{background:var(--g1);color:#fff}.btn-g:hover{background:var(--g2)}
+.btn-g:disabled{opacity:.45;cursor:not-allowed}
+.btn-gold{background:var(--gold);color:var(--g1)}.btn-gold:hover{background:var(--gold2)}
+.btn-outline{background:none;border:1.5px solid var(--border);color:var(--muted)}.btn-outline:hover{border-color:var(--g3);color:var(--g1)}
+.fl{font-size:10.5px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--muted);display:block;margin-bottom:4px}
+/* Footer */
+footer{background:var(--g1);color:rgba(255,255,255,.4);font-size:10.5px;padding:16px 28px;
+       text-align:center;line-height:1.75;margin-top:60px}
+footer strong{color:rgba(255,255,255,.65)}
+/* FS modals (same as other modules) */
+#fs-setup-modal{position:fixed;inset:0;z-index:9998;background:rgba(26,92,58,.92);
+  display:none;align-items:center;justify-content:center;padding:24px}
+.fs-modal-box{background:var(--card);border-radius:16px;padding:36px 40px;max-width:460px;width:100%;box-shadow:0 24px 60px rgba(0,0,0,.3)}
+.fs-modal-icon{font-size:44px;margin-bottom:14px}
+.fs-modal-title{font-family:"Libre Baskerville",serif;font-size:20px;font-weight:700;color:var(--g1);margin-bottom:8px}
+.fs-modal-body{font-size:13px;color:var(--muted);line-height:1.7;margin-bottom:24px}
+.fs-btn-row{display:flex;gap:10px;flex-direction:column}
+.fs-btn-primary{padding:12px 20px;background:var(--g1);color:#fff;border:none;border-radius:var(--rs);font-size:14px;font-weight:700;cursor:pointer;font-family:inherit;text-align:left}
+.fs-btn-primary:hover{background:var(--g2)}
+.fs-btn-secondary{padding:10px 20px;background:none;color:var(--muted);border:1.5px solid var(--border);border-radius:var(--rs);font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;text-align:left}
+.fs-btn-secondary:hover{border-color:var(--g3);color:var(--g2)}
+#fs-permission-prompt{position:fixed;inset:0;z-index:9997;background:rgba(26,92,58,.92);
+  display:none;align-items:center;justify-content:center;padding:24px}
+
+/* ── CDC additions ───────────────────────────────────────────────── */
+/* Rows are grouped under a physician header, so the zebra stripe gives way
+   to an explicit band on the header row. */
+.date-table tr:nth-child(even) td{background:transparent}
+.date-table tr.ph-head td{background:#eef3f0;border-top:2px solid var(--g1)}
+.date-table tr.ph-head:first-child td{border-top:none}
+.date-table tr.moved td{background:var(--ok-bg)}
+/* The shared dropdown is positioned against its cell. */
+.date-table td{position:relative}
+/* .card hides overflow for its rounded corners, which would clip a dropdown
+   opening near the foot of the table. */
+.card.ovis{overflow:visible}
+.exp-btn{background:none;border:none;cursor:pointer;font-size:13px;color:var(--g1);
+         padding:2px 4px;line-height:1;font-family:inherit}
+.exp-btn:hover{color:var(--g3)}
+.ta-undo{background:none;border:none;color:var(--muted);cursor:pointer;font-size:15px;
+         line-height:1;padding:0 2px}
+.ta-undo:hover{color:var(--err)}
+</style>
+<script>
+/* ══ CDC core — 3B export grouped by physician, reassign, split ══
+   Tested standalone in Node, then embedded verbatim in the module.        */
+
+
+/* ── dates ─────────────────────────────────────────────────────────── */
+const pad2 = n => String(n).padStart(2, '0');
+
+/* Normalise any date the export might carry to YYYY-MM-DD, used only as a
+   grouping key — the value written back out is always the original text. */
+function isoDate(val) {
+  const s = String(val == null ? '' : val).trim();
+  if (!s) return '';
+  let m = s.match(/^(\d{4})[\/\-.](\d{1,2})[\/\-.](\d{1,2})/);        // YYYY-MM-DD
+  if (m) return m[1] + '-' + pad2(+m[2]) + '-' + pad2(+m[3]);
+  m = s.match(/^(\d{1,2})[\/\-.](\d{1,2})[\/\-.](\d{4})$/);           // M/D/YYYY
+  if (m) {
+    let a = +m[1], b = +m[2];
+    /* The DMOH exports are month-first. A first part above 12 can only be a
+       day, so swap rather than produce an impossible month. */
+    if (a > 12 && b <= 12) { const t = a; a = b; b = t; }
+    return m[3] + '-' + pad2(a) + '-' + pad2(b);
+  }
+  if (/^\d+(\.0+)?$/.test(s)) {                                       // Excel serial
+    const n = Math.floor(parseFloat(s));
+    if (n >= 1 && n <= 2958465) {
+      const d = new Date(Date.UTC(1899, 11, 30) + n * 86400000);
+      return d.getUTCFullYear() + '-' + pad2(d.getUTCMonth() + 1) + '-' + pad2(d.getUTCDate());
+    }
+  }
+  return s;                                                            // unparseable: key on itself
+}
+/* Display as DD/MM/YYYY, matching the other DMOH tools. */
+function showDate(iso) {
+  const m = String(iso || '').match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  return m ? m[3] + '/' + m[2] + '/' + m[1] : String(iso || '');
+}
+
+const pad6 = v => {
+  const s = String(v == null ? '' : v).replace(/\.0+$/, '').trim().replace(/\D/g, '');
+  return s ? s.padStart(6, '0') : '';
+};
+/* Compare provider numbers ignoring leading zeros, so 34610 == 034610. */
+const provKey = v => {
+  const s = pad6(v);
+  return s || ('~' + String(v == null ? '' : v).trim().toUpperCase());
+};
+
+/* ── column detection ──────────────────────────────────────────────── */
+/* Headers vary between exports, so find by name and fall back to the
+   positions the 3B export uses. */
+function findCols(hdr) {
+  const low = hdr.map(h => String(h || '').trim().toLowerCase().replace(/[\s_]/g, ''));
+  const at = (...names) => {
+    for (const n of names) { const i = low.indexOf(n); if (i >= 0) return i; }
+    for (const n of names) { const i = low.findIndex(h => h.indexOf(n) === 0); if (i >= 0) return i; }
+    return -1;
+  };
+  let prov = at('providernumber', 'provnum', 'provider');
+  let date = at('servicedate', 'svcdate');
+  let code = at('servicecode', 'svccode');
+  let dob  = at('dateofbirth', 'dob');
+  let adm  = at('admissiondate');
+  let last = at('lastname');
+  let first= at('firstname');
+  let hcn  = at('healthnumber', 'hcn');
+  if (prov < 0) prov = 0;          // column A in the 3B export
+  if (date < 0) date = 14;         // column O
+  if (code < 0) code = 15;         // column P
+  return { prov, date, code, dob, adm, last, first, hcn };
+}
+
+/* ── build the physician view ──────────────────────────────────────── */
+/* rows: array of arrays, including the header row at index 0.
+   Returns one group per (original provider, service date) — the atomic unit
+   a reassignment applies to, since the user reassigns whole dates.          */
+function buildGroups(rows, cols) {
+  const groups = new Map();
+  for (let r = 1; r < rows.length; r++) {
+    const row = rows[r] || [];
+    if (row.every(c => c === null || c === undefined || String(c).trim() === '')) continue;
+    const op = provKey(row[cols.prov]);
+    const raw = row[cols.date];
+    const iso = isoDate(raw);
+    const k = op + '|' + iso;
+    if (!groups.has(k)) {
+      groups.set(k, {
+        key: k, origProv: op, iso: iso,
+        rawDate: String(raw == null ? '' : raw).trim(),
+        rowIdx: [], codes: new Map(), patients: new Set()
+      });
+    }
+    const g = groups.get(k);
+    g.rowIdx.push(r);
+    const c = String(row[cols.code] == null ? '' : row[cols.code]).trim().toUpperCase();
+    if (c) g.codes.set(c, (g.codes.get(c) || 0) + 1);
+    if (cols.hcn >= 0) {
+      const h = String(row[cols.hcn] == null ? '' : row[cols.hcn]).trim();
+      if (h) g.patients.add(h);
+    }
+  }
+  return [...groups.values()];
+}
+
+/* Effective provider for a group, after any reassignment. */
+function effProv(g, reassign) {
+  const r = reassign[g.key];
+  return r && r.num ? provKey(r.num) : g.origProv;
+}
+
+/* Roll the groups up by effective physician, which is what the split
+   selection and the export both operate on. */
+function byPhysician(groups, reassign) {
+  const map = new Map();
+  groups.forEach(g => {
+    const ep = effProv(g, reassign);
+    if (!map.has(ep)) map.set(ep, { prov: ep, groups: [], rows: 0, moved: 0 });
+    const p = map.get(ep);
+    p.groups.push(g);
+    p.rows += g.rowIdx.length;
+    if (ep !== g.origProv) p.moved += g.rowIdx.length;
+  });
+  const out = [...map.values()];
+  out.forEach(p => p.groups.sort((a, b) => a.iso < b.iso ? -1 : a.iso > b.iso ? 1 : 0));
+  out.sort((a, b) => a.prov < b.prov ? -1 : a.prov > b.prov ? 1 : 0);
+  return out;
+}
+
+/* ── split ─────────────────────────────────────────────────────────── */
+/* Every data row lands in exactly one of the two buckets. `selected` is a set
+   of effective provider keys; those go to the split file, everyone else to
+   the main file. Rows whose group could not be built (blank rows) are kept
+   with the main file so nothing is lost.                                    */
+function splitRows(rows, cols, groups, reassign, selected) {
+  const owner = new Map();                      // row index -> effective provider
+  groups.forEach(g => {
+    const ep = effProv(g, reassign);
+    g.rowIdx.forEach(i => owner.set(i, ep));
+  });
+  const main = [], split = [];
+  for (let r = 1; r < rows.length; r++) {
+    const row = rows[r] || [];
+    if (row.every(c => c === null || c === undefined || String(c).trim() === '')) continue;
+    const ep = owner.get(r);
+    (ep && selected[ep] ? split : main).push(r);
+  }
+  return { main, split };
+}
+
+/* ── output ────────────────────────────────────────────────────────── */
+/* Rebuild the file with only the provider column changed. Date columns are
+   written from the sheet's formatted text so an Excel serial is never
+   substituted for the date the clinic entered.                              */
+function buildCSV(rows, cols, groups, reassign, keepIdx, getCellText) {
+  const newProv = new Map();
+  groups.forEach(g => {
+    const ep = effProv(g, reassign);
+    if (ep !== g.origProv) g.rowIdx.forEach(i => newProv.set(i, ep));
+  });
+  const dateCols = new Set([cols.date, cols.dob, cols.adm].filter(i => i >= 0));
+  const esc = v => {
+    const s = String(v === null || v === undefined ? '' : v);
+    return /[",\r\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
+  };
+  const line = r => (rows[r] || []).map((cell, c) => {
+    if (r > 0 && c === cols.prov) {
+      const np = newProv.get(r);
+      return esc(np !== undefined ? np : pad6(cell) || String(cell == null ? '' : cell));
+    }
+    if (r > 0 && dateCols.has(c) && getCellText) {
+      const t = getCellText(r, c);
+      if (t !== null && t !== undefined && t !== '') return esc(t);
+    }
+    return esc(cell);
+  }).join(',');
+  return [line(0)].concat(keepIdx.map(line)).join('\r\n');
+}
+
+/* <base>.csv → <base>_CDC_main.csv / <base>_CDC_<label>.csv */
+function outName(srcName, suffix) {
+  const b = String(srcName || '').replace(/\.(csv|xlsx?|xlsm)$/i, '').replace(/[_ -]+$/, '');
+  return (b || 'CDC_export') + '_CDC_' + suffix + '.csv';
+}
+const safeLabel = s => String(s || '').trim().replace(/[^\w\-]+/g, '_').replace(/^_+|_+$/g, '') || 'selected';
+
+
+</script>
+</head>
+<body>
+
+<!-- FS setup modal -->
+<div id="fs-setup-modal" style="display:none">
+  <div class="fs-modal-box">
+    <div class="fs-modal-icon">💾</div>
+    <div class="fs-modal-title">Set up your data file</div>
+    <div class="fs-modal-body">Link to your <code>OM_Billing_Data.json</code> to access the shared physician registry.<br><br>
+      Use the <strong>same file</strong> as the IFHP, QC and MHDU modules to share provider data.</div>
+    <div class="fs-btn-row">
+      <button class="fs-btn-primary" onclick="fsSetupNew()">📄 Create new data file</button>
+      <button class="fs-btn-primary" onclick="fsSetupOpen()">📂 Open existing data file</button>
+      <button class="fs-btn-secondary" onclick="fsSetupSkip()">Use browser storage instead</button>
+    </div>
+  </div>
+</div>
+
+<div id="fs-permission-prompt" style="display:none">
+  <div style="background:var(--card);border-radius:16px;padding:40px 44px;max-width:400px;width:100%;text-align:center;box-shadow:0 24px 60px rgba(0,0,0,.3)">
+    <div style="font-size:48px;margin-bottom:16px">📂</div>
+    <div style="font-family:'Libre Baskerville',serif;font-size:20px;font-weight:700;color:var(--g1);margin-bottom:8px">Open Data File</div>
+    <div style="font-size:13px;color:var(--muted);margin-bottom:28px;line-height:1.7">Click below to allow access to your data file.<br><strong>Required once per browser session.</strong></div>
+    <button onclick="fsGrantPermission()" style="padding:12px 32px;background:var(--g1);color:white;border:none;border-radius:8px;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit;width:100%">📂 Open My Data File</button>
+    <div style="margin-top:14px"><button onclick="fsSkipToLocalStorage()" style="background:none;border:none;font-size:11.5px;color:var(--muted);cursor:pointer;font-family:inherit;text-decoration:underline">Use browser storage instead</button></div>
+  </div>
+</div>
+
+<header class="hdr">
+  <div>
+    <div class="hdr-title">DMOH — Princess Margaret</div>
+    <div class="hdr-module">CDC · Provider Reassignment &amp; Split</div>
+  </div>
+  <div id="file-status-pill"><span class="fsp-dot"></span><span id="fsp-label">—</span></div>
+  <div class="hdr-brand">OM Billing Inc.<span class="hdr-tm">™</span></div>
+</header>
+
+<div class="wrap">
+  <div class="pg-title">CDC Provider Reassignment</div>
+  <div class="pg-sub">
+    Upload the CDC 3B export. Claims are grouped <strong>by physician</strong>, with the service dates under each.
+    Reassign a whole physician or just selected dates, then choose which physicians go into a separate CSV.
+    Only the ProviderNumber column is ever changed — every other column is written back exactly as it came in.
+  </div>
+
+  <!-- 1 · Upload -->
+  <div class="card" id="card-upload">
+    <div class="card-hd"><div><div class="ct">📁 Upload the CDC export</div>
+      <div class="cd">3B export · ProviderNumber in column A</div></div></div>
+    <div class="card-body">
+      <div class="upg" style="grid-template-columns:1fr">
+        <div class="upz" id="zone-file">
+          <input type="file" accept=".xlsx,.xls,.csv" onchange="loadFile(this)">
+          <div class="uz-icon">📊</div>
+          <div class="uz-lbl">CDC 3B Export</div>
+          <div class="uz-hint">Excel or CSV · headers detected automatically</div>
+          <div class="uz-file" id="file-fname"></div>
+        </div>
+      </div>
+      <div id="up-msg" style="margin-top:12px"></div>
+    </div>
+  </div>
+
+  <!-- 2 · Physicians -->
+  <div id="section-phys" style="display:none">
+    <div class="card ovis">
+      <div class="card-hd">
+        <div><div class="ct">👨‍⚕️ Claims by physician</div>
+          <div class="cd">Tick dates to move only those · a physician row moves everything</div></div>
+        <div id="phys-stats" style="margin-left:auto;display:flex;gap:10px;font-size:12px;align-items:center"></div>
+      </div>
+      <div class="card-body" style="padding:0">
+        <div style="padding:12px 18px;border-bottom:1px solid var(--line);display:flex;gap:10px;
+             align-items:center;flex-wrap:wrap">
+          <input class="ta-input" id="phys-filter" style="max-width:260px" placeholder="Filter physicians…"
+                 autocomplete="off" oninput="renderPhys()">
+          <button class="btn btn-outline" onclick="expandAll(true)">Expand all</button>
+          <button class="btn btn-outline" onclick="expandAll(false)">Collapse all</button>
+          <span id="phys-filter-note" style="font-size:12px;color:var(--muted)"></span>
+        </div>
+        <div id="bulk-bar" style="display:none;padding:12px 18px;background:#fdf8ec;border-bottom:1px solid var(--line);
+             align-items:center;gap:12px;flex-wrap:wrap">
+          <strong style="font-size:13px" id="bulk-count"></strong>
+          <div class="ta-wrap" style="flex:1;min-width:220px;max-width:340px">
+            <input class="ta-input" id="bulk-input" type="text" data-ta="bulk"
+              placeholder="Reassign the ticked dates to…" autocomplete="off"
+              oninput="taInput(this)" onfocus="taInput(this)" onblur="taBlur(this)" onkeydown="taKey(event,this)">
+          </div>
+          <button class="btn btn-outline" onclick="clearTicks()">Clear ticks</button>
+        </div>
+        <table class="date-table" id="phys-table"></table>
+      </div>
+    </div>
+
+    <!-- 3 · Split -->
+    <div class="card" style="margin-top:16px">
+      <div class="card-hd">
+        <div><div class="ct">✂️ Split the export</div>
+          <div class="cd">Ticked physicians go to their own file · everyone else to the main file</div></div>
+        <div style="margin-left:auto"><button class="btn btn-outline" onclick="splitNone()">Clear selection</button></div>
+      </div>
+      <div class="card-body">
+        <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:12px">
+          <input class="ta-input" id="split-filter" style="max-width:240px" placeholder="Filter physicians…"
+                 autocomplete="off" oninput="renderSplit()">
+          <button class="btn btn-outline" onclick="splitAllShown()">Tick all shown</button>
+        </div>
+        <div id="split-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:10px;
+             max-height:340px;overflow-y:auto"></div>
+        <div class="fl" style="margin-top:16px;display:block">Name for the split file</div>
+        <input class="ta-input" id="split-label" style="max-width:280px" value="selected"
+               placeholder="selected" oninput="renderSplit()">
+        <div id="split-msg" style="margin-top:14px"></div>
+      </div>
+    </div>
+
+    <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-top:4px">
+      <button class="btn btn-gold" id="btn-gen" onclick="generate()">⚡ Generate CSV</button>
+      <button class="btn btn-outline" onclick="clearAll()">✕ Start over</button>
+      <span id="gen-status" style="font-size:12px;color:var(--muted)"></span>
+    </div>
+  </div>
+
+</div>
+
+<!-- One dropdown is reused by every typeahead: with ~2,000 possible inputs on a
+     real export, giving each its own would bloat the page for no benefit. -->
+<div id="dd-park" style="display:none"><div class="ta-dropdown" id="dd-shared"></div></div>
+
+<footer class="footer" style="margin-top:auto">
+  <strong>OM Billing Inc.™</strong> &nbsp;|&nbsp; DMOH · Princess Margaret · CDC Provider Reassignment<br>
+  Copyright © <script>document.write(new Date().getFullYear())</script> <strong>OM Billing Inc.™</strong> All rights reserved.<br>
+  Proprietary software. Patient data processed locally per PIPEDA.
+</footer>
+
+<script>
+'use strict';
+
+const DATA_KEYS=['om_prov','om_diag','om_fees','om_prem','om_settings',
+                 'om_ledger','om_inv_ctr','om_qc_diag','om_qc_loc','om_qc_set'];
+const ls=(k,d)=>{try{const s=localStorage.getItem(k);return s?JSON.parse(s):d}catch(e){return d}};
+let providers=ls('om_prov',[]);
+
+const esc=s=>String(s==null?'':s).replace(/&/g,'&amp;').replace(/"/g,'&quot;')
+  .replace(/</g,'&lt;').replace(/>/g,'&gt;');
+const slug=s=>String(s).replace(/[^a-zA-Z0-9]/g,'_');
+
+/* ── state ── */
+let srcName='', rowsAoA=[], cols=null, groups=[], ws=null;
+let reassign={};      // group key -> {num,name}
+let ticked={};        // group key -> true
+let splitSel={};      // effective provider -> true
+let expanded={};      // effective provider -> true (dates shown)
+
+/* Every provider the typeahead can offer: the registry plus anyone already
+   in the file, since a locum may not be in the registry yet. */
+function provList(){
+  const seen={}, out=[];
+  providers.forEach(p=>{
+    const n=pad6(p.num); if(!n||seen[n])return;
+    seen[n]=1; out.push({num:n,name:String(p.name||''),spec:String(p.spec||'')});
+  });
+  groups.forEach(g=>{
+    const n=g.origProv; if(!n||seen[n]||n.charAt(0)==='~')return;
+    seen[n]=1; out.push({num:n,name:'',spec:'in this file'});
+  });
+  Object.keys(reassign).forEach(k=>{
+    const n=pad6(reassign[k].num); if(!n||seen[n])return;
+    seen[n]=1; out.push({num:n,name:reassign[k].name||'',spec:'reassigned'});
+  });
+  return out.sort((a,b)=>a.num<b.num?-1:1);
+}
+function provName(num){
+  const n=pad6(num);
+  const p=providers.find(x=>pad6(x.num)===n);
+  return p?String(p.name||''):'';
+}
+
+/* ── load ── */
+async function loadFile(input){
+  const file=input.files[0]; if(!file)return;
+  srcName=file.name;
+  document.getElementById('file-fname').textContent='✓ '+file.name;
+  document.getElementById('file-fname').style.color='var(--ok)';
+  document.getElementById('zone-file').classList.add('loaded');
+  const msg=document.getElementById('up-msg');
+  try{
+    const buf=await file.arrayBuffer();
+    const wb=XLSX.read(buf,{type:'array',cellDates:false,raw:true});
+    ws=wb.Sheets[wb.SheetNames[0]];
+    rowsAoA=XLSX.utils.sheet_to_json(ws,{header:1,defval:'',raw:true});
+    if(rowsAoA.length<2){msg.innerHTML='<div class="alert a-warn">⚠ That file has no data rows.</div>';return;}
+    cols=findCols(rowsAoA[0].map(c=>String(c||'')));
+    groups=buildGroups(rowsAoA,cols);
+    if(!groups.length){msg.innerHTML='<div class="alert a-warn">⚠ No claims could be read from that file.</div>';return;}
+    reassign={};ticked={};splitSel={};
+    const nRows=groups.reduce((a,g)=>a+g.rowIdx.length,0);
+    const nProv=new Set(groups.map(g=>g.origProv)).size;
+    const hdr=rowsAoA[0].map(c=>String(c||'').trim());
+    const named=['ProviderNumber','ServiceDate','ServiceCode'].every(n=>
+      hdr.some(h=>h.toLowerCase().replace(/[\s_]/g,'')===n.toLowerCase()));
+    msg.innerHTML='<div class="alert a-ok"><strong>✓ '+esc(file.name)+'</strong><br>'+
+      nRows+' claim rows · '+nProv+' physician'+(nProv!==1?'s':'')+' · '+
+      new Set(groups.map(g=>g.iso)).size+' service dates</div>'+
+      (named?'':'<div class="alert a-warn" style="margin-top:8px"><strong>⚠ Headers not recognised</strong><br>'+
+        'Falling back to the standard 3B positions — provider in column A, service date in column O. '+
+        'Check the grouping below before exporting.</div>');
+    document.getElementById('section-phys').style.display='block';
+    renderAll();
+  }catch(err){
+    msg.innerHTML='<div class="alert a-warn"><strong>⚠ Could not read that file</strong><br>'+esc(err.message)+'</div>';
+  }
+}
+
+/* ── render ── */
+function renderAll(){renderPhys();renderSplit();}
+
+function physFilter(){
+  const q=(document.getElementById('phys-filter')||{}).value||'';
+  return q.trim().toLowerCase();
+}
+function matchProv(prov,q){
+  if(!q)return true;
+  return prov.toLowerCase().includes(q)||provName(prov).toLowerCase().includes(q);
+}
+function expandAll(on){
+  const q=physFilter();
+  byPhysician(groups,reassign).forEach(p=>{
+    if(!matchProv(p.prov,q))return;
+    if(on)expanded[p.prov]=true; else delete expanded[p.prov];
+  });
+  renderPhys();
+}
+function toggleExpand(el){
+  const p=el.dataset.exp;
+  if(expanded[p])delete expanded[p]; else expanded[p]=true;
+  renderPhys();
+}
+
+function renderPhys(){
+  parkDropdown();
+  const q=physFilter();
+  const all=byPhysician(groups,reassign);
+  const phys=all.filter(p=>matchProv(p.prov,q));
+  const note=document.getElementById('phys-filter-note');
+  if(note)note.textContent=q
+    ? phys.length+' of '+all.length+' physicians'
+    : all.length+' physicians · '+groups.length+' physician-dates';
+
+  const tbl=document.getElementById('phys-table');
+  let h='<thead><tr>'+
+    '<th style="width:34px"></th>'+
+    '<th style="width:160px">Physician</th>'+
+    '<th style="width:90px;text-align:center">Rows</th>'+
+    '<th style="width:180px">Service date</th>'+
+    '<th>Reassign to</th>'+
+    '<th style="width:120px;text-align:center">Status</th></tr></thead><tbody>';
+  phys.forEach(p=>{
+    const nm=provName(p.prov);
+    const open=!!expanded[p.prov];
+    const nTick=p.groups.filter(g=>ticked[g.key]).length;
+    h+='<tr class="ph-head">'+
+      '<td style="text-align:center"><button class="exp-btn" data-exp="'+esc(p.prov)+'" '+
+        'onclick="toggleExpand(this)" title="'+(open?'Collapse':'Expand')+'">'+(open?'&#9662;':'&#9656;')+'</button></td>'+
+      '<td><strong style="font-family:ui-monospace,monospace">'+esc(p.prov)+'</strong>'+
+        (nm?'<br><span style="font-size:11.5px;color:var(--muted)">'+esc(nm)+'</span>':'')+'</td>'+
+      '<td style="text-align:center"><strong>'+p.rows+'</strong>'+
+        '<br><span style="font-size:11px;color:var(--muted)">'+p.groups.length+' date'+
+        (p.groups.length!==1?'s':'')+'</span></td>'+
+      '<td style="font-size:12px;color:var(--muted)">'+
+        esc(showDate(p.groups[0].iso))+' &ndash; '+esc(showDate(p.groups[p.groups.length-1].iso))+
+        (nTick?'<br><span style="color:var(--gold2,#8a6d1f);font-weight:700">'+nTick+' ticked</span>':'')+'</td>'+
+      '<td><input class="ta-input" type="text" data-ta="1" data-prov="'+esc(p.prov)+'" '+
+        'placeholder="Move every date for this physician…" autocomplete="off" '+
+        'oninput="taInput(this)" onfocus="taInput(this)" onblur="taBlur(this)" onkeydown="taKey(event,this)"></td>'+
+      '<td style="text-align:center">'+(p.moved
+        ? '<span class="date-badge db-ok">'+p.moved+' moved in</span>' : '')+'</td></tr>';
+    if(!open)return;
+    p.groups.forEach(g=>{
+      const r=reassign[g.key];
+      const movedFrom=r&&g.origProv!==p.prov;
+      const codes=[...g.codes.entries()].sort((a,b)=>b[1]-a[1])
+        .map(([c,n])=>c+(n>1?'&times;'+n:'')).join(', ');
+      h+='<tr'+(movedFrom?' class="moved"':'')+'>'+
+        '<td style="text-align:center"><input type="checkbox" data-tick="'+esc(g.key)+'" '+
+          (ticked[g.key]?'checked':'')+' onchange="tick(this)"></td>'+
+        '<td></td>'+
+        '<td style="text-align:center">'+g.rowIdx.length+'</td>'+
+        '<td><strong>'+esc(showDate(g.iso))+'</strong>'+
+          '<br><span style="font-size:11px;color:var(--muted)">'+codes+'</span></td>'+
+        '<td><input class="ta-input'+(r?' assigned':'')+'" type="text" data-ta="1" '+
+          'data-group="'+esc(g.key)+'" value="'+esc(r?(r.name||r.num):'')+'" '+
+          'placeholder="Leave as '+esc(g.origProv)+'" autocomplete="off" '+
+          'oninput="taInput(this)" onfocus="taInput(this)" onblur="taBlur(this)" onkeydown="taKey(event,this)"></td>'+
+        '<td style="text-align:center">'+(movedFrom
+          ? '<span class="date-badge db-ok">from '+esc(g.origProv)+'</span>'
+            +' <button class="ta-undo" data-undo="'+esc(g.key)+'" onclick="undo(this)" title="Undo">&times;</button>'
+          : '')+'</td></tr>';
+    });
+  });
+  tbl.innerHTML=h+'</tbody>';
+  refreshBulk();
+  const moved=groups.filter(g=>reassign[g.key]).reduce((a,g)=>a+g.rowIdx.length,0);
+  document.getElementById('phys-stats').innerHTML=
+    '<span style="color:'+(moved?'var(--gold2,#8a6d1f)':'var(--muted)')+'">'+
+    (moved?moved+' row'+(moved!==1?'s':'')+' reassigned':'nothing reassigned yet')+'</span>';
+}
+
+/* Ticking must not rebuild the table — on a real export that is ~2,000 rows. */
+function refreshBulk(){
+  const keys=Object.keys(ticked);
+  const bar=document.getElementById('bulk-bar');
+  bar.style.display=keys.length?'flex':'none';
+  if(!keys.length)return;
+  const n=groups.filter(g=>ticked[g.key]).reduce((a,g)=>a+g.rowIdx.length,0);
+  document.getElementById('bulk-count').textContent=
+    keys.length+' date'+(keys.length!==1?'s':'')+' ticked · '+n+' row'+(n!==1?'s':'');
+}
+
+function splitAllShown(){
+  const q=((document.getElementById('split-filter')||{}).value||'').trim().toLowerCase();
+  byPhysician(groups,reassign).forEach(p=>{if(matchProv(p.prov,q))splitSel[p.prov]=true;});
+  renderSplit();
+}
+function renderSplit(){
+  const phys=byPhysician(groups,reassign);
+  const live={}; phys.forEach(p=>live[p.prov]=1);
+  /* A physician can disappear once all their dates are moved away. */
+  Object.keys(splitSel).forEach(k=>{if(!live[k])delete splitSel[k];});
+  const q=((document.getElementById('split-filter')||{}).value||'').trim().toLowerCase();
+  document.getElementById('split-grid').innerHTML=phys.filter(p=>matchProv(p.prov,q)).map(p=>{
+    const nm=provName(p.prov);
+    return '<label style="display:flex;gap:10px;align-items:flex-start;padding:10px 12px;border:1px solid '+
+      (splitSel[p.prov]?'var(--gold,#c8a84b)':'var(--line)')+';border-radius:9px;cursor:pointer;'+
+      'background:'+(splitSel[p.prov]?'#fdf8ec':'transparent')+'">'+
+      '<input type="checkbox" data-split="'+esc(p.prov)+'" '+(splitSel[p.prov]?'checked':'')+
+        ' onchange="toggleSplit(this)" style="margin-top:2px">'+
+      '<span><strong style="font-family:ui-monospace,monospace">'+esc(p.prov)+'</strong>'+
+      (nm?'<br><span style="font-size:11.5px;color:var(--muted)">'+esc(nm)+'</span>':'')+
+      '<br><span style="font-size:11.5px;color:var(--muted)">'+p.rows+' rows · '+
+      p.groups.length+' date'+(p.groups.length!==1?'s':'')+'</span></span></label>';
+  }).join('');
+
+  const sel=Object.keys(splitSel).filter(k=>splitSel[k]);
+  const {main,split}=splitRows(rowsAoA,cols,groups,reassign,splitSel);
+  const total=main.length+split.length;
+  const label=safeLabel(document.getElementById('split-label').value);
+  const msg=document.getElementById('split-msg');
+  if(!sel.length){
+    msg.innerHTML='<div class="alert a-info">No physicians ticked — everything goes into a single file, '+
+      '<code>'+esc(outName(srcName,'main'))+'</code> ('+total+' rows).</div>';
+  }else{
+    msg.innerHTML='<div class="alert a-ok"><strong>Two files will be produced</strong><br>'+
+      '<code>'+esc(outName(srcName,label))+'</code> — '+split.length+' rows · '+
+      sel.length+' physician'+(sel.length!==1?'s':'')+'<br>'+
+      '<code>'+esc(outName(srcName,'main'))+'</code> — '+main.length+' rows · '+
+      (byPhysician(groups,reassign).length-sel.length)+' physician(s)<br>'+
+      '<span style="font-size:11.5px">'+split.length+' + '+main.length+' = '+total+
+      ' rows · no claim appears in both.</span></div>';
+  }
+}
+
+/* ── interactions ── */
+function tick(el){
+  const k=el.dataset.tick;
+  if(el.checked)ticked[k]=true; else delete ticked[k];
+  refreshBulk();                       // cheap: the checkbox shows its own state
+}
+function clearTicks(){ticked={};renderPhys();}
+function toggleSplit(el){
+  const p=el.dataset.split;
+  if(el.checked)splitSel[p]=true; else delete splitSel[p];
+  renderSplit();
+}
+function splitNone(){splitSel={};renderSplit();}
+function undo(el){delete reassign[el.dataset.undo];renderAll();}
+
+function applyMove(el,num,name){
+  const n=pad6(num); if(!n)return;
+  if(el.dataset.group){
+    reassign[el.dataset.group]={num:n,name:name||provName(n)};
+  }else if(el.dataset.prov){
+    /* Move every date currently sitting with this physician. */
+    byPhysician(groups,reassign).filter(p=>p.prov===el.dataset.prov)
+      .forEach(p=>p.groups.forEach(g=>{reassign[g.key]={num:n,name:name||provName(n)};}));
+  }else{
+    Object.keys(ticked).forEach(k=>{reassign[k]={num:n,name:name||provName(n)};});
+    ticked={};
+  }
+  renderAll();
+}
+
+/* ── typeahead ──
+   A single dropdown element is moved under whichever input has focus, then
+   parked again, so the page never holds thousands of hidden menus. */
+function parkDropdown(){
+  const dd=document.getElementById('dd-shared');
+  const park=document.getElementById('dd-park');
+  if(dd&&park&&dd.parentNode!==park){dd.classList.remove('open');park.appendChild(dd);}
+}
+function taInput(el){
+  const dd=document.getElementById('dd-shared'); if(!dd)return;
+  const wrap=el.parentNode;
+  if(dd.parentNode!==wrap)wrap.appendChild(dd);
+  const q=el.value.trim().toLowerCase();
+  let list=provList();
+  if(q)list=list.filter(p=>p.name.toLowerCase().includes(q)||
+    p.num.includes(q)||p.num.replace(/^0+/,'').includes(q.replace(/^0+/,'')));
+  list=list.slice(0,8);
+  if(!list.length){dd.classList.remove('open');return;}
+  dd.innerHTML=list.map(p=>'<div class="ta-item" data-num="'+esc(p.num)+'" data-name="'+esc(p.name)+'">'+
+    '<strong>'+esc(p.name||'(not in registry)')+'</strong><span>'+esc(p.num)+'</span>'+
+    (p.spec?'<span>· '+esc(p.spec)+'</span>':'')+'</div>').join('');
+  dd.querySelectorAll('.ta-item').forEach(it=>it.addEventListener('mousedown',e=>{
+    e.preventDefault();
+    dd.classList.remove('open');
+    applyMove(el,it.dataset.num,it.dataset.name);
+  }));
+  dd.classList.add('open');
+}
+function taBlur(el){
+  setTimeout(()=>{
+    parkDropdown();
+    /* Picking from the dropdown re-renders the table, which detaches this
+       input — without the check the stale value would be applied twice. */
+    if(!el.isConnected)return;
+    /* A bare number typed without picking a suggestion still counts. */
+    const v=el.value.trim();
+    if(/^\d{4,6}$/.test(v)){applyMove(el,v,provName(v));}
+  },180);
+}
+function taKey(e,el){
+  const dd=document.getElementById('dd-shared'); if(!dd)return;
+  const items=[...dd.querySelectorAll('.ta-item')];
+  const act=dd.querySelector('.ta-item.active');
+  if(e.key==='ArrowDown'){e.preventDefault();const n=act?items[items.indexOf(act)+1]:items[0];
+    if(n){if(act)act.classList.remove('active');n.classList.add('active');}}
+  else if(e.key==='ArrowUp'){e.preventDefault();const n=act?items[items.indexOf(act)-1]:items[items.length-1];
+    if(n){if(act)act.classList.remove('active');n.classList.add('active');}}
+  else if(e.key==='Enter'){e.preventDefault();
+    if(act){dd.classList.remove('open');applyMove(el,act.dataset.num,act.dataset.name);}
+    else{const v=el.value.trim();if(/^\d{4,6}$/.test(v)){dd.classList.remove('open');applyMove(el,v,provName(v));}}}
+  else if(e.key==='Escape'){dd.classList.remove('open');}
+}
+
+/* ── export ── */
+/* Prefer the sheet's formatted text for date columns so an Excel serial is
+   never written in place of the date the clinic entered. */
+function cellText(r,c){
+  if(!ws)return null;
+  const cell=ws[XLSX.utils.encode_cell({r:r,c:c})];
+  if(!cell)return null;
+  return cell.w!==undefined?cell.w:(cell.v!==undefined?cell.v:null);
+}
+function download(name,text){
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(new Blob([text],{type:'text/csv;charset=utf-8;'}));
+  a.download=name;a.click();
+  setTimeout(()=>URL.revokeObjectURL(a.href),1000);
+}
+function generate(){
+  if(!rowsAoA.length){alert('No file loaded.');return;}
+  const label=safeLabel(document.getElementById('split-label').value);
+  const sel=Object.keys(splitSel).filter(k=>splitSel[k]);
+  const {main,split}=splitRows(rowsAoA,cols,groups,reassign,splitSel);
+  if(sel.length&&!split.length){alert('The ticked physicians have no rows.');return;}
+  const moved=groups.filter(g=>reassign[g.key]).reduce((a,g)=>a+g.rowIdx.length,0);
+
+  if(!sel.length){
+    download(outName(srcName,'main'),buildCSV(rowsAoA,cols,groups,reassign,main,cellText));
+    document.getElementById('gen-status').textContent=
+      '✅ '+main.length+' rows · '+moved+' reassigned · 1 file';
+    return;
+  }
+  download(outName(srcName,label),buildCSV(rowsAoA,cols,groups,reassign,split,cellText));
+  setTimeout(()=>{
+    download(outName(srcName,'main'),buildCSV(rowsAoA,cols,groups,reassign,main,cellText));
+  },400);
+  document.getElementById('gen-status').textContent=
+    '✅ '+split.length+' + '+main.length+' = '+(split.length+main.length)+
+    ' rows · '+moved+' reassigned · 2 files';
+}
+
+function clearAll(){
+  srcName='';rowsAoA=[];cols=null;groups=[];ws=null;
+  reassign={};ticked={};splitSel={};
+  document.getElementById('section-phys').style.display='none';
+  document.getElementById('zone-file').classList.remove('loaded');
+  document.getElementById('file-fname').textContent='';
+  document.getElementById('up-msg').innerHTML='';
+  document.getElementById('gen-status').textContent='';
+}
+
+/* ── token / domain check ── */
+async function _verifyToken(){
+  const meta=document.querySelector('meta[name="om-token"]');
+  if(!meta)return false;
+  const token=meta.content;
+  const dateStr=meta.dataset.date||new Date().toISOString().slice(0,10);
+  const data=new TextEncoder().encode(dateStr+'OM2026BillingSuiteSecure');
+  const hash=await crypto.subtle.digest('SHA-256',data);
+  const expected=Array.from(new Uint8Array(hash)).map(b=>b.toString(16).padStart(2,'0')).join('').slice(0,16);
+  return token===expected;
+}
+function _checkDomain(){
+  const host=window.location.hostname;
+  const allowed=['om-billing.com','tools.om-billing.com','pages.dev','localhost','127.0.0.1'];
+  if(allowed.some(d=>host===d||host.endsWith('.'+d))){
+    _verifyToken().then(valid=>{
+      if(!valid && window.location.protocol!=='file:')
+        console.warn('OM Billing: token mismatch — possible tampering');
+    });
+    return true;
+  }
+  if(window.location.protocol==='file:'){
+    document.body.innerHTML='<div style="position:fixed;inset:0;background:#1a4070;display:flex;flex-direction:column;'+
+      'align-items:center;justify-content:center;font-family:sans-serif;text-align:center;padding:40px">'+
+      '<div style="font-size:48px;margin-bottom:20px">🔒</div>'+
+      '<div style="font-size:24px;font-weight:700;color:#fff;margin-bottom:12px">Unauthorized Use</div>'+
+      '<div style="font-size:14px;color:rgba(255,255,255,.6);max-width:420px;line-height:1.7">'+
+      'This software is licensed for use via the OM Billing portal only.<br>'+
+      'Access at <strong style="color:#4080c0">om-billing.com</strong><br><br>'+
+      'Contact: <strong style="color:#4080c0">admin@om-billing.com</strong></div></div>';
+    return false;
+  }
+  return true;
+}
+
+/* ── shared data file (same IDB store as IFHP/QC/MHDU) ── */
+const FS_SUPPORTED=typeof window.showSaveFilePicker==='function';
+let _fileHandle=null,_usingFS=false;
+function _idb(){return new Promise((res,rej)=>{const req=indexedDB.open('OM_Billing_FS',1);
+  req.onupgradeneeded=e=>e.target.result.createObjectStore('handles');
+  req.onsuccess=e=>res(e.target.result);req.onerror=rej;});}
+async function _saveHandle(h){const db=await _idb();return new Promise((res,rej)=>{
+  const tx=db.transaction('handles','readwrite');tx.objectStore('handles').put(h,'dataFile');
+  tx.oncomplete=res;tx.onerror=rej;});}
+async function _loadHandle(){const db=await _idb();return new Promise(res=>{
+  const tx=db.transaction('handles','readonly');const req=tx.objectStore('handles').get('dataFile');
+  req.onsuccess=e=>res(e.target.result||null);req.onerror=()=>res(null);});}
+async function _clearHandle(){const db=await _idb();return new Promise((res,rej)=>{
+  const tx=db.transaction('handles','readwrite');tx.objectStore('handles').delete('dataFile');
+  tx.oncomplete=res;tx.onerror=rej;});}
+function _setPill(state,label){const pill=document.getElementById('file-status-pill');if(!pill)return;
+  pill.style.display='flex';pill.className='';pill.id='file-status-pill';pill.classList.add(state);
+  document.getElementById('fsp-label').textContent=label;}
+async function _activateHandle(handle,isNew){
+  _fileHandle=handle;_usingFS=true;await _saveHandle(handle);
+  if(!isNew){
+    try{
+      const file=await handle.getFile();
+      const data=JSON.parse(await file.text());
+      DATA_KEYS.forEach(k=>{if(data[k]!==undefined)localStorage.setItem(k,data[k]);});
+      providers=ls('om_prov',[]);
+    }catch(e){}
+  }
+  const name=await handle.getFile().then(f=>f.name);
+  _setPill('saved','✓ '+name);
+}
+async function _fsStartup(){
+  if(!_checkDomain())return;
+  if(!FS_SUPPORTED){_setPill('fallback','⚠ Browser storage');_initApp();return;}
+  const handle=await _loadHandle();
+  if(!handle){document.getElementById('fs-setup-modal').style.display='flex';return;}
+  try{
+    const perm=await handle.queryPermission({mode:'readwrite'});
+    if(perm==='granted'){await _activateHandle(handle,false);_initApp();return;}
+  }catch(e){}
+  document.getElementById('fs-permission-prompt').style.display='flex';
+}
+async function fsGrantPermission(){
+  document.getElementById('fs-permission-prompt').style.display='none';
+  const handle=await _loadHandle();
+  if(!handle){document.getElementById('fs-setup-modal').style.display='flex';return;}
+  try{
+    const perm=await handle.requestPermission({mode:'readwrite'});
+    if(perm==='granted'){await _activateHandle(handle,false);_initApp();}
+    else{await _clearHandle();_usingFS=false;_setPill('fallback','⚠ Browser storage');_initApp();}
+  }catch(e){await _clearHandle();_usingFS=false;_setPill('fallback','⚠ Browser storage');_initApp();}
+}
+function fsSkipToLocalStorage(){document.getElementById('fs-permission-prompt').style.display='none';
+  _usingFS=false;_setPill('fallback','⚠ Browser storage');_initApp();}
+function fsSetupSkip(){document.getElementById('fs-setup-modal').style.display='none';
+  _usingFS=false;_setPill('fallback','⚠ Browser storage');_initApp();}
+async function fsSetupNew(){if(!FS_SUPPORTED)return;
+  try{const handle=await window.showSaveFilePicker({suggestedName:'OM_Billing_Data.json',
+    types:[{description:'OM Billing Data',accept:{'application/json':['.json']}}]});
+    await _activateHandle(handle,true);
+    document.getElementById('fs-setup-modal').style.display='none';_initApp();
+  }catch(e){if(e.name!=='AbortError')alert('Error: '+e.message);}}
+async function fsSetupOpen(){if(!FS_SUPPORTED)return;
+  try{const[handle]=await window.showOpenFilePicker({
+    types:[{description:'OM Billing Data',accept:{'application/json':['.json']}}]});
+    await _activateHandle(handle,false);
+    document.getElementById('fs-setup-modal').style.display='none';_initApp();
+  }catch(e){if(e.name!=='AbortError')alert('Error: '+e.message);}}
+
+function _initApp(){providers=ls('om_prov',[]);}
+_fsStartup();
+</script>
+</body>
+</html>
