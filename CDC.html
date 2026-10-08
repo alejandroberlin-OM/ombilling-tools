@@ -172,6 +172,7 @@ footer strong{color:rgba(255,255,255,.65)}
 /* Roster */
 .ta-input.nm{padding:5px 8px;font-size:12.5px}
 #roster-table tr.moved td{background:var(--g5)}
+#roster-table tr.staged td{background:var(--warn-bg)}
 </style>
 <script>
 /* ══ CDC core — 3B export grouped by physician, reassign, split ══
@@ -558,6 +559,7 @@ const safeLabel = s => String(s || '').trim().replace(/[^\w\-]+/g, '_').replace(
         </div></div>
       <div class="card-body" style="padding:0;overflow:auto;max-height:420px">
         <table class="date-table" id="roster-table"></table></div>
+      <div style="padding:14px 18px;border-top:1px solid var(--border)" id="save-bar"></div>
     </div>
 
   </div>
@@ -580,7 +582,22 @@ const esc=s=>String(s==null?'':s).replace(/&/g,'&amp;').replace(/"/g,'&quot;')
   .replace(/</g,'&lt;').replace(/>/g,'&gt;');
 
 let providers=ls('om_prov',[]);
-let localNames=ls('om_cdc_names',{});     // numbers named here, not in the registry
+
+/* Entries typed here but not yet written to the shared data file. Same shape
+   as om_prov so they can be merged into it without translation. */
+let localProv=ls('om_cdc_prov',{});       // num -> {name,cpso,spec}
+(function migrate(){                       // older builds stored names only
+  const old=ls('om_cdc_names',null);
+  if(old&&typeof old==='object'&&!Array.isArray(old)){
+    let n=0;
+    Object.keys(old).forEach(k=>{
+      const num=pad6(k);
+      if(num&&old[k]&&!localProv[num]){localProv[num]={name:String(old[k]),cpso:'',spec:''};n++;}
+    });
+    if(n)lsp('om_cdc_prov',localProv);
+    try{localStorage.removeItem('om_cdc_names');}catch(e){}
+  }
+})();
 
 /* ── state ── */
 let srcName='', rowsAoA=[], cols=null, groups=[], ws=null;
@@ -591,12 +608,35 @@ let sel={};            // group key -> ticked, within the work area
 let splitList=[];      // effective providers going to the split file, in the order added
 let nameEdited=false;
 
-/* Registry first, then anything named locally. */
+/* The registry is the base; anything staged here overrides it until saved. */
 function nameMap(){
   const m={};
   providers.forEach(p=>{const n=pad6(p.num); if(n&&p.name)m[n]=String(p.name);});
-  Object.keys(localNames).forEach(k=>{if(localNames[k])m[pad6(k)]=localNames[k];});
+  Object.keys(localProv).forEach(k=>{
+    const v=localProv[k]; if(v&&v.name)m[pad6(k)]=String(v.name);
+  });
   return m;
+}
+/* Everything known about a physician, and where each part came from. */
+function provInfo(num){
+  const n=pad6(num);
+  const reg=providers.find(p=>pad6(p.num)===n)||{};
+  const loc=localProv[n]||{};
+  return{
+    num:n,
+    name:String(loc.name||reg.name||'').trim(),
+    cpso:String(loc.cpso||reg.cpso||'').trim(),
+    spec:String(loc.spec||reg.spec||'').trim(),
+    staged:!!localProv[n],
+    inRegistry:!!reg.num
+  };
+}
+function pendingEntries(){
+  return Object.keys(localProv)
+    .filter(k=>String((localProv[k]||{}).name||'').trim())
+    .map(k=>({num:pad6(k),name:String(localProv[k].name||'').trim(),
+              cpso:String(localProv[k].cpso||'').trim(),
+              spec:String(localProv[k].spec||'').trim()}));
 }
 let NAMES={};
 function refreshNames(){NAMES=nameMap();}
@@ -920,37 +960,149 @@ function renderSplitMsg(){
 function renderRoster(){
   const phys=byPhysician(groups,reassign).slice()
     .sort((a,b)=>nameSortKey(a.prov,NAMES)<nameSortKey(b.prov,NAMES)?-1:1);
+  const fld=(num,f,val,ph,w)=>'<input class="ta-input nm" style="max-width:'+w+'px" '+
+    'value="'+esc(val)+'" placeholder="'+ph+'" data-n="'+esc(num)+'" data-f="'+f+'" '+
+    'onchange="setField(this)">';
   document.getElementById('roster-table').innerHTML=
-    '<thead><tr><th>Physician</th><th style="width:110px">Billing #</th>'+
-    '<th style="width:80px;text-align:center">Rows</th><th style="width:80px;text-align:center">Dates</th>'+
-    '<th style="width:120px;text-align:center">Reassigned in</th>'+
-    '<th style="width:90px;text-align:right"></th></tr></thead><tbody>'+
+    '<thead><tr><th style="width:230px">Physician</th><th style="width:100px">Billing #</th>'+
+    '<th style="width:110px">CPSO</th><th style="width:150px">Specialty</th>'+
+    '<th style="width:70px;text-align:center">Rows</th><th style="width:70px;text-align:center">Dates</th>'+
+    '<th style="width:140px;text-align:right"></th></tr></thead><tbody>'+
     phys.map(p=>{
-      const known=!!NAMES[p.prov];
-      return '<tr'+(p.prov===workProv?' class="moved"':'')+'>'+
-      '<td>'+(known
+      const inf=provInfo(p.prov);
+      const cls=[]; if(p.prov===workProv)cls.push('moved'); if(inf.staged)cls.push('staged');
+      return '<tr'+(cls.length?' class="'+cls.join(' ')+'"':'')+'>'+
+      '<td>'+(inf.name&&!inf.staged
         ? '<strong>'+esc(dn(p.prov))+'</strong>'
-        : '<input class="ta-input nm" placeholder="Surname, First — add a name" '+
-          'data-nm="'+esc(p.prov)+'" onchange="setName(this)" style="max-width:230px">')+'</td>'+
+        : fld(p.prov,'name',inf.name,'Surname, First',210))+'</td>'+
       '<td style="font-family:ui-monospace,monospace">'+esc(pad6(p.prov))+'</td>'+
+      '<td>'+(inf.cpso&&!inf.staged
+        ? '<span style="font-family:ui-monospace,monospace">'+esc(inf.cpso)+'</span>'
+        : fld(p.prov,'cpso',inf.cpso,'optional',92))+'</td>'+
+      '<td>'+(inf.spec&&!inf.staged
+        ? esc(inf.spec)
+        : fld(p.prov,'spec',inf.spec,'optional',132))+'</td>'+
       '<td style="text-align:center">'+p.rows+'</td>'+
       '<td style="text-align:center">'+p.groups.length+'</td>'+
-      '<td style="text-align:center">'+(p.moved?'<span class="date-badge db-ok">'+p.moved+' rows</span>':'')+'</td>'+
-      '<td style="text-align:right"><button class="btn btn-outline" data-work="'+esc(p.prov)+'" '+
+      '<td style="text-align:right;white-space:nowrap">'+
+        (inf.staged?'<span class="date-badge db-warn">unsaved</span> ':'')+
+        (p.moved?'<span class="date-badge db-ok">+'+p.moved+'</span> ':'')+
+        '<button class="btn btn-outline" data-work="'+esc(p.prov)+'" '+
         'onclick="workFromRoster(this)">Open</button></td></tr>';
     }).join('')+'</tbody>';
+  renderSaveBar();
 }
 function workFromRoster(el){
   workProv=el.dataset.work;sel={};
   renderWork();renderRoster();
   document.getElementById('work-area').scrollIntoView({behavior:'smooth',block:'center'});
 }
-function setName(el){
-  const n=pad6(el.dataset.nm), v=String(el.value||'').trim();
-  if(v)localNames[n]=v; else delete localNames[n];
-  lsp('om_cdc_names',localNames);
+function setField(el){
+  const n=pad6(el.dataset.n), f=el.dataset.f, v=String(el.value||'').trim();
+  const base=provInfo(n);
+  localProv[n]=localProv[n]||{name:base.name,cpso:base.cpso,spec:base.spec};
+  localProv[n][f]=v;
+  /* An entry with nothing in it is not worth keeping. */
+  const e=localProv[n];
+  if(!e.name&&!e.cpso&&!e.spec)delete localProv[n];
+  lsp('om_cdc_prov',localProv);
   renderAll();
 }
+
+/* ── writing back to the shared data file ── */
+function renderSaveBar(){
+  const pend=pendingEntries();
+  const el=document.getElementById('save-bar');
+  if(!el)return;
+  if(!pend.length){
+    el.innerHTML='<span style="font-size:12.5px;color:var(--muted)">'+
+      'Everything on this page is already in the data file or the registry.</span>';
+    return;
+  }
+  const noName=Object.keys(localProv).filter(k=>!String((localProv[k]||{}).name||'').trim()).length;
+  el.innerHTML='<div class="alert a-warn" style="margin:0"><strong>⚠ '+pend.length+
+    ' physician'+(pend.length!==1?'s':'')+' not yet in the data file</strong><br>'+
+    'They are held in this browser only. Save them into the shared <code>om_prov</code> registry so '+
+    'the other modules can use them.'+
+    (noName?'<br><span style="font-size:11.5px">'+noName+
+      ' row(s) have a CPSO or specialty but no name — a name is required to save them.</span>':'')+
+    '</div>'+
+    '<div style="margin-top:10px;display:flex;gap:10px;flex-wrap:wrap;align-items:center">'+
+      '<button class="btn btn-gold" onclick="saveToDataFile()">💾 Save '+pend.length+
+        ' to the data file</button>'+
+      '<button class="btn btn-outline" onclick="discardStaged()">Discard unsaved</button></div>';
+}
+function discardStaged(){
+  const n=Object.keys(localProv).length;
+  if(!n)return;
+  if(!confirm('Discard '+n+' unsaved physician record(s)?'))return;
+  localProv={};lsp('om_cdc_prov',localProv);renderAll();
+}
+/* Merge into om_prov without disturbing anything else in the file. A partial
+   record (name only) is still worth having — IFHP already flags a missing
+   CPSO when it needs one. */
+async function saveToDataFile(){
+  const pend=pendingEntries();
+  if(!pend.length){alert('Nothing to save.');return;}
+  if(!_usingFS||!_fileHandle){
+    alert('No data file is linked to this browser.\n\n'+
+      'Reload and choose "Open existing data file", or use "Export names" to write a CSV '+
+      'you can import from the IFHP Doctors registry.');
+    return;
+  }
+  let data={};
+  try{
+    const txt=await (await _fileHandle.getFile()).text();
+    if(txt.trim()){
+      try{data=JSON.parse(txt);}
+      catch(e){
+        alert('⚠ The data file could not be read, so nothing was written.\n\n'+e.message+
+              '\n\nKeep a copy of it before trying again.');
+        return;
+      }
+    }
+  }catch(e){alert('Could not open the data file: '+e.message);return;}
+
+  let prov=[];
+  if(data.om_prov!==undefined&&data.om_prov!==null){
+    try{prov=(typeof data.om_prov==='string')?JSON.parse(data.om_prov):data.om_prov;}
+    catch(e){
+      alert('⚠ The Doctors registry inside that file is unreadable, so nothing was written.\n\n'+
+            'Re-import it from CSV in an IFHP module first.');
+      return;
+    }
+  }
+  if(!Array.isArray(prov))prov=[];
+
+  let added=0,filled=0;
+  pend.forEach(e=>{
+    const i=prov.findIndex(x=>pad6(x.num)===e.num);
+    if(i<0){prov.push({num:e.num,name:e.name,spec:e.spec,cpso:e.cpso});added++;return;}
+    const row=prov[i];let touched=false;
+    /* Only fill blanks — never overwrite something already in the registry. */
+    if(!String(row.name||'').trim()&&e.name){row.name=e.name;touched=true;}
+    if(!String(row.cpso||'').trim()&&e.cpso){row.cpso=e.cpso;touched=true;}
+    if(!String(row.spec||'').trim()&&e.spec){row.spec=e.spec;touched=true;}
+    if(touched)filled++;
+  });
+
+  data.om_prov=JSON.stringify(prov);
+  data._saved=new Date().toISOString();
+  if(!data._version)data._version='OM-v1';
+  try{
+    const w=await _fileHandle.createWritable();
+    await w.write(JSON.stringify(data,null,1));
+    await w.close();
+  }catch(e){alert('Could not write to the data file: '+e.message);return;}
+
+  try{localStorage.setItem('om_prov',data.om_prov);}catch(e){}
+  providers=ls('om_prov',[]);
+  localProv={};lsp('om_cdc_prov',localProv);
+  renderAll();
+  alert('✓ Saved to the data file.\n\n'+added+' new physician(s) added, '+filled+
+        ' existing record(s) completed.\nEverything else in the file was left untouched.');
+}
+
 function importNames(input){
   const f=input.files[0]; if(!f)return;
   const rd=new FileReader();
@@ -961,19 +1113,26 @@ function importNames(input){
       if(/^\s*[\{\[]/.test(txt)){
         const d=JSON.parse(txt);
         const arr=Array.isArray(d)?d:(d.om_prov?(typeof d.om_prov==='string'?JSON.parse(d.om_prov):d.om_prov):[]);
-        (arr||[]).forEach(p=>{const n=pad6(p.num);if(n&&p.name){localNames[n]=String(p.name);added++;}});
+        (arr||[]).forEach(p=>{const n=pad6(p.num);if(!n||!p.name)return;
+          localProv[n]={name:String(p.name),cpso:String(p.cpso||''),spec:String(p.spec||'')};added++;});
       }else{
         txt.split(/\r?\n/).forEach(line=>{
           if(!line.trim())return;
-          const c=line.split(',');
+          let c=line.split(',');
           if(c.length<2)return;
           const n=pad6(c[0]);
-          const nm=c.slice(1).join(',').trim().replace(/^"|"$/g,'');
+          /* A quoted "Surname, First" arrives split across cells; rejoin it. */
+          let rest=line.slice(line.indexOf(',')+1).trim();
+          let nm;
+          const q=rest.match(/^"([^"]*)"/);
+          if(q){nm=q[1];rest=rest.slice(q[0].length).replace(/^,/,'');c=[c[0],nm].concat(rest.split(','));}
+          else {nm=(c[1]||'').trim();}
           if(!n||!nm||/provider|number/i.test(c[0]))return;
-          localNames[n]=nm;added++;
+          localProv[n]={name:nm,cpso:(c[2]||'').trim().replace(/^"|"$/g,''),
+                        spec:(c[3]||'').trim().replace(/^"|"$/g,'')};added++;
         });
       }
-      lsp('om_cdc_names',localNames);
+      lsp('om_cdc_prov',localProv);
       alert(added?'✓ '+added+' name(s) added.':'No names found in that file.');
       renderAll();
     }catch(err){alert('Could not read that file: '+err.message);}
@@ -982,12 +1141,16 @@ function importNames(input){
   rd.readAsText(f);
 }
 function exportNames(){
-  const m=nameMap();
-  const keys=Object.keys(m).sort();
-  if(!keys.length){alert('No names on file yet.');return;}
-  const csv='ProviderNumber,Name\r\n'+keys.map(k=>k+','+
-    (/[",]/.test(m[k])?'"'+m[k].replace(/"/g,'""')+'"':m[k])).join('\r\n');
-  download('CDC_physician_names.csv',csv);
+  const seen={};
+  byPhysician(groups,reassign).forEach(p=>seen[p.prov]=1);
+  providers.forEach(p=>{const n=pad6(p.num);if(n)seen[n]=1;});
+  Object.keys(localProv).forEach(k=>seen[pad6(k)]=1);
+  const keys=Object.keys(seen).sort();
+  const q=v=>/[",]/.test(v)?'"'+String(v).replace(/"/g,'""')+'"':String(v);
+  const lines=keys.map(k=>{const i=provInfo(k);return [k,q(i.name),q(i.cpso),q(i.spec)].join(',');})
+    .filter(l=>l.split(',').slice(1).join('').replace(/,/g,'').trim());
+  if(!lines.length){alert('No names on file yet.');return;}
+  download('CDC_physicians.csv','ProviderNumber,Name,CPSO,Specialty\r\n'+lines.join('\r\n'));
 }
 
 /* ── export ── */
