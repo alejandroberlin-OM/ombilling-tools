@@ -1273,7 +1273,7 @@ const D_PREM=[
   {code:"E082",pct:"15",applies:"all",desc:"After-hours premium (weekend/holiday)"},
   {code:"E083",pct:"15",applies:"all",desc:"After-hours premium (night)"},
 ];
-const D_SET={cn:"",addr:"",city:"",prov:"",post:"",phone:"",fax:"",invPrefix:"INV",diagFmt:"icd10",diagFmtV:2};
+const D_SET={cn:"",addr:"",city:"",prov:"",post:"",phone:"",fax:"",invPrefix:"INV",diagFmt:"icd9",diagFmtV:3};
 
 // ── Persistence ───────────────────────────────────────────────────────
 // Reads a JSON value from localStorage. Detects the "[object Object],..."
@@ -1308,14 +1308,16 @@ let diagRepaired=0;   // set on boot by normalizeDiagnoses()
 let fees=ls('om_fees',JSON.parse(JSON.stringify(D_FEES)));
 let premiums=ls('om_prem',JSON.parse(JSON.stringify(D_PREM)));
 let settings=ls('om_settings',JSON.parse(JSON.stringify(D_SET)));migrateSettings();
-// v2: the diagnosis column prints the ICD-10 code by default. Settings saved
-// before this still say 'short', so flip them once; a later manual choice sticks.
+// v3: DMOH bills with the OHIP 3-digit diagnostic code and wants no ICD
+// conversion, so the diagnosis column now prints the code exactly as the export
+// supplies it. Earlier settings said 'short' (v1) or 'icd10' (v2); flip them
+// once. A manual choice made after this sticks.
 // Runs during boot, before the file-save machinery exists, so it writes
 // localStorage directly (lsp() would call _scheduleSave too early and halt the script).
 function migrateSettings(){
   try{
-    if(!settings||(settings.diagFmtV||0)>=2)return;
-    settings.diagFmt='icd10';settings.diagFmtV=2;
+    if(!settings||(settings.diagFmtV||0)>=3)return;
+    settings.diagFmt='icd9';settings.diagFmtV=3;
     localStorage.setItem('om_settings',JSON.stringify(settings));
   }catch(e){console.warn('settings migration skipped',e);}
 }
@@ -1361,13 +1363,13 @@ function go(name,btn){
 function loadSettingsUI(){
   ['cn','addr','city','prov','post','phone','fax'].forEach(k=>document.getElementById('s-'+k).value=settings[k]||'');
   const pfx=document.getElementById('s-invprefix');if(pfx){pfx.value=settings.invPrefix||'';_updateInvPreview();}
-  const df=document.getElementById('s-diagfmt');if(df)df.value=settings.diagFmt||'icd10';
+  const df=document.getElementById('s-diagfmt');if(df)df.value=settings.diagFmt||'icd9';
 }
 function saveSettings(){
   settings={cn:g('s-cn'),addr:g('s-addr'),city:g('s-city'),prov:g('s-prov'),
             post:g('s-post'),phone:g('s-phone'),fax:g('s-fax'),
             invPrefix:(g('s-invprefix')||'INV').replace(/[-\s]+$/,'').replace(/\s+/g,'').toUpperCase().slice(0,6),
-            diagFmt:(document.getElementById('s-diagfmt')||{}).value||'icd10',diagFmtV:2};
+            diagFmt:(document.getElementById('s-diagfmt')||{}).value||'icd9',diagFmtV:3};
   lsp('om_settings',settings);document.getElementById('dot-s').classList.add('ok');alert('✅ Saved!');
 }
 const g=id=>document.getElementById(id).value.trim();
@@ -1459,6 +1461,23 @@ function fProv(num){
 }
 function fDiag(c){const s=String(c||'').replace(/\.0$/,'').trim();return diagnoses.find(d=>String(d.ohip||'').trim()===s)||null;}
 function fFee(c){const s=String(c||'').trim();return fees.find(f=>String(f.code||'').trim()===s)||null;}
+// ── Money from a registry field ────────────────────────────────────────
+// A registry fee can legitimately be 0 (K300), and can be stored as "", " ",
+// "$0.00", "N/A" or a number. parseFloat on any of those non-numeric forms
+// returns NaN, and a single NaN poisons the running total so the PDF's
+// "Total Claimed" box prints nothing at all. num() keeps the arithmetic
+// finite; feeIsNum() says whether the field held a real figure, so a genuine
+// $0.00 still prints while a blank/unparseable one is reported as missing.
+function feeIsNum(v){
+  if(typeof v==='number')return isFinite(v);
+  const t=String(v==null?'':v).replace(/[$,\s]/g,'');
+  return t!==''&&isFinite(parseFloat(t));
+}
+function num(v){
+  if(typeof v==='number')return isFinite(v)?v:0;
+  const n=parseFloat(String(v==null?'':v).replace(/[$,\s]/g,''));
+  return isFinite(n)?n:0;
+}
 
 // ── Provider number → CPSO ─────────────────────────────────────────────
 // The IFHP form's "Provider Number" box takes the CPSO registration number.
@@ -1512,7 +1531,7 @@ function hasIcd10(diag){return !!diag&&isIcd10(icd10Of(diag,''));}
 //   src: 'short' | 'shortmap' | 'icd10' | 'icd10map' | 'icd9' | 'desc'
 function resolveDiagText(diagCode,diag){
   const ohip=String(diagCode||'').replace(/\.0$/,'').trim();
-  const fmt=(settings&&settings.diagFmt)||'icd10';
+  const fmt=(settings&&settings.diagFmt)||'icd9';
   const desc=diag?String(diag.desc||'').trim():'';
   const short=diag?String(diag.short||'').trim():'';
 
@@ -1776,7 +1795,7 @@ async function fillWithFormFields(doc, job, invoiceNum){
     const svc=parseDate(p.ServiceDate);
     const svcDate=svc.d&&svc.m&&svc.y?svc.d+'/'+svc.m+'/'+svc.y:'';
     const icd=resolveDiagText(diagCode,diag).text;   // ICD-10, else ICD-9/OHIP code
-    let feeAmt=0;
+    let feeAmt=0,hasFee=false;
     const prem=getPremium(p.ServiceCode);
     if(prem){
       // Premium: find the base visit on the same date. Searched across ALL of
@@ -1788,11 +1807,11 @@ async function fillWithFormFields(doc, job, invoiceNum){
       if(baseRow){
         const baseFeeE=fFee(baseRow.ServiceCode);
         const baseUnits=safeInt(baseRow.ServiceQty,1);
-        if(baseFeeE)feeAmt=(parseFloat(baseFeeE.fee)*baseUnits)*(parseFloat(prem.pct)/100);
+        if(baseFeeE){feeAmt=(num(baseFeeE.fee)*baseUnits)*(num(prem.pct)/100);hasFee=feeIsNum(baseFeeE.fee);}
       }
     } else {
       const feeE=fFee(p.ServiceCode);
-      feeAmt=feeE?parseFloat(feeE.fee)*units:0;
+      feeAmt=feeE?num(feeE.fee)*units:0;hasFee=!!feeE&&feeIsNum(feeE.fee);
     }
     totalAmt+=feeAmt;
     sf('inv_'+n,  '');   // DMOH: invoice # kept internal (ledger only), left blank on the PDF
@@ -1801,9 +1820,9 @@ async function fillWithFormFields(doc, job, invoiceNum){
     sf('unit_'+n, String(units));
     sf('icd_'+n,  icd);
     sf('p_'+n,    'MD');
-    if(feeAmt>0)sf('amt_'+n,feeAmt.toFixed(2));
+    if(hasFee)sf('amt_'+n,feeAmt.toFixed(2));
   });
-  if(totalAmt>0)sf('totals',totalAmt.toFixed(2));
+  if(isFinite(totalAmt))sf('totals',totalAmt.toFixed(2));
 
   // Section 5
   sf('prov_date',today);sf('client_sig','(* Third Party Billing)');sf('client_date',today);
@@ -1859,23 +1878,23 @@ async function fillWithCoordinates(doc, job, invoiceNum){
     const svc=parseDate(p.ServiceDate);
     const svcDate=svc.d&&svc.m&&svc.y?svc.d+'/'+svc.m+'/'+svc.y:'';
     const icd=resolveDiagText(diagCode,diag).text;   // ICD-10, else ICD-9/OHIP code
-    let feeAmt=0;
+    let feeAmt=0,hasFee=false;
     const prem=getPremium(p.ServiceCode);
     if(prem){
       const baseRow=(job.allRows||job.rows).find(r=>r!==p&&!isPremium(r.ServiceCode)&&
         dateKey(r.ServiceDate)===dateKey(p.ServiceDate)&&premiumAppliesToCode(prem,r.ServiceCode));
       if(baseRow){const baseFeeE=fFee(baseRow.ServiceCode);const baseUnits=safeInt(baseRow.ServiceQty,1);
-        if(baseFeeE)feeAmt=(parseFloat(baseFeeE.fee)*baseUnits)*(parseFloat(prem.pct)/100);}
-    }else{const feeE=fFee(p.ServiceCode);feeAmt=feeE?parseFloat(feeE.fee)*units:0;}
+        if(baseFeeE){feeAmt=(num(baseFeeE.fee)*baseUnits)*(num(prem.pct)/100);hasFee=feeIsNum(baseFeeE.fee);}}
+    }else{const feeE=fFee(p.ServiceCode);feeAmt=feeE?num(feeE.fee)*units:0;hasFee=!!feeE&&feeIsNum(feeE.fee);}
     totalAmt+=feeAmt;
     // DMOH: invoice # kept internal (ledger only), not drawn on the PDF
     draw(svcDate,138,ry);draw(String(p.ServiceCode||''),233,ry);
     draw(String(units),285,ry);
     drawFit(icd,329,ry,144);                 // keep clear of the P* column at x=477
     draw('MD',479,ry);
-    if(feeAmt>0)draw(feeAmt.toFixed(2),499,ry);
+    if(hasFee)draw(feeAmt.toFixed(2),499,ry);
   });
-  if(totalAmt>0)draw(totalAmt.toFixed(2),499,415);
+  if(isFinite(totalAmt))draw(totalAmt.toFixed(2),499,415);
   draw(today,449,631);draw('(* Third Party Billing)',112,668.0,8);draw(today,449,668.0);
   return totalAmt;
 }
@@ -1954,16 +1973,21 @@ function refreshGen(){
         const baseRow=(job.allRows||job.rows).find(r=>r!==p&&!isPremium(r.ServiceCode)&&
           dateKey(r.ServiceDate)===dateKey(p.ServiceDate)&&premiumAppliesToCode(prem,r.ServiceCode));
         if(baseRow){const bFee=fFee(baseRow.ServiceCode);const bU=safeInt(baseRow.ServiceQty,1);
-          if(bFee)amt=(parseFloat(bFee.fee)*bU)*(parseFloat(prem.pct)/100);}
+          if(bFee&&feeIsNum(bFee.fee))amt=(num(bFee.fee)*bU)*(num(prem.pct)/100);}
         else amt=0;
       } else {
-        const fee=fFee(p.ServiceCode);amt=fee?parseFloat(fee.fee)*units:null;
+        const fee=fFee(p.ServiceCode);amt=(fee&&feeIsNum(fee.fee))?num(fee.fee)*units:null;
         if(!fee)iss.push('Code '+p.ServiceCode+' → no fee');
+        else if(!feeIsNum(fee.fee))iss.push('Code '+p.ServiceCode+' → fee on file is not a number ("'+String(fee.fee==null?'':fee.fee)+'")');
       }
       if(amt!==null)jobTotal+=amt;else jobMiss++;
       const dres=resolveDiagText(diagCode,diag);
       if(!dres.text)iss.push('OHIP '+diagCode+' → no diagnosis code available');
-      else if(dres.src==='icd9'||dres.src==='desc')icd9Fallbacks.add(String(diagCode).trim());
+      // Only a *fallback* is worth reporting. With the diagnosis column set to
+      // print the OHIP code on purpose (the DMOH default), every row would
+      // otherwise be flagged as "no ICD-10 yet", which is noise, not news.
+      else if((settings&&settings.diagFmt)!=='icd9'&&(dres.src==='icd9'||dres.src==='desc'))
+        icd9Fallbacks.add(String(diagCode).trim());
     });
     totalAmt+=jobTotal;missFee+=jobMiss;
     if(iss.length)warns.push({name:job.name+(job.totalChunks>1?' (PDF '+(job.chunkIdx+1)+'/'+job.totalChunks+')':''),iss:[...new Set(iss)]});
