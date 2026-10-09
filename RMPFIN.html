@@ -317,7 +317,7 @@ body{font-family:"Source Sans 3",sans-serif;background:var(--bg);color:var(--ink
     <div class="card-body">
       <div class="fg">
         <label class="fl" for="s-clinic">Programme / clinic name</label>
-        <input class="fi" id="s-clinic" value="Radiation Medicine Program" onchange="saveClinic()">
+        <input class="fi" id="s-clinic" value="PM Radiation Oncologists" onchange="saveClinic()">
       </div>
     </div>
   </div>
@@ -1272,7 +1272,7 @@ function renderProvider(doc, prov, meta, C) {
     /* Right-hand identification block. */
     doc.setFont('helvetica', 'bold'); doc.setFontSize(9);
     doc.setTextColor(INK[0], INK[1], INK[2]);
-    doc.text(meta.clinic || 'Radiation Medicine Program', PW - M, y + 3, { align: 'right' });
+    doc.text(meta.clinic || 'PM Radiation Oncologists', PW - M, y + 3, { align: 'right' });
     doc.setFont('helvetica', 'normal'); doc.setFontSize(7.6);
     doc.setTextColor(MUTED[0], MUTED[1], MUTED[2]);
     doc.text('Financial Report by Service Date', PW - M, y + 13, { align: 'right' });
@@ -1544,7 +1544,7 @@ function today() {
 /* The clinic name is remembered between visits; nothing else is stored. */
 function clinicName() {
   const v = (el('s-clinic') || {}).value;
-  return (v && v.trim()) || 'Radiation Medicine Program';
+  return (v && v.trim()) || 'PM Radiation Oncologists';
 }
 function saveClinic() {
   try { localStorage.setItem('om_rmp_clinic', clinicName()); } catch (e) { /* private mode */ }
@@ -2001,7 +2001,14 @@ async function zipPdfs() {
 /* ── boot ───────────────────────────────────────────────────────────── */
 window.addEventListener('DOMContentLoaded', function () {
   try {
-    const c = localStorage.getItem('om_rmp_clinic');
+    let c = localStorage.getItem('om_rmp_clinic');
+    /* An earlier build defaulted to the programme name. Anyone who opened it
+       has that string saved, which would quietly override the new default —
+       so a stored value that is only the old default is discarded rather
+       than treated as a deliberate choice. */
+    if (c && c.trim() === 'Radiation Medicine Program') {
+      localStorage.removeItem('om_rmp_clinic'); c = null;
+    }
     if (c && el('s-clinic')) el('s-clinic').value = c;
   } catch (e) { /* private mode */ }
   loadExp();
