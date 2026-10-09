@@ -1,0 +1,2015 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>OM Billing Inc.™ — RMP Financial Reporting</title>
+<link href="https://fonts.googleapis.com/css2?family=Libre+Baskerville:ital,wght@0,400;0,700;1,400&family=Source+Sans+3:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --g1:#1a4070;--g2:#1e5494;--g3:#4080c0;--g4:#d0e4f5;--g5:#f0f5fb;
+  --gold:#c8a84b;--gold2:#e0bc60;
+  --ink:#12271b;--ink2:#1a3060;--muted:#4a6080;
+  --bg:#eef3fa;--card:#fff;--border:#c8d8ec;
+  --ok:#1a7a4a;--ok-bg:#e3f5ed;
+  --warn:#7a5010;--warn-bg:#fdf3e0;
+  --err:#991b1b;--err-bg:#fef2f2;
+  --r:11px;--rs:6px;--sh:0 1px 3px rgba(0,0,0,.06),0 4px 14px rgba(0,0,0,.05);
+}
+body{font-family:"Source Sans 3",sans-serif;background:var(--bg);color:var(--ink);min-height:100vh;font-size:14px}
+.hdr{background:var(--g1);color:#fff;height:68px;display:flex;align-items:center;gap:18px;padding:0 28px;
+     position:sticky;top:0;z-index:300;box-shadow:0 2px 16px rgba(0,0,0,.3)}
+.hdr-title{font-family:"Libre Baskerville",serif;font-size:17px;font-weight:700;color:#fff;letter-spacing:-.2px;line-height:1.2}
+.hdr-module{font-size:11px;color:rgba(255,255,255,.6);margin-top:2px;letter-spacing:.03em}
+.hdr-brand{font-family:"Libre Baskerville",serif;font-size:13px;font-weight:700;color:rgba(255,255,255,.55);margin-left:auto;white-space:nowrap}
+.hdr-tm{font-size:9px;vertical-align:super;color:var(--gold2)}
+.hdr-prop{margin-left:auto;font-size:10.5px;color:rgba(255,255,255,.45);font-weight:600;text-align:right;line-height:1.4}
+.hdr-prop strong{color:rgba(255,255,255,.7)}
+.form-tabs{background:var(--g2);display:flex;padding:0 28px;border-bottom:1px solid rgba(255,255,255,.15)}
+.form-tab{padding:11px 22px;font-size:13px;font-weight:700;color:rgba(255,255,255,.55);cursor:pointer;
+          border-bottom:3px solid transparent;margin-bottom:-1px;background:none;
+          border-top:none;border-left:none;border-right:none;font-family:inherit;transition:all .15s}
+.form-tab:hover{color:rgba(255,255,255,.85)}
+.form-tab.active{color:#fff;border-bottom-color:var(--gold2)}
+.tab-badge{font-size:10px;padding:1px 6px;border-radius:8px;margin-left:7px;background:rgba(255,255,255,.15);font-weight:600}
+.form-tab.active .tab-badge{background:var(--gold);color:var(--g1)}
+.form-section{display:none}
+.form-section.active{display:grid;grid-template-columns:230px 1fr;min-height:calc(100vh - 68px)}
+.sidebar{background:var(--card);border-right:1px solid var(--border);padding:20px 12px;
+         position:sticky;top:68px;height:calc(100vh - 68px);overflow-y:auto;display:flex;flex-direction:column}
+.nav-sec{font-size:9.5px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);
+         margin:0 8px 8px;padding-top:4px}
+.nav-btn{display:flex;align-items:center;gap:9px;padding:9px 10px;border-radius:var(--rs);cursor:pointer;
+         color:var(--ink2);font-size:13px;font-weight:500;transition:all .15s;border:none;background:none;
+         width:100%;text-align:left;font-family:inherit;margin-bottom:2px}
+.nav-btn:hover{background:var(--g5)}
+.nav-btn.active{background:var(--g1);color:#fff}
+.ni{font-size:14px;width:18px;text-align:center;flex-shrink:0}
+.dot{width:7px;height:7px;border-radius:50%;background:var(--border);flex-shrink:0;margin-left:auto;transition:background .15s}
+.dot.ok{background:#3aaa7a}.dot.warn{background:#f59e0b}
+.nav-gap{flex:1}
+.sb-note{font-size:11px;color:var(--muted);padding:10px 12px;background:var(--g5);border-radius:var(--rs);
+         line-height:1.65;border-left:3px solid var(--g3);margin-top:4px}
+.content{padding:28px 32px 40px;max-width:900px;flex:1}
+.panel{display:none}.panel.active{display:block}
+.pg-title{font-family:"Libre Baskerville",serif;font-size:22px;font-weight:700;color:var(--g1);margin-bottom:4px}
+.pg-sub{font-size:13px;color:var(--muted);margin-bottom:24px}
+.card{background:var(--card);border:1px solid var(--border);border-radius:var(--r);
+      margin-bottom:16px;overflow:hidden;box-shadow:var(--sh)}
+.card-hd{padding:13px 18px;border-bottom:1px solid var(--border);display:flex;align-items:center;
+         gap:10px;background:#fafdfb}
+.ct{font-size:14px;font-weight:700;color:var(--g1)}.cd{font-size:12px;color:var(--muted);margin-top:1px}
+.card-body{padding:16px 18px}
+.fg{display:flex;flex-direction:column;gap:4px}
+.fg-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.fg-grid.c3{grid-template-columns:1fr 1fr 1fr}
+.fg-grid.full,.fg.full{grid-column:1/-1}
+.fl{font-size:10.5px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--muted)}
+.fi{padding:8px 10px;border:1px solid var(--border);border-radius:var(--rs);font-size:13px;
+    font-family:inherit;color:var(--ink);background:#fff;transition:all .15s}
+.fi:focus{outline:none;border-color:var(--g3);box-shadow:0 0 0 3px rgba(58,170,122,.12)}
+.upg{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px}
+.upz{border:2px dashed var(--border);border-radius:var(--r);padding:26px 14px;text-align:center;
+     cursor:pointer;position:relative;transition:all .2s}
+.upz:hover{border-color:var(--g3);background:var(--g5)}
+.upz.loaded{border-style:solid;border-color:var(--ok);background:var(--ok-bg)}
+.upz.form-loaded{border-style:solid;border-color:var(--gold);background:#fdf8ec}
+.upz input[type=file]{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%}
+.uz-icon{font-size:28px;margin-bottom:7px;opacity:.7}
+.uz-lbl{font-size:13px;font-weight:700;color:var(--g1);margin-bottom:3px}
+.uz-hint{font-size:11px;color:var(--muted)}
+.uz-file{font-size:11px;font-weight:700;margin-top:6px;word-break:break-all}
+.mode-banner{display:flex;align-items:center;gap:10px;padding:8px 16px;border-radius:var(--rs);
+             font-size:12.5px;font-weight:600;margin-bottom:14px}
+.mode-form{background:var(--ok-bg);color:var(--ok);border:1px solid #a3d9bc}
+.mode-flat{background:var(--warn-bg);color:var(--warn);border:1px solid #f6d88a}
+.mode-dot{width:9px;height:9px;border-radius:50%;flex-shrink:0}
+.mode-form .mode-dot{background:var(--ok)}.mode-flat .mode-dot{background:#d97706}
+.dtbl{width:100%;border-collapse:collapse;font-size:12.5px}
+.dtbl thead tr{background:var(--g1)}
+.dtbl th{padding:7px 10px;text-align:left;color:#fff;font-size:10px;font-weight:700;letter-spacing:.07em;text-transform:uppercase}
+.dtbl th:first-child{border-radius:5px 0 0 0}.dtbl th:last-child{border-radius:0 5px 0 0;width:38px}
+.dtbl td{padding:4px 5px;border-bottom:1px solid var(--border);vertical-align:middle}
+.dtbl tr:last-child td{border-bottom:none}
+.dtbl tr:nth-child(even) td{background:#fafdfb}
+.dtbl input,.dtbl input[type=number]{width:100%;border:1px solid transparent;padding:4px 6px;border-radius:4px;
+  font-size:12px;font-family:inherit;background:transparent;transition:all .15s;color:var(--ink)}
+.dtbl input:focus{outline:none;border-color:var(--g3);background:#fff;box-shadow:0 0 0 2px rgba(58,170,122,.1)}
+.bdel{background:none;border:none;color:#e05252;cursor:pointer;font-size:14px;padding:2px 6px;
+      border-radius:4px;transition:background .15s;line-height:1}
+.bdel:hover{background:var(--err-bg)}
+.badd{display:inline-flex;align-items:center;gap:5px;margin-top:10px;padding:6px 13px;background:none;
+      border:1.5px dashed var(--g3);color:var(--g3);border-radius:var(--rs);font-size:12px;font-weight:700;
+      cursor:pointer;font-family:inherit;transition:all .15s}
+.badd:hover{background:var(--g5)}
+.sstrip{display:flex;gap:0;background:var(--g1);border-radius:var(--rs);overflow:hidden;margin-bottom:14px}
+.ssi{flex:1;padding:11px 14px;border-right:1px solid rgba(255,255,255,.1)}
+.ssi:last-child{border-right:none}
+.ssl{font-size:9.5px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:rgba(255,255,255,.5);margin-bottom:2px}
+.ssv{font-size:17px;font-weight:800;color:#fff;font-family:"Libre Baskerville",serif}
+.ssv.warn{color:#fbbf24}.ssv.ok{color:#6ee7b7}
+.pt-row{display:flex;align-items:center;gap:11px;padding:10px 0;border-bottom:1px solid var(--border)}
+.pt-row:last-child{border-bottom:none}
+.ava{width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;
+     font-weight:800;font-size:12px;color:#fff;flex-shrink:0;background:var(--g1)}
+.ava.multi{background:var(--gold)}
+.pi{flex:1;min-width:0}.pn{font-size:13px;font-weight:700}.pm{font-size:11.5px;color:var(--muted);margin-top:1px}
+.badge{font-size:10px;font-weight:700;padding:3px 8px;border-radius:10px;letter-spacing:.03em;white-space:nowrap}
+.b-ok{background:var(--ok-bg);color:var(--ok)}.b-warn{background:var(--warn-bg);color:var(--warn)}
+.b-err{background:var(--err-bg);color:var(--err)}.b-multi{background:#fdf3e0;color:#92400e}
+.alert{border-radius:var(--rs);padding:10px 13px;font-size:13px;margin-bottom:12px}
+.a-warn{background:var(--warn-bg);color:var(--warn);border:1px solid #f6d88a}
+.a-info{background:#eff6ff;color:#1e40af;border:1px solid #bfdbfe}
+.a-ok{background:var(--ok-bg);color:var(--ok);border:1px solid #b8e2ce}
+.alert ul{margin-top:5px;padding-left:15px}.alert li{margin-top:3px}
+.note{background:var(--g5);border-left:3px solid var(--g3);padding:9px 13px;
+      border-radius:0 var(--rs) var(--rs) 0;font-size:12px;color:var(--ink2);margin-top:12px;line-height:1.6}
+.btn{display:inline-flex;align-items:center;gap:7px;padding:9px 18px;border:none;border-radius:var(--rs);
+     font-size:13.5px;font-weight:700;cursor:pointer;font-family:inherit;transition:all .15s}
+.btn-g{background:var(--g1);color:#fff}.btn-g:hover{background:var(--g2)}
+.btn-g:disabled{opacity:.45;cursor:not-allowed}
+.btn-gold{background:var(--gold);color:var(--g1)}.btn-gold:hover{background:var(--gold2)}
+.btn-dl{display:inline-flex;align-items:center;gap:5px;padding:5px 11px;background:var(--g3);color:#fff;
+        border:none;border-radius:var(--rs);font-size:11.5px;font-weight:700;cursor:pointer;
+        text-decoration:none;font-family:inherit;transition:all .15s}
+.btn-dl:hover{background:var(--g2)}
+.btn-zip{display:inline-flex;align-items:center;gap:7px;margin-top:16px;padding:10px 20px;
+         background:var(--g1);color:#fff;border:none;border-radius:var(--rs);
+         font-size:13.5px;font-weight:700;cursor:pointer;font-family:inherit;transition:all .15s}
+.btn-zip:hover{background:var(--g2)}
+.pgb{height:4px;background:var(--border);border-radius:2px;overflow:hidden;margin:10px 0}
+.pgf{height:100%;background:linear-gradient(90deg,var(--gold),var(--g3));transition:width .3s;width:0}
+.empty{text-align:center;padding:44px 22px;color:var(--muted)}
+.empty-ic{font-size:42px;margin-bottom:12px;opacity:.5}.empty-tx{font-size:13px}
+/* ── Bookkeeping ── */
+.ledger-filters{display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap;align-items:center}
+.filter-btn{padding:6px 14px;border-radius:20px;font-size:12px;font-weight:700;border:1.5px solid var(--border);
+            background:var(--card);color:var(--muted);cursor:pointer;font-family:inherit;transition:all .15s}
+.filter-btn:hover{border-color:var(--g3);color:var(--g2)}
+.filter-btn.active{background:var(--g1);color:#fff;border-color:var(--g1)}
+.ledger-search{flex:1;min-width:160px;padding:6px 12px;border:1.5px solid var(--border);border-radius:20px;
+               font-size:12px;font-family:inherit;color:var(--ink);background:var(--card);outline:none}
+.ledger-search:focus{border-color:var(--g3)}
+.ledger-stats{display:flex;gap:0;background:var(--g1);border-radius:var(--rs);overflow:hidden;margin-bottom:16px}
+.ls-item{flex:1;padding:10px 14px;border-right:1px solid rgba(255,255,255,.1)}
+.ls-item:last-child{border-right:none}
+.ls-lbl{font-size:9.5px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:rgba(255,255,255,.5);margin-bottom:2px}
+.ls-val{font-size:16px;font-weight:800;color:#fff;font-family:"Libre Baskerville",serif}
+.ls-val.ok{color:#6ee7b7}.ls-val.warn{color:#fbbf24}
+.ledger-table{width:100%;border-collapse:collapse;font-size:12.5px}
+.ledger-table thead tr{background:var(--g1)}
+.ledger-table th{padding:9px 12px;text-align:left;color:#fff;font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase}
+.ledger-table th:first-child{border-radius:7px 0 0 0}.ledger-table th:last-child{border-radius:0 7px 0 0}
+.ledger-table th:hover{background:var(--g2)}
+.ledger-table td{padding:9px 12px;border-bottom:1px solid var(--border);vertical-align:middle}
+.ledger-table tr:nth-child(even) td{background:#fafdfb}
+.ledger-table tr:hover td{background:var(--g5)}
+.ledger-table tr.paid td{opacity:.65}
+.ledger-table tr.deleted td{opacity:.45;text-decoration:line-through;background:#fef2f2!important}
+.inv-num{font-family:monospace;font-size:12px;font-weight:700;color:var(--g2)}
+.paid-toggle{display:flex;align-items:center;gap:7px;cursor:pointer;white-space:nowrap}
+.paid-toggle input[type=checkbox]{width:16px;height:16px;accent-color:var(--g3);cursor:pointer;flex-shrink:0}
+.paid-lbl{font-size:12px;font-weight:600}
+.paid-lbl.paid{color:var(--ok)}.paid-lbl.unpaid{color:var(--muted)}
+.ledger-empty{text-align:center;padding:40px 20px;color:var(--muted);font-size:13px}
+.btn-clear-paid{display:inline-flex;align-items:center;gap:5px;padding:5px 12px;background:none;
+                border:1.5px solid var(--err);color:var(--err);border-radius:var(--rs);
+                font-size:11.5px;font-weight:700;cursor:pointer;font-family:inherit;transition:all .15s;margin-left:auto}
+.btn-clear-paid:hover{background:var(--err-bg)}
+.field-table{width:100%;border-collapse:collapse;font-size:12.5px;margin-top:10px}
+.field-table th{background:var(--g1);color:#fff;padding:7px 10px;text-align:left;font-size:11px;font-weight:700;letter-spacing:.05em}
+.field-table th:first-child{border-radius:5px 0 0 0}.field-table th:last-child{border-radius:0 5px 0 0}
+.field-table td{padding:5px 10px;border-bottom:1px solid var(--border);font-family:monospace;font-size:12px}
+.field-table tr:nth-child(even) td{background:#fafdfb}
+.field-table td.desc{font-family:"Source Sans 3",sans-serif;font-size:12px;color:var(--muted)}
+.guide-img{width:100%;border:1px solid var(--border);border-radius:var(--r);box-shadow:var(--sh)}
+.footer{background:var(--g1);color:rgba(255,255,255,.4);font-size:10.5px;padding:16px 28px;text-align:center;line-height:1.75;}
+.footer strong{color:rgba(255,255,255,.65)}
+@media(max-width:768px){
+  .form-section.active{grid-template-columns:1fr}
+  .sidebar{position:static;height:auto;border-right:none;border-bottom:1px solid var(--border)}
+  .content{padding:18px 14px}
+  .upg,.fg-grid,.fg-grid.c3{grid-template-columns:1fr}
+}
+
+/* ── Batch upload ── */
+.batch-bar{display:flex;align-items:center;gap:10px;padding:10px 14px;
+           background:var(--g5);border-radius:var(--rs);margin-bottom:0;border:1px solid var(--border)}
+.batch-bar span{font-size:12px;color:var(--muted);flex:1}
+.btn-csv-dl{display:inline-flex;align-items:center;gap:5px;padding:5px 12px;background:none;
+            border:1.5px solid var(--g3);color:var(--g3);border-radius:var(--rs);
+            font-size:11.5px;font-weight:700;cursor:pointer;font-family:inherit;transition:all .15s}
+.btn-csv-dl:hover{background:var(--g5)}
+.btn-csv-ul{position:relative;display:inline-flex;align-items:center;gap:5px;padding:5px 12px;
+            background:var(--g1);color:#fff;border:none;border-radius:var(--rs);
+            font-size:11.5px;font-weight:700;cursor:pointer;font-family:inherit;transition:all .15s}
+.btn-csv-ul:hover{background:var(--g2)}
+.btn-csv-ul input{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%}
+/* ── Premium codes table ── */
+.prem-note{font-size:12px;color:var(--muted);padding:10px 14px;background:var(--warn-bg);
+           border-radius:var(--rs);margin-bottom:12px;border:1px solid #f6d88a}
+
+
+
+
+
+/* ── File System storage ── */
+#fs-setup-modal{
+  position:fixed;inset:0;z-index:9998;background:rgba(26,92,58,.92);
+  display:flex;align-items:center;justify-content:center;padding:24px;
+}
+.fs-modal-box{background:var(--card);border-radius:16px;padding:36px 40px;
+              max-width:460px;width:100%;box-shadow:0 24px 60px rgba(0,0,0,.3)}
+.fs-modal-icon{font-size:44px;margin-bottom:14px}
+.fs-modal-title{font-family:"Libre Baskerville",serif;font-size:20px;font-weight:700;
+                color:var(--g1);margin-bottom:8px}
+.fs-modal-body{font-size:13px;color:var(--muted);line-height:1.7;margin-bottom:24px}
+.fs-modal-body strong{color:var(--ink)}
+.fs-btn-row{display:flex;gap:10px;flex-direction:column}
+.fs-btn-primary{padding:12px 20px;background:var(--g1);color:#fff;border:none;
+                border-radius:var(--rs);font-size:14px;font-weight:700;cursor:pointer;
+                font-family:inherit;transition:background .15s;text-align:left}
+.fs-btn-primary:hover{background:var(--g2)}
+.fs-btn-secondary{padding:10px 20px;background:none;color:var(--muted);
+                  border:1.5px solid var(--border);border-radius:var(--rs);
+                  font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;
+                  transition:all .15s;text-align:left}
+.fs-btn-secondary:hover{border-color:var(--g3);color:var(--g2)}
+.fs-note{font-size:11px;color:var(--muted);margin-top:14px;line-height:1.6}
+/* File status pill in header */
+#file-status-pill{
+  display:none;align-items:center;gap:6px;padding:4px 12px;
+  border-radius:20px;font-size:11.5px;font-weight:600;
+  background:rgba(255,255,255,.1);color:rgba(255,255,255,.7);
+  border:1px solid rgba(255,255,255,.2);cursor:default;
+  white-space:nowrap;max-width:200px;overflow:hidden;text-overflow:ellipsis;
+}
+#file-status-pill.saving{color:var(--gold2)}
+#file-status-pill.saved{color:#6ee7b7}
+#file-status-pill.fallback{color:#fbbf24}
+.fsp-dot{width:7px;height:7px;border-radius:50%;background:currentColor;flex-shrink:0}
+
+
+/* progress bar (INV export) */
+.progress-wrap{margin-top:12px}
+.progress{height:8px;border-radius:99px;background:var(--line,#e6e8eb);overflow:hidden}
+.progress-bar{height:100%;width:0%;border-radius:99px;background:var(--g1,#1a4a2e);transition:width .2s ease}
+.progress-txt{margin-top:8px;font-size:12px;color:var(--muted)}
+
+/* Dropdowns and file inputs near the foot of a card are clipped by the
+   card's own overflow:hidden; this opts a card out. */
+.card.ovis{overflow:visible}
+
+</style>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+</head>
+<body>
+<header class="hdr">
+  <div><div class="hdr-title">OM Billing Inc.™</div>
+  <div class="hdr-module">RMPFIN · Financial Report → Cleaned Excel + Per-Provider PDFs</div></div>
+  <div class="hdr-brand">OM Billing Inc.<span class="hdr-tm">™</span></div>
+</header>
+
+<div class="form-section active">
+<aside class="sidebar">
+  <div class="nav-sec">Workflow</div>
+  <button class="nav-btn active" onclick="go('upload',this)"><span class="ni">📁</span>1 · Upload<span class="dot" id="dot-u"></span></button>
+  <button class="nav-btn" onclick="go('review',this)"><span class="ni">📊</span>2 · Review<span class="dot" id="dot-r"></span></button>
+  <button class="nav-btn" onclick="go('clean',this)"><span class="ni">📗</span>3 · Cleaned Excel<span class="dot" id="dot-c"></span></button>
+  <button class="nav-btn" onclick="go('pdfs',this)"><span class="ni">📄</span>4 · Provider PDFs<span class="dot" id="dot-p"></span></button>
+  <div class="nav-sec" style="margin-top:14px">Reference</div>
+  <button class="nav-btn" onclick="go('codes',this)"><span class="ni">🔖</span>Explanatory codes</button>
+  <button class="nav-btn" onclick="go('guide',this)"><span class="ni">📘</span>What this does</button>
+  <div class="nav-gap"></div>
+  <div class="sb-note">The file never leaves this browser. Patient data processed locally per PIPEDA.</div>
+</aside>
+
+<main class="content">
+
+<!-- ══ 1 · UPLOAD ══════════════════════════════════════════════════ -->
+<section class="panel active" id="p-upload">
+  <div class="pg-title">Monthly financial report</div>
+  <div class="pg-sub">Drop in the Detailed Financial Report by Service Date exactly as it comes from the billing system — headers, footers, logo and all.</div>
+
+  <div class="card ovis">
+    <div class="card-hd"><div><div class="ct">The export</div>
+    <div class="cd">.xls or .xlsx · the three-sheet report with the detail tab</div></div></div>
+    <div class="card-body">
+      <div class="upz" id="uz">
+        <input type="file" accept=".xls,.xlsx,.xlsm" onchange="onFile(this)">
+        <div class="uz-icon">📊</div>
+        <div class="uz-lbl">Choose the financial report</div>
+        <div class="uz-hint">Detailed_Financial_Report_by_Service_Date.xls</div>
+        <div class="uz-file" id="uz-file"></div>
+      </div>
+      <div id="up-msg" style="margin-top:14px"></div>
+      <button class="btn btn-g" id="btn-next" style="display:none;margin-top:4px"
+              onclick="go('review',document.querySelectorAll('.nav-btn')[1])">Review →</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-hd"><div><div class="ct">Report heading</div>
+    <div class="cd">Printed at the top right of every provider PDF</div></div></div>
+    <div class="card-body">
+      <div class="fg">
+        <label class="fl" for="s-clinic">Programme / clinic name</label>
+        <input class="fi" id="s-clinic" value="Radiation Medicine Program" onchange="saveClinic()">
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ══ 2 · REVIEW ══════════════════════════════════════════════════ -->
+<section class="panel" id="p-review">
+  <div class="pg-title">What came out of the file</div>
+  <div class="pg-sub">Checked against the report's own totals before anything is produced.</div>
+  <div class="sstrip" id="stats"></div>
+  <div id="rv-head"></div>
+  <div class="card">
+    <div class="card-hd"><div><div class="ct">Care providers</div>
+      <div class="cd">Tick the ones to produce reports for — <span id="pick-count">—</span></div></div></div>
+    <div class="card-body" id="rv-table"></div>
+  </div>
+</section>
+
+<!-- ══ 3 · CLEANED EXCEL ═══════════════════════════════════════════ -->
+<section class="panel" id="p-clean">
+  <div class="pg-title">Cleaned Excel</div>
+  <div class="pg-sub">The same claims as a plain table you can sort, filter and pivot.</div>
+
+  <div class="card">
+    <div class="card-hd"><div><div class="ct">What gets removed</div></div></div>
+    <div class="card-body">
+      <table class="field-table">
+        <thead><tr><th>Removed</th><th>Why</th></tr></thead>
+        <tbody>
+          <tr><td class="desc">Title block, column banner and totals footer</td><td class="desc">Report furniture — it stops Excel treating the sheet as data</td></tr>
+          <tr><td class="desc">Logo and other drawings</td><td class="desc">The file is written fresh from the values, so images cannot carry over</td></tr>
+          <tr><td class="desc">Merged cells and empty spacer columns (F, G, S, V, W)</td><td class="desc">They exist only to hold the report's layout together</td></tr>
+          <tr><td class="desc">Admission Date</td><td class="desc">Not relevant</td></tr>
+          <tr><td class="desc">Start Time · End Time</td><td class="desc">Not applicable to RadOnc</td></tr>
+          <tr><td class="desc">Billing Agent · Department</td><td class="desc">Internal</td></tr>
+        </tbody>
+      </table>
+      <div class="note">What is left is Provider, Provider&nbsp;#, Claim&nbsp;#, Claim Type, Created Date,
+        Patient Name, HCN, DOB, DX, Master Number, Service Date, Code, Service Description, Qty,
+        Submitted, Paid, Outstanding, Exp. Codes, Status and Payment Date — with real dates, real
+        numbers, a frozen header row and a filter on every column.
+        <strong>Write Off</strong> is included between Paid and Outstanding whenever the period
+        actually has one, and left out when it does not.</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-hd"><div><div class="ct">Build it</div>
+      <div class="cd">Two sheets: every claim line, and one row per provider</div></div></div>
+    <div class="card-body">
+      <button class="btn btn-g" id="btn-clean" onclick="makeClean()">📗 Build the cleaned workbook</button>
+      <div id="cl-msg" style="margin-top:14px"></div>
+    </div>
+  </div>
+</section>
+
+<!-- ══ 4 · PDFs ════════════════════════════════════════════════════ -->
+<section class="panel" id="p-pdfs">
+  <div class="pg-title">Per-provider reports</div>
+  <div class="pg-sub">Landscape, scaled to the page width, continuing over as many pages as the claims need, with that provider's totals at the end.</div>
+
+  <div class="card">
+    <div class="card-hd"><div><div class="ct">Generate</div>
+      <div class="cd"><span id="pick-count2">—</span> · change the selection on the Review tab</div></div></div>
+    <div class="card-body">
+      <button class="btn btn-g" id="btn-pdf" onclick="makePdfs()" disabled>📄 One PDF per provider</button>
+      <button class="btn btn-gold" id="btn-pdf-one" onclick="makeCombined()" disabled style="margin-left:8px">📑 All in one PDF</button>
+      <div class="pgb" id="pdf-bar" style="display:none"><div class="pgf" id="pdf-fill"></div></div>
+      <div id="pdf-msg" style="margin-top:12px"></div>
+      <button class="btn-zip" id="btn-zip" onclick="zipPdfs()" style="display:none">🗜 Download all as a zip</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-hd"><div><div class="ct">Reports</div></div></div>
+    <div class="card-body" id="pdf-list">
+      <div class="empty"><div class="empty-ic">📄</div><div class="empty-tx">Upload a file to begin.</div></div>
+    </div>
+  </div>
+</section>
+
+<!-- ══ CODES ═══════════════════════════════════════════════════════ -->
+<section class="panel" id="p-codes">
+  <div class="pg-title">Explanatory codes</div>
+  <div class="pg-sub">The MOH codes in the Exp. column, and what each report prints for them.</div>
+
+  <div class="card">
+    <div class="card-hd"><div><div class="ct">What the reports show</div>
+      <div class="cd">Printed after the totals on the provider's last page</div></div></div>
+    <div class="card-body">
+      <div class="ledger-filters">
+        <button class="filter-btn active" data-lm="own" onclick="setLegendMode('own')">Only that provider's codes</button>
+        <button class="filter-btn" data-lm="all" onclick="setLegendMode('all')">Every code in the file</button>
+        <button class="filter-btn" data-lm="off" onclick="setLegendMode('off')">No legend</button>
+      </div>
+      <div class="note">Most providers use four or five codes, so the default keeps the page to the
+        ones that actually appear on their claims. The wording is the Ministry's own, from the
+        Remittance Advice Explanatory Codes/Messages list — edit any line below if your office
+        prefers different phrasing, and the change is remembered for next month.</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-hd"><div><div class="ct">Codes in this file</div></div></div>
+    <div class="card-body" id="codes-tbl"></div>
+  </div>
+</section>
+
+<!-- ══ GUIDE ═══════════════════════════════════════════════════════ -->
+<section class="panel" id="p-guide">
+  <div class="pg-title">What this does</div>
+  <div class="pg-sub">And the few things worth knowing about the numbers.</div>
+
+  <div class="card"><div class="card-hd"><div><div class="ct">The three headline figures</div></div></div>
+    <div class="card-body">
+      <table class="field-table">
+        <thead><tr><th>Figure</th><th>Means</th></tr></thead>
+        <tbody>
+          <tr><td>Total submitted</td><td class="desc">The sum of the Submitted column for that provider's claim lines</td></tr>
+          <tr><td>Total paid</td><td class="desc">What has actually been paid so far</td></tr>
+          <tr><td>Outstanding</td><td class="desc">Still owing. Can be negative on a line where a payment was reversed</td></tr>
+        </tbody>
+      </table>
+      <div class="note"><strong>Why there is sometimes a "written off" line.</strong> Submitted = paid + written off +
+        outstanding. A write-off is usually a few cents, so it is shown on the totals block only when
+        it is not zero — but when it is there, leaving it out would make the three figures not add up.</div>
+      <div class="note"><strong>Collected</strong> is paid ÷ submitted, and nothing more. The report's own
+        "Billing Success" percentage measures something different and is deliberately not reproduced
+        here: a provider can read 96% on one and 42% on the other in the same month, simply because
+        most of the claims have not been adjudicated yet, and two percentages that disagree on the same
+        page invite the wrong question.</div>
+    </div>
+  </div>
+
+  <div class="card"><div class="card-hd"><div><div class="ct">On the PDFs</div></div></div>
+    <div class="card-body">
+      <ul style="font-size:13px;line-height:1.9;padding-left:18px;color:var(--ink2)">
+        <li>Landscape letter, table scaled to fill the printable width.</li>
+        <li>Rows run in service-date order, then patient, then code.</li>
+        <li>The column header repeats at the top of every page.</li>
+        <li>A long service description is shortened with an ellipsis; nothing else is ever cut —
+            a long patient name is set in a smaller size instead.</li>
+        <li>No row is highlighted and no counts are tallied under the totals: the Status column
+            says what it says, line by line.</li>
+        <li>The last page explains the explanatory codes that appear on that provider's claims,
+            in the Ministry's own wording. A code with no description on file prints as the bare
+            code rather than a guess, and the Codes tab says which ones those are.</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="card"><div class="card-hd"><div><div class="ct">If the export changes</div></div></div>
+    <div class="card-body">
+      <div class="note">Columns are matched by their heading rather than by position, so a column moving
+        sideways is handled. If a heading is renamed or removed, the Review tab says which one could not
+        be found instead of silently producing a blank column, and the totals are cross-checked against
+        the footer the report prints for itself.</div>
+    </div>
+  </div>
+</section>
+
+</main>
+</div>
+
+<div class="footer">
+  <strong>OM Billing Inc.™</strong> · RMPFIN · Radiation Medicine Program financial reporting<br>
+  Runs entirely in this browser — no claim or patient data is uploaded anywhere. © <span id="yr"></span>
+</div>
+
+<script>
+/* ════════════════════════════════════════════════════════════════════
+   RMPFIN — OM Billing Inc.™
+   Radiation Medicine Program monthly financial report:
+     · cleans the export into a plain Excel table
+     · produces one landscape PDF per care provider
+   Everything below ran against the real 8,457-row export under Node before
+   it was inlined here.
+   ════════════════════════════════════════════════════════════════════ */
+'use strict';
+
+/* ══ RMP Financial Report core ═════════════════════════════════════════
+   Cleans the monthly "Detailed Financial Report by Service Date" export and
+   rolls it up per care provider.
+
+   Tested standalone in Node against the real 8,457-row .xls, then embedded
+   verbatim in the module.                                                  */
+
+/* ── the report's own quirks ────────────────────────────────────────────
+   The export is an SSRS-style sheet, not a data table:
+
+   • The header is a three-row band (rows 2-4) held together by merges, so a
+     column's label may sit one column to the RIGHT of its data — "Created
+     Date" is labelled in F but its values live in E (merged E:G). Columns are
+     therefore matched by LABEL and the data column is then located by
+     looking for the one that actually holds values.
+   • Money cells carry the locale format [$-1010409]"$"#,##0.00, which
+     renders as "$$44.75" if you read the formatted text. The underlying
+     values are clean numbers, so everything below reads .v, never .w.
+   • Spacer columns (F, G, S, V, W) exist only to host merges and are empty.
+   • The last rows are a footer block (Total Submitted / Total Paid / Write
+     Off / Outstanding / Billing Success) sitting in columns S and W. They are
+     recomputed from the detail, and used as a cross-check.
+   • A logo and other drawing objects are anchored to the sheets. Nothing is
+     copied from the original workbook — the clean file is written from values
+     alone — so they cannot survive into the output.                        */
+
+/* Columns kept in the cleaned workbook, in order. `label` is matched against
+   the header band. `drop` records what the clinic asked to have removed, so
+   the reason survives next to the decision. */
+const KEEP = [
+  { label: 'Provider',            out: 'Provider' },
+  { label: 'Provider #',          out: 'Provider #',       text: true },
+  { label: 'Claim #',             out: 'Claim #',          text: true },
+  { label: '@claimtype',          out: 'Claim Type',       text: true },
+  { label: 'Created Date',        out: 'Created Date',     date: true },
+  { label: 'Patient Name',        out: 'Patient Name' },
+  { label: 'HCN',                 out: 'HCN',              text: true },
+  { label: 'DOB',                 out: 'DOB',              date: true },
+  { label: 'DX',                  out: 'DX',               text: true },
+  { label: 'Master Number',       out: 'Master Number',    text: true },
+  { label: 'Service Date',        out: 'Service Date',     date: true },
+  { label: 'Code',                out: 'Code',             text: true },
+  { label: 'Service Description', out: 'Service Description' },
+  { label: 'Qty',                 out: 'Qty',              int: true },
+  { label: 'Submitted',           out: 'Submitted',        money: true },
+  { label: 'Paid',                out: 'Paid',             money: true },
+  { label: 'Outstanding',         out: 'Outstanding',      money: true },
+  { label: 'Exp. Codes',          out: 'Exp. Codes',       text: true },
+  { label: 'Status',              out: 'Status',           text: true },
+  { label: 'Payment Date',        out: 'Payment Date',     date: true }
+];
+/* Removed at the clinic's request. */
+const DROPPED = [
+  { label: 'Admission Date', why: 'not relevant to RadOnc' },
+  { label: 'Start Time',     why: 'not applicable to RadOnc' },
+  { label: 'End Time',       why: 'not applicable to RadOnc' },
+  { label: 'Billing Agent',  why: 'internal' },
+  { label: 'Department',     why: 'internal' }
+];
+
+/* Write Off sits between Paid and Outstanding in the source and is carried
+   into the cleaned sheet only when the month actually has one, so a column
+   that would be empty in every row never appears. Without it the remaining
+   figures do not reconcile: Submitted = Paid + Write Off + Outstanding. */
+const WRITE_OFF_COL = { label: 'Write Off', out: 'Write Off', money: true };
+function hasWriteOff(rows) {
+  for (let i = 0; i < rows.length; i++) {
+    const v = rows[i]['Write Off'];
+    if (typeof v === 'number' && isFinite(v) && Math.abs(v) >= 0.005) return true;
+  }
+  return false;
+}
+/* The columns the cleaned sheet will carry, in order. */
+function cleanColumns(rows) {
+  if (!hasWriteOff(rows)) return KEEP.slice();
+  const out = KEEP.slice();
+  let at = out.findIndex(k => k.out === 'Outstanding');
+  if (at < 0) at = out.length;
+  out.splice(at, 0, WRITE_OFF_COL);
+  return out;
+}
+
+/* ── small helpers ─────────────────────────────────────────────────────── */
+const pad2 = n => String(n).padStart(2, '0');
+const num = v => (typeof v === 'number' && isFinite(v)) ? v : 0;
+const isNum = v => typeof v === 'number' && isFinite(v);
+
+/* Round to cents before comparing or totalling. Summing 8,446 floats drifts
+   by fractions of a cent, which would make a reconciliation check fail on
+   arithmetic noise rather than on a real discrepancy. */
+const cents = v => Math.round(num(v) * 100) / 100;
+
+function money(v) {
+  const n = num(v);
+  const s = Math.abs(n).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+  return (n < 0 ? '-$' : '$') + s;
+}
+
+/* Dates arrive as real Date objects (cellDates), occasionally as an Excel
+   serial or a string. All three are normalised to DD/MM/YYYY, the format the
+   rest of the suite prints. */
+function fmtDate(v) {
+  if (v === null || v === undefined || v === '') return '';
+  if (v instanceof Date && !isNaN(v))
+    return pad2(v.getDate()) + '/' + pad2(v.getMonth() + 1) + '/' + v.getFullYear();
+  if (typeof v === 'number' && isFinite(v) && v >= 1 && v <= 2958465) {
+    const d = new Date(Date.UTC(1899, 11, 30) + Math.round(v) * 86400000);
+    return pad2(d.getUTCDate()) + '/' + pad2(d.getUTCMonth() + 1) + '/' + d.getUTCFullYear();
+  }
+  return String(v).trim();
+}
+/* Sortable key, so "01/09/2026" orders before "02/09/2026" rather than
+   sorting as text. */
+function dateKey(v) {
+  if (v instanceof Date && !isNaN(v))
+    return v.getFullYear() + '-' + pad2(v.getMonth() + 1) + '-' + pad2(v.getDate());
+  if (typeof v === 'number' && isFinite(v) && v >= 1 && v <= 2958465) {
+    const d = new Date(Date.UTC(1899, 11, 30) + Math.round(v) * 86400000);
+    return d.getUTCFullYear() + '-' + pad2(d.getUTCMonth() + 1) + '-' + pad2(d.getUTCDate());
+  }
+  const s = String(v == null ? '' : v).trim();
+  const m = s.match(/^(\d{1,2})[\/\-.](\d{1,2})[\/\-.](\d{4})$/);
+  if (m) return m[3] + '-' + pad2(+m[2]) + '-' + pad2(+m[1]);
+  return s;
+}
+
+/* "Abdalaty, A." and "Abdalaty,Ali" are the same physician in two sheets of
+   the same file: surname plus first initial is what they share. */
+function provKey(s) {
+  const t = String(s == null ? '' : s).replace(/\s+/g, ' ').trim();
+  if (!t) return '';
+  const i = t.indexOf(',');
+  const last = (i < 0 ? t : t.slice(0, i)).trim().toLowerCase();
+  const first = (i < 0 ? '' : t.slice(i + 1)).trim().toLowerCase().replace(/\./g, '');
+  return last + '|' + (first.charAt(0) || '');
+}
+/* "Abdalaty,Ali" → "Dr. Ali Abdalaty"; falls back to whatever is there. */
+function provTitle(raw) {
+  const t = String(raw == null ? '' : raw).replace(/\s+/g, ' ').trim();
+  if (!t) return '';
+  const i = t.indexOf(',');
+  if (i < 0) return 'Dr. ' + t;
+  const last = t.slice(0, i).trim(), first = t.slice(i + 1).trim();
+  return ('Dr. ' + (first ? first + ' ' : '') + last).trim();
+}
+/* Safe for a filename on every platform. */
+function slug(s) {
+  return String(s == null ? '' : s).replace(/[^\w\- ]+/g, '_')
+    .replace(/\s+/g, '_').replace(/^_+|_+$/g, '').slice(0, 60) || 'provider';
+}
+
+/* ── reading the sheet ─────────────────────────────────────────────────── */
+/* Locate the header band and map every kept field to the column that really
+   holds its values. Returns {hdrRow, idx:{label→col}, missing:[]}.          */
+function mapColumns(ws, XLSX) {
+  const R = XLSX.utils.decode_range(ws['!ref']);
+  const txt = (r, c) => {
+    const x = ws[XLSX.utils.encode_cell({ r: r, c: c })];
+    return x && x.v !== undefined && x.v !== null ? String(x.v).trim() : '';
+  };
+  const filled = (r, c) => {
+    const x = ws[XLSX.utils.encode_cell({ r: r, c: c })];
+    return !!(x && x.v !== undefined && x.v !== null && String(x.v).trim() !== '');
+  };
+
+  /* The band ends at the row whose first column reads "Provider". */
+  let hdrRow = -1;
+  for (let r = 0; r <= Math.min(R.e.r, 24); r++) {
+    if (txt(r, R.s.c) === 'Provider') { hdrRow = r; break; }
+  }
+  if (hdrRow < 0) return { hdrRow: -1, idx: {}, missing: KEEP.map(k => k.label) };
+
+  /* A column's label is every non-empty cell in the band above and including
+     the "Provider" row, joined — that is how the merges read. */
+  const label = [];
+  for (let c = R.s.c; c <= R.e.c; c++) {
+    const parts = [];
+    for (let r = Math.max(R.s.r, hdrRow - 3); r <= hdrRow; r++) {
+      const v = txt(r, c);
+      if (v) parts.push(v);
+    }
+    label[c] = parts.join(' ');
+  }
+
+  /* Probe a handful of data rows: enough to tell a real column from a spacer
+     without walking 8,000 rows. */
+  const probe = [];
+  for (let r = hdrRow + 1; r <= R.e.r && probe.length < 40; r++) {
+    if (filled(r, R.s.c)) probe.push(r);
+  }
+  const hasData = c => probe.some(r => filled(r, c));
+
+  /* Where a label sits inside a merged data cell, the value lives in the
+     merge's anchor column, which may be to the LEFT of the label: "Created
+     Date" is labelled in F, but the data merge is E:G, so the value is in E.
+     The merges say this exactly, so there is no need to guess from which
+     neighbouring column happens to look populated — a guess that goes wrong
+     on a column like Write Off, which is legitimately blank for most rows. */
+  const anchorOf = {};
+  (ws['!merges'] || []).forEach(m => {
+    if (m.s.r <= hdrRow || m.s.r !== m.e.r) return;      // data rows only
+    if (!probe.length || m.s.r > probe[probe.length - 1]) return;
+    for (let c = m.s.c; c <= m.e.c; c++) {
+      if (anchorOf[c] === undefined) anchorOf[c] = m.s.c;
+    }
+  });
+
+  const norm = s => String(s).toLowerCase().replace(/[^a-z0-9]/g, '');
+  const idx = {}, missing = [], used = {};
+
+  KEEP.forEach(k => {
+    if (k.label.charAt(0) === '@') return;          // positional, resolved below
+    const want = norm(k.label);
+    let lc = -1;
+    for (let c = R.s.c; c <= R.e.c; c++) {
+      if (norm(label[c]) === want && !used[c]) { lc = c; break; }
+    }
+    if (lc < 0) { missing.push(k.label); return; }
+    const dc = anchorOf[lc] !== undefined ? anchorOf[lc] : lc;
+    idx[k.label] = dc; used[dc] = true;
+  });
+
+  /* Claim Type carries no label in this export: it is the filled column
+     immediately right of Claim #. */
+  if (idx['Claim #'] !== undefined) {
+    const c = idx['Claim #'] + 1;
+    if (c <= R.e.c && !used[c] && !label[c] && hasData(c)) {
+      idx['@claimtype'] = c; used[c] = true;
+    }
+  }
+  if (idx['@claimtype'] === undefined) missing.push('Claim Type');
+
+  /* Write Off is dropped from the output but still read, so the three
+     reported totals can be reconciled. It is blank on all but a couple of
+     hundred rows, so it is located by label and merge only — never by
+     looking for a column that happens to hold values. */
+  for (let c = R.s.c; c <= R.e.c; c++) {
+    if (norm(label[c]) === 'writeoff') {
+      idx['Write Off'] = anchorOf[c] !== undefined ? anchorOf[c] : c;
+      break;
+    }
+  }
+  return { hdrRow: hdrRow, idx: idx, missing: missing, label: label, range: R };
+}
+
+/* Read the detail sheet into plain row objects, stopping at the footer block.
+   A row counts as data only when the Provider cell is filled, which skips the
+   blank separator row and the Total/Billing Success footer outright.         */
+function readDetail(ws, XLSX) {
+  const map = mapColumns(ws, XLSX);
+  if (map.hdrRow < 0) throw new Error('Could not find the header row — is this the Detailed Financial Report sheet?');
+  const R = map.range;
+  const cell = (r, c) => {
+    if (c === undefined || c < 0) return undefined;
+    const x = ws[XLSX.utils.encode_cell({ r: r, c: c })];
+    return x ? x.v : undefined;
+  };
+  const provCol = map.idx['Provider'];
+  const rows = [];
+  let footer = null;
+
+  for (let r = map.hdrRow + 1; r <= R.e.r; r++) {
+    const p = cell(r, provCol);
+    const pv = p === undefined || p === null ? '' : String(p).trim();
+    if (!pv || pv === 'Provider') continue;
+    const o = { _r: r };
+    KEEP.forEach(k => { o[k.out] = cell(r, map.idx[k.label]); });
+    o['Write Off'] = cell(r, map.idx['Write Off']);
+    rows.push(o);
+  }
+
+  /* The footer labels sit in one column with their values a few columns over;
+     read them by scanning the tail rather than by fixed position. */
+  const tail = {};
+  for (let r = Math.max(map.hdrRow + 1, R.e.r - 12); r <= R.e.r; r++) {
+    let lbl = '', val = null;
+    for (let c = R.s.c; c <= R.e.c; c++) {
+      const v = cell(r, c);
+      if (v === undefined || v === null || String(v).trim() === '') continue;
+      const s = String(v).trim();
+      if (/:$/.test(s)) lbl = s.replace(/:$/, '');
+      else if (lbl && val === null) val = s;
+    }
+    if (lbl && val !== null) tail[lbl.toLowerCase()] = val;
+  }
+  if (Object.keys(tail).length) footer = tail;
+
+  return { rows: rows, footer: footer, map: map };
+}
+
+/* The Care Provider Summary sheet carries two things the detail sheet does
+   not: full first names (the detail abbreviates to "Abdalaty, A.") and the
+   report's own Billing Success percentage.
+
+   Billing Success is NOT paid ÷ submitted — for Dr. Abdalaty the report says
+   96.41% where paid ÷ submitted is 42.6%, because most of his September
+   claims simply have not been adjudicated yet. It is read here, but nothing
+   displays it: showing two percentages that disagree on the same page invites
+   the wrong question, so the provider reports carry only "Collected", which
+   says exactly what it measures. The figure is kept available for a caller
+   that wants it rather than recomputed from a guessed formula.
+   Returns {key → {name, success}}.                                          */
+function readSummary(wb, XLSX) {
+  const out = {};
+  const name = (wb.SheetNames || []).find(n => /summarycarep/i.test(n.replace(/[^a-z]/gi, '')));
+  if (!name) return out;
+  const ws = wb.Sheets[name];
+  if (!ws || !ws['!ref']) return out;
+  const R = XLSX.utils.decode_range(ws['!ref']);
+  const val = (r, c) => { const x = ws[XLSX.utils.encode_cell({ r: r, c: c })]; return x ? x.v : undefined; };
+
+  /* Find the Billing Success column by its header rather than by hunting for
+     the last number on the row: where a provider has no success figure, the
+     hunt lands on Outstanding and reports a dollar amount as a percentage
+     (Dr. Yau's single $178.75 claim came out as "178.75%"). */
+  const norm = s => String(s).toLowerCase().replace(/[^a-z0-9]/g, '');
+  let hdrRow = -1;
+  for (let r = R.s.r; r <= Math.min(R.e.r, R.s.r + 20); r++) {
+    for (let c = R.s.c; c <= R.e.c; c++) {
+      if (norm(val(r, c)) === 'careprovider') { hdrRow = r; break; }
+    }
+    if (hdrRow >= 0) break;
+  }
+  let sucCol = -1;
+  if (hdrRow >= 0) {
+    for (let c = R.s.c; c <= R.e.c; c++) {
+      for (let r = Math.max(R.s.r, hdrRow - 3); r <= hdrRow; r++) {
+        if (norm(val(r, c)) === 'billingsuccess') { sucCol = c; break; }
+      }
+      if (sucCol >= 0) break;
+    }
+  }
+  /* Only percentages are accepted, whether stored as a fraction (0.9641), a
+     number of percent (96.41) or a formatted string. Anything outside a
+     plausible range is discarded rather than printed. */
+  const asPct = v => {
+    if (v === undefined || v === null || String(v).trim() === '') return null;
+    let n = null;
+    if (typeof v === 'number' && isFinite(v)) n = v;
+    else {
+      const m = String(v).match(/(-?\d+(?:\.\d+)?)\s*%?/);
+      if (m) n = parseFloat(m[1]);
+    }
+    if (n === null || !isFinite(n)) return null;
+    if (n > 1.000001) n = n / 100;                 // 96.41 → 0.9641
+    return (n >= 0 && n <= 1.000001) ? n : null;   // a dollar amount cannot pass
+  };
+
+  for (let r = R.s.r; r <= R.e.r; r++) {
+    /* The name is the first filled cell on the row. */
+    let who = '', wc = -1;
+    for (let c = R.s.c; c <= R.e.c; c++) {
+      const v = val(r, c);
+      if (v !== undefined && v !== null && String(v).trim() !== '') { who = String(v).trim(); wc = c; break; }
+    }
+    if (!who || who.indexOf(',') < 1 || /^group$/i.test(who)) continue;
+    const k = provKey(who);
+    if (!out[k]) out[k] = { name: who, success: null };
+    /* Keep the longest spelling seen — the one with the full first name
+       rather than an initial. */
+    if (who.length > out[k].name.length) out[k].name = who;
+    /* Only the "All" line is taken, so a per-claim-type line cannot
+       overwrite the provider's overall figure. */
+    let isAll = false;
+    for (let c = wc + 1; c <= R.e.c; c++) {
+      if (String(val(r, c) == null ? '' : val(r, c)).trim() === 'All') { isAll = true; break; }
+    }
+    if (!isAll || sucCol < 0) continue;
+    const pct = asPct(val(r, sucCol));
+    if (pct !== null) out[k].success = pct;
+  }
+  return out;
+}
+/* Back-compatible shape: key → full name. */
+function readFullNames(wb, XLSX) {
+  const s = readSummary(wb, XLSX), out = {};
+  Object.keys(s).forEach(k => { out[k] = s[k].name; });
+  return out;
+}
+
+/* The reporting period is printed on the summary sheets as
+   "from 2026/09/01 to 2026/10/31". When it is absent, derive it from the
+   service dates actually present so the report is never unlabelled.         */
+function readPeriod(wb, XLSX, rows) {
+  for (const nm of (wb.SheetNames || [])) {
+    const ws = wb.Sheets[nm];
+    if (!ws || !ws['!ref']) continue;
+    const R = XLSX.utils.decode_range(ws['!ref']);
+    for (let r = R.s.r; r <= Math.min(R.e.r, R.s.r + 12); r++) {
+      for (let c = R.s.c; c <= R.e.c; c++) {
+        const x = ws[XLSX.utils.encode_cell({ r: r, c: c })];
+        if (!x || typeof x.v !== 'string') continue;
+        const m = x.v.match(/from\s+(\d{4}[\/\-.]\d{1,2}[\/\-.]\d{1,2})\s+to\s+(\d{4}[\/\-.]\d{1,2}[\/\-.]\d{1,2})/i);
+        if (m) {
+          const g = s => { const p = s.split(/[\/\-.]/); return pad2(+p[2]) + '/' + pad2(+p[1]) + '/' + p[0]; };
+          return { from: g(m[1]), to: g(m[2]), src: 'file' };
+        }
+      }
+    }
+  }
+  const keys = (rows || []).map(r => dateKey(r['Service Date'])).filter(k => /^\d{4}-/.test(k)).sort();
+  if (!keys.length) return { from: '', to: '', src: 'none' };
+  const g = k => { const p = k.split('-'); return p[2] + '/' + p[1] + '/' + p[0]; };
+  return { from: g(keys[0]), to: g(keys[keys.length - 1]), src: 'dates' };
+}
+
+/* ── roll up per provider ──────────────────────────────────────────────── */
+/* One entry per care provider, rows sorted the way the clinic reads them:
+   by service date, then patient, then code.                                 */
+function aggregate(rows, summary) {
+  /* Accepts either the {key→{name,success}} map from readSummary or the plain
+     {key→name} map, so either caller shape works. */
+  const info = k => {
+    const v = (summary || {})[k];
+    if (!v) return { name: '', success: null };
+    return typeof v === 'string' ? { name: v, success: null } : v;
+  };
+  const map = new Map();
+  rows.forEach(r => {
+    const raw = String(r['Provider'] == null ? '' : r['Provider']).trim();
+    const k = provKey(raw);
+    if (!map.has(k)) {
+      const inf = info(k);
+      map.set(k, {
+        key: k, raw: raw,
+        full: inf.name || raw,
+        success: inf.success,
+        num: String(r['Provider #'] == null ? '' : r['Provider #']).trim(),
+        rows: [], sub: 0, paid: 0, out: 0, wo: 0,
+        status: {}, nRej: 0
+      });
+    }
+    const a = map.get(k);
+    a.rows.push(r);
+    a.sub += num(r['Submitted']);
+    a.paid += num(r['Paid']);
+    a.out += num(r['Outstanding']);
+    a.wo += num(r['Write Off']);
+    const st = String(r['Status'] == null ? '' : r['Status']).trim() || '—';
+    a.status[st] = (a.status[st] || 0) + 1;
+    if (/^rejected$/i.test(st)) a.nRej++;
+  });
+
+  const out = [...map.values()];
+  out.forEach(a => {
+    ['sub', 'paid', 'out', 'wo'].forEach(k => { a[k] = cents(a[k]); });
+    a.rows.sort((x, y) => {
+      const d = dateKey(x['Service Date']).localeCompare(dateKey(y['Service Date']));
+      if (d) return d;
+      const p = String(x['Patient Name'] || '').localeCompare(String(y['Patient Name'] || ''));
+      if (p) return p;
+      return String(x['Code'] || '').localeCompare(String(y['Code'] || ''));
+    });
+    /* Share of the submitted dollars that have actually been collected — the
+       one percentage the reports show. Deliberately not called "billing
+       success": that is the report's own, differently-defined figure, carried
+       on a.success but not printed anywhere. */
+    a.collected = a.sub > 0 ? (a.paid / a.sub) : null;
+  });
+  out.sort((x, y) => x.raw.localeCompare(y.raw));
+  return out;
+}
+
+/* Grand totals plus the identity check the footer lets us make. */
+function grandTotals(rows) {
+  const g = { sub: 0, paid: 0, out: 0, wo: 0, n: rows.length };
+  rows.forEach(r => {
+    g.sub += num(r['Submitted']); g.paid += num(r['Paid']);
+    g.out += num(r['Outstanding']); g.wo += num(r['Write Off']);
+  });
+  ['sub', 'paid', 'out', 'wo'].forEach(k => { g[k] = cents(g[k]); });
+  g.balanced = Math.abs(cents(g.paid + g.wo + g.out) - g.sub) < 0.005;
+  return g;
+}
+
+/* Compare the recomputed grand totals against the file's own footer, so a
+   silent change to the export's layout shows up as a discrepancy instead of
+   a quietly wrong report. */
+function reconcile(grand, footer) {
+  if (!footer) return { checked: false, items: [] };
+  const parse = s => {
+    if (s === undefined || s === null) return null;
+    const t = String(s).replace(/[$,\s%]/g, '');
+    const v = parseFloat(t);
+    return isFinite(v) ? v : null;
+  };
+  const pairs = [
+    ['total submitted', 'sub', 'Total Submitted'],
+    ['total paid', 'paid', 'Total Paid'],
+    ['write off', 'wo', 'Write Off'],
+    ['outstanding', 'out', 'Outstanding']
+  ];
+  const items = [];
+  pairs.forEach(([fk, gk, lbl]) => {
+    const f = parse(footer[fk]);
+    if (f === null) return;
+    items.push({ label: lbl, file: f, computed: grand[gk], ok: Math.abs(f - grand[gk]) < 0.005 });
+  });
+  return { checked: items.length > 0, items: items, ok: items.every(i => i.ok) };
+}
+
+/* ── the cleaned workbook ──────────────────────────────────────────────── */
+/* Written from values only: no merges, no spacer columns, no header band, no
+   footer block, and no drawings — so the logo cannot come along. Money stays
+   numeric with a plain accounting format, and dates stay real dates, so the
+   file is still sortable and summable in Excel.                             */
+function buildCleanSheet(rows, XLSX) {
+  const COLS = cleanColumns(rows);
+  const head = COLS.map(k => k.out);
+  const aoa = [head];
+  rows.forEach(r => {
+    aoa.push(COLS.map(k => {
+      const v = r[k.out];
+      if (k.money) return isNum(v) ? v : (v === undefined || v === null || String(v).trim() === '' ? null : num(v));
+      if (k.int) return isNum(v) ? v : (v === undefined || v === null || String(v).trim() === '' ? null : num(v));
+      if (k.date) return (v instanceof Date && !isNaN(v)) ? v : (v === undefined || v === null || String(v).trim() === '' ? null : v);
+      return v === undefined || v === null ? '' : String(v);
+    }));
+  });
+
+  const ws = XLSX.utils.aoa_to_sheet(aoa, { cellDates: true });
+
+  /* Column formats and widths. A width is set from the header and the field's
+     own worst case so nothing shows as ####. */
+  const wch = { 'Provider': 20, 'Provider #': 10, 'Claim #': 11, 'Claim Type': 10,
+    'Created Date': 12, 'Patient Name': 28, 'HCN': 16, 'DOB': 11, 'DX': 6,
+    'Master Number': 13, 'Service Date': 12, 'Code': 8, 'Service Description': 46,
+    'Qty': 6, 'Submitted': 12, 'Paid': 12, 'Write Off': 11, 'Outstanding': 12,
+    'Exp. Codes': 11, 'Status': 11, 'Payment Date': 13 };
+  ws['!cols'] = COLS.map(k => ({ wch: wch[k.out] || 12 }));
+  ws['!autofilter'] = { ref: XLSX.utils.encode_range(
+    { s: { r: 0, c: 0 }, e: { r: aoa.length - 1, c: COLS.length - 1 } }) };
+
+  const MONEY = '#,##0.00;[Red](#,##0.00)';
+  const DATE = 'dd/mm/yyyy';
+  for (let i = 0; i < COLS.length; i++) {
+    const k = COLS[i];
+    if (!k.money && !k.date) continue;
+    for (let r = 1; r < aoa.length; r++) {
+      const a = XLSX.utils.encode_cell({ r: r, c: i });
+      const cell = ws[a];
+      if (!cell || cell.v === null || cell.v === undefined) continue;
+      cell.z = k.money ? MONEY : DATE;
+    }
+  }
+  return ws;
+}
+
+/* A one-row-per-provider summary sheet, so the cleaned file answers the
+   obvious question without a pivot table. */
+function buildSummarySheet(provs, grand, XLSX) {
+  /* Write Off is listed here whatever its value: this sheet is where the
+     three money columns have to be seen to add up. */
+  const aoa = [['Provider', 'Provider #', 'Claims', 'Submitted', 'Paid',
+    'Write Off', 'Outstanding', 'Collected %', 'Rejected']];
+  provs.forEach(p => aoa.push([p.full || p.raw, p.num, p.rows.length,
+    p.sub, p.paid, p.wo, p.out,
+    p.collected === null ? null : p.collected, p.nRej]));
+  aoa.push([]);
+  aoa.push(['TOTAL', '', grand.n, grand.sub, grand.paid, grand.wo, grand.out,
+    grand.sub > 0 ? grand.paid / grand.sub : null,
+    provs.reduce((a, p) => a + p.nRej, 0)]);
+
+  const ws = XLSX.utils.aoa_to_sheet(aoa);
+  ws['!cols'] = [{ wch: 26 }, { wch: 11 }, { wch: 8 }, { wch: 13 }, { wch: 13 },
+    { wch: 10 }, { wch: 13 }, { wch: 11 }, { wch: 10 }];
+  const MONEY = '#,##0.00;[Red](#,##0.00)';
+  for (let r = 1; r < aoa.length; r++) {
+    [3, 4, 5, 6].forEach(c => {
+      const cell = ws[XLSX.utils.encode_cell({ r: r, c: c })];
+      if (cell && typeof cell.v === 'number') cell.z = MONEY;
+    });
+    const pc = ws[XLSX.utils.encode_cell({ r: r, c: 7 })];
+    if (pc && typeof pc.v === 'number') pc.z = '0.0%';
+  }
+  return ws;
+}
+
+/* Freeze the header row of every sheet.
+
+   SheetJS's community writer ignores a '!freeze' hint, so the pane is added
+   by rewriting the sheet XML inside the finished .xlsx. On an 8,000-row sheet
+   a header that scrolls away is the difference between a usable file and a
+   wall of numbers, and JSZip is already loaded for the PDF bundle, so this
+   costs nothing new. Returns a Blob/Buffer of the same workbook; on any
+   failure the untouched original is returned rather than nothing at all.    */
+async function freezeHeaders(xlsxData, JSZipCtor, outType) {
+  try {
+    const zip = await JSZipCtor.loadAsync(xlsxData);
+    const names = Object.keys(zip.files).filter(n => /^xl\/worksheets\/sheet\d+\.xml$/.test(n));
+    if (!names.length) return xlsxData;
+    const PANE = '<pane ySplit="1" topLeftCell="A2" activePane="bottomLeft" state="frozen"/>' +
+                 '<selection pane="bottomLeft" activeCell="A2" sqref="A2"/>';
+    for (const n of names) {
+      let xml = await zip.file(n).async('string');
+      if (xml.indexOf('<pane ') >= 0) continue;                   // already frozen
+      if (/<sheetView\b[^>]*\/>/.test(xml)) {
+        xml = xml.replace(/<sheetView\b([^>]*)\/>/, '<sheetView$1>' + PANE + '</sheetView>');
+      } else if (/<sheetView\b[^>]*>/.test(xml)) {
+        xml = xml.replace(/(<sheetView\b[^>]*>)/, '$1' + PANE);
+      } else {
+        continue;                                                  // no view to amend
+      }
+      zip.file(n, xml);
+    }
+    /* Node 22 defines a global Blob, so the environment is decided by the
+       presence of a document, not of Blob. */
+    const type = outType || ((typeof window !== 'undefined' && typeof document !== 'undefined')
+      ? 'blob' : 'nodebuffer');
+    return await zip.generateAsync({ type: type, compression: 'DEFLATE' });
+  } catch (e) {
+    if (typeof console !== 'undefined') console.warn('freeze pane skipped', e);
+    return xlsxData;
+  }
+}
+
+/* ── explanatory codes ─────────────────────────────────────────────────
+   The export prints the MOH explanatory codes against a claim line but never
+   says what they mean, so the physician reading the report cannot tell why a
+   line was reduced. These are the official messages, taken verbatim from the
+   Ministry of Health's "Remittance Advice Explanatory Codes/Messages"
+   (7 April 2026) — not paraphrased, because a plausible-sounding wrong
+   explanation on a financial report is worse than none at all.
+
+   This is the subset that appears in the September–October export. The
+   Ministry's list runs to several hundred, so a code that is not here is
+   printed as the bare code with a note that no description is on file, and
+   the clinic can add it on the Codes tab; nothing is ever guessed.         */
+const EXP_CODES = {
+  '09': 'Fee Schedule Code(s) used is not correct — resubmit the claim with the appropriate FSC, or submit an RAI if the claim is posted on a Remittance Advice',
+  '30': 'Service is not a benefit of OHIP',
+  '36': 'OHIP records show the service has been rendered by another practitioner, group or lab',
+  '49': 'Paid according to the average fee for this service. Independent consideration will be given if clinical records or operative reports are presented',
+  'B1': 'Service not eligible for payment when delivered by telephone',
+  'B2': 'Paid in accordance with the OHIP Schedule of Benefits for telephone virtual care services',
+  'C2': 'Allowed at re-assessment fee',
+  'D3': 'Not allowed in addition to visit fee',
+  'D7': 'Not allowed in addition to other procedure',
+  'DC': 'Procedure paid previously, not allowed in addition to this procedure — fee adjusted to pay the difference',
+  'DF': 'Corresponding fee code was not billed, or was paid at zero',
+  'H2': 'Allowed as subsequent visit — initial visit previously claimed',
+  'HA': 'Admission assessment claimed by another physician — hospital visit fee applied',
+  'M1': 'Maximum fee allowed, or maximum number of services has been reached, for the same or any provider',
+  'V7': 'Allowed at medical/specific re-assessment fee'
+};
+/* A cell can carry several codes: "30, B2". */
+function splitExp(v) {
+  return String(v == null ? '' : v).split(/[,;\/|]+/)
+    .map(s => s.trim().toUpperCase()).filter(Boolean);
+}
+/* The distinct codes appearing across a set of claim rows, in a stable order
+   — digits first, then letters, each ascending. */
+function expCodesOf(rows) {
+  const set = {};
+  (rows || []).forEach(r => splitExp(r['Exp. Codes']).forEach(c => { set[c] = true; }));
+  return Object.keys(set).sort((a, b) => {
+    const da = /^\d/.test(a), db = /^\d/.test(b);
+    if (da !== db) return da ? -1 : 1;
+    return a < b ? -1 : a > b ? 1 : 0;
+  });
+}
+/* Pair each code with its message. `table` overrides the built-in list, so a
+   clinic correction wins over what shipped. */
+function expLegend(codes, table) {
+  const t = table || {};
+  return (codes || []).map(c => {
+    const own = t[c], base = EXP_CODES[c];
+    const text = (own !== undefined && String(own).trim() !== '') ? String(own).trim()
+               : (base || '');
+    return { code: c, text: text, known: !!text };
+  });
+}
+
+/* ── the per-provider PDF ──────────────────────────────────────────────── */
+/* Landscape letter. Natural widths are scaled so the table fills the
+   printable width exactly — the clinic's "fit to 1 page wide". Provider name
+   and number live in the page header, not on every row, which buys the
+   description column its space.                                             */
+/* Widths are sized from the real data, not guessed: the longest money string
+   in the file is "$2,433.45" (9 characters), an HCN is 15, a claim number 8,
+   a status 9. Everything that does not need its space is trimmed and the
+   slack given to Service Description, whose 90th-percentile length is 60
+   characters — so most descriptions now print in full and only the long tail
+   is shortened, which is what the clinic asked for.                         */
+const PDF_COLS = [
+  { k: 'Service Date',        h: 'Service\nDate',  w: 56,  a: 'center', t: 'date' },
+  { k: 'Patient Name',        h: 'Patient Name',   w: 115, a: 'left' },
+  { k: 'HCN',                 h: 'HCN',            w: 72,  a: 'left' },
+  { k: 'DX',                  h: 'DX',             w: 24,  a: 'center' },
+  { k: 'Claim #',             h: 'Claim #',        w: 50,  a: 'left' },
+  { k: 'Code',                h: 'Code',           w: 42,  a: 'center' },
+  { k: 'Service Description', h: 'Service Description', w: 277, a: 'left', clip: true },
+  { k: 'Qty',                 h: 'Qty',            w: 24,  a: 'center', t: 'int' },
+  { k: 'Submitted',           h: 'Submitted',      w: 58,  a: 'right',  t: 'money' },
+  { k: 'Paid',                h: 'Paid',           w: 58,  a: 'right',  t: 'money' },
+  { k: 'Outstanding',         h: 'Outstanding',    w: 62,  a: 'right',  t: 'money' },
+  { k: 'Status',              h: 'Status',         w: 46,  a: 'center' },
+  { k: 'Exp. Codes',          h: 'Exp.',           w: 34,  a: 'center' },
+  { k: 'Payment Date',        h: 'Payment\nDate',  w: 56,  a: 'center', t: 'date' }
+];
+
+/* Printable value for a PDF cell. Money that is genuinely absent prints
+   blank rather than $0.00, so an unpaid line is visibly unpaid; a real zero
+   still prints, because a $0.00 code is a fact worth seeing. */
+function pdfText(row, col) {
+  const v = row[col.k];
+  if (col.t === 'money') return isNum(v) ? money(v) : '';
+  if (col.t === 'date') return fmtDate(v);
+  if (col.t === 'int') return isNum(v) ? String(v) : (v === undefined || v === null ? '' : String(v).trim());
+  return v === undefined || v === null ? '' : String(v).trim();
+}
+
+/* ══ RMP per-provider PDF ═══════════════════════════════════════════════
+   One landscape-letter report per care provider, scaled to fill the
+   printable width ("fit to 1 page wide"), continuing over as many pages as
+   the claims need, with the provider's totals at the end.
+
+   Tested standalone in Node against the real file — every page rasterised
+   and inspected — then embedded verbatim in the module.                    */
+
+/* The OM Billing greens. --mid (#1a4a2e) carries the headings: it is the
+   green sibling of the suite's navy and sits at the same lightness, so the
+   page keeps the contrast it was laid out with. The rule, zebra and muted
+   tones are the same shades shifted off the same hue.                      */
+const INK = [26, 74, 46];          // --mid  #1a4a2e
+const RULE = [172, 198, 180];
+const ZEBRA = [245, 250, 246];
+const MUTED = [90, 112, 96];
+
+/* Render one provider's report into an existing jsPDF document.
+   `prov` is an entry from aggregate(); `meta` carries the period and the
+   clinic name. Returns the number of pages added.                          */
+function renderProvider(doc, prov, meta, C) {
+  meta = meta || {};
+  const COLS = C.PDF_COLS;
+  const PW = doc.internal.pageSize.getWidth();
+  const PH = doc.internal.pageSize.getHeight();
+  const M = 28;
+  const avail = PW - M * 2;
+
+  /* Natural widths scaled so the table fills the printable width exactly.
+     Service Description is given the largest natural width, so the slack
+     lands on the column that needs it. */
+  const natural = COLS.reduce((a, c) => a + c.w, 0);
+  const k = avail / natural;
+  const w = COLS.map(c => c.w * k);
+  const x0 = M;
+
+  const FS = 6.9;                   // body font size
+  const LH = 10.2;                  // line height
+  let y = 0, pagesAdded = 0, pageNo = 0;
+
+  const money = C.money;
+
+  /* ── header block, drawn once per page ──────────────────────────────── */
+  /* `withTable` is false on a page that carries only the totals: a column
+     header above an empty table reads as a page that failed to print. */
+  function header(withTable) {
+    pageNo++;
+    y = M;
+    doc.setTextColor(INK[0], INK[1], INK[2]);
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(13);
+    doc.text(C.provTitle(prov.full), x0, y + 4);
+
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(8.2);
+    doc.setTextColor(MUTED[0], MUTED[1], MUTED[2]);
+    const bits = [];
+    if (prov.num) bits.push('Provider # ' + prov.num);
+    bits.push(prov.rows.length + (prov.rows.length === 1 ? ' claim line' : ' claim lines'));
+    doc.text(bits.join('   ·   '), x0, y + 16);
+
+    /* Right-hand identification block. */
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(9);
+    doc.setTextColor(INK[0], INK[1], INK[2]);
+    doc.text(meta.clinic || 'Radiation Medicine Program', PW - M, y + 3, { align: 'right' });
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(7.6);
+    doc.setTextColor(MUTED[0], MUTED[1], MUTED[2]);
+    doc.text('Financial Report by Service Date', PW - M, y + 13, { align: 'right' });
+    if (meta.from || meta.to)
+      doc.text('Period  ' + (meta.from || '?') + '  –  ' + (meta.to || '?'), PW - M, y + 22, { align: 'right' });
+
+    y += 30;
+    doc.setDrawColor(INK[0], INK[1], INK[2]); doc.setLineWidth(1.1);
+    doc.line(x0, y, x0 + avail, y);
+    y += 11;
+    if (withTable) tableHead();
+    else {
+      doc.setFont('helvetica', 'normal'); doc.setFontSize(FS);
+      doc.setTextColor(30, 30, 30);
+      y += 4;
+    }
+  }
+
+  /* ── table header row ──────────────────────────────────────────────── */
+  function tableHead() {
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(6.6);
+    doc.setTextColor(INK[0], INK[1], INK[2]);
+    /* Two-line headers ("Service / Date") keep the narrow date columns
+       narrow instead of forcing every column wider. */
+    const lines = COLS.map(c => String(c.h).split('\n'));
+    const maxL = Math.max.apply(null, lines.map(l => l.length));
+    let x = x0;
+    COLS.forEach((c, i) => {
+      const cw = w[i];
+      lines[i].forEach((ln, li) => {
+        const ty = y + li * 7.4;
+        if (c.a === 'right') doc.text(ln, x + cw - 3, ty, { align: 'right' });
+        else if (c.a === 'left') doc.text(ln, x + 2, ty);
+        else doc.text(ln, x + cw / 2, ty, { align: 'center' });
+      });
+      x += cw;
+    });
+    y += (maxL - 1) * 7.4 + 4;
+    doc.setDrawColor(RULE[0], RULE[1], RULE[2]); doc.setLineWidth(0.7);
+    doc.line(x0, y, x0 + avail, y);
+    y += 9;
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(FS);
+    doc.setTextColor(30, 30, 30);
+  }
+
+  /* Trim to the column width and mark the cut with an ellipsis, so a
+     shortened service description is visibly shortened rather than looking
+     like the whole thing. Only used where the spec says clipping is fine. */
+  function clip(t, cw) {
+    if (doc.getTextWidth(t) <= cw) return t;
+    let lo = 0, hi = t.length;
+    while (lo < hi) {
+      const mid = (lo + hi + 1) >> 1;
+      if (doc.getTextWidth(t.slice(0, mid) + '…') <= cw) lo = mid; else hi = mid - 1;
+    }
+    return lo > 0 ? t.slice(0, lo).replace(/[\s,;:.\-]+$/, '') + '…' : '';
+  }
+
+  /* How much vertical room the closing totals block needs. */
+  const TOTALS_H = 86;
+
+  header(true);
+
+  /* ── body ──────────────────────────────────────────────────────────── */
+  prov.rows.forEach((r, ri) => {
+    if (y > PH - M - 22) {
+      doc.addPage(); pagesAdded++; header(true);
+    }
+    /* Plain alternating shading only. A rejected line is not singled out:
+       these reports go to the physicians, and the Status column already
+       states it without the page pointing at it. */
+    if (ri % 2 === 1) {
+      doc.setFillColor(ZEBRA[0], ZEBRA[1], ZEBRA[2]);
+      doc.rect(x0, y - 7.4, avail, LH, 'F');
+    }
+    let x = x0;
+    COLS.forEach((c, i) => {
+      const cw = w[i];
+      let t = C.pdfText(r, c);
+      if (t) {
+        if (c.clip) {
+          t = clip(t, cw - 5);
+        } else {
+          /* Never silently cut a name or a health number: step the font down
+             until it fits, the way the invoice module does. */
+          let fs = FS;
+          while (fs > 4.6 && doc.getTextWidth(t) * (fs / doc.getFontSize()) > cw - 5) fs -= 0.2;
+          if (fs !== FS) doc.setFontSize(fs);
+          if (c.a === 'right') doc.text(t, x + cw - 3, y, { align: 'right' });
+          else if (c.a === 'center') doc.text(t, x + cw / 2, y, { align: 'center' });
+          else doc.text(t, x + 2, y);
+          if (fs !== FS) doc.setFontSize(FS);
+          x += cw; return;
+        }
+        if (c.a === 'right') doc.text(t, x + cw - 3, y, { align: 'right' });
+        else if (c.a === 'center') doc.text(t, x + cw / 2, y, { align: 'center' });
+        else doc.text(t, x + 2, y);
+      }
+      x += cw;
+    });
+    y += LH;
+  });
+
+  /* ── totals ────────────────────────────────────────────────────────── */
+  /* Totals continued onto their own page: page furniture, no column heads. */
+  if (y > PH - M - TOTALS_H) { doc.addPage(); pagesAdded++; header(false); }
+  y += 6;
+  doc.setDrawColor(INK[0], INK[1], INK[2]); doc.setLineWidth(1.1);
+  doc.line(x0, y, x0 + avail, y);
+  y += 15;
+
+  /* Right-aligned ledger: label then figure, so the numbers line up under
+     the money columns they summarise. */
+  const vx = x0 + avail;            // figures flush right
+  const lx = vx - 92;               // labels end here
+  const line = (label, value, bold, colour) => {
+    doc.setFont('helvetica', bold ? 'bold' : 'normal');
+    doc.setFontSize(bold ? 9.4 : 8.4);
+    const col = colour || (bold ? INK : [50, 50, 50]);
+    doc.setTextColor(col[0], col[1], col[2]);
+    doc.text(label, lx, y, { align: 'right' });
+    doc.text(value, vx, y, { align: 'right' });
+    y += bold ? 15 : 12.5;
+  };
+
+  line('Total submitted', money(prov.sub), true);
+  line('Total paid', money(prov.paid), true);
+  /* Write Off is hidden from the detail at the clinic's request, but without
+     it Submitted − Paid ≠ Outstanding. It is shown here only when it is not
+     zero, so the three headline figures always reconcile on the page. */
+  if (Math.abs(prov.wo) >= 0.005) line('Written off', money(prov.wo), false, MUTED);
+  line('Outstanding', money(prov.out), true);
+
+  /* Left-hand note, level with the totals. "Collected" is paid as a share of
+     submitted — plainly what it says. The report's own Billing Success
+     figure is deliberately not reproduced: it measures something else, and
+     two percentages that disagree invite the wrong question. No breakdown of
+     claim statuses is printed either; the Status column already carries it
+     line by line. */
+  const ly = y - (Math.abs(prov.wo) >= 0.005 ? 54.5 : 45);
+  if (prov.collected !== null && prov.collected !== undefined) {
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(7.8);
+    doc.setTextColor(MUTED[0], MUTED[1], MUTED[2]);
+    doc.text('Collected ' + (prov.collected * 100).toFixed(1) + '% of submitted', x0, ly);
+  }
+
+  /* ── explanatory-code legend ─────────────────────────────────────────
+     Only the codes that actually appear on this provider's lines, so the
+     page answers the question the report raises rather than reprinting the
+     Ministry's whole list. */
+  /* A combined document needs a different legend per provider, so the caller
+     may pass a function instead of a fixed list. */
+  const want = meta.legendFor ? meta.legendFor(prov) : meta.legend;
+  const legend = (want && want.length) ? want : null;
+  if (legend) {
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(7.6);
+    const codeW = 30, textW = avail - codeW - 6;
+    /* Measure first: the block moves to its own page rather than being split
+       awkwardly across two. */
+    const wrapped = legend.map(e => doc.splitTextToSize(
+      e.text || 'no description on file', textW));
+    const needed = 20 + wrapped.reduce((a, l) => a + Math.max(1, l.length) * 9.4 + 1.8, 0);
+    if (y + needed > PH - M - 14) { doc.addPage(); pagesAdded++; header(false); }
+    else y += 20;
+
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(8.2);
+    doc.setTextColor(INK[0], INK[1], INK[2]);
+    doc.text('Explanatory codes on this report', x0, y);
+    y += 5;
+    doc.setDrawColor(RULE[0], RULE[1], RULE[2]); doc.setLineWidth(0.6);
+    doc.line(x0, y, x0 + avail, y);
+    y += 11;
+
+    legend.forEach((e, i) => {
+      const lines = wrapped[i];
+      if (y + lines.length * 9.4 > PH - M - 14) { doc.addPage(); pagesAdded++; header(false); y += 4; }
+      doc.setFont('helvetica', 'bold'); doc.setFontSize(7.6);
+      doc.setTextColor(INK[0], INK[1], INK[2]);
+      doc.text(e.code, x0, y);
+      doc.setFont('helvetica', e.known ? 'normal' : 'italic');
+      doc.setTextColor(e.known ? 50 : MUTED[0], e.known ? 50 : MUTED[1], e.known ? 50 : MUTED[2]);
+      lines.forEach((ln, li) => doc.text(ln, x0 + codeW, y + li * 9.4));
+      y += Math.max(1, lines.length) * 9.4 + 1.8;
+    });
+
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(6.6);
+    doc.setTextColor(MUTED[0], MUTED[1], MUTED[2]);
+    y += 4;
+    if (y < PH - M - 10)
+      doc.text('Ministry of Health, Remittance Advice Explanatory Codes/Messages.', x0, y);
+  }
+  return pagesAdded + 1;
+}
+
+/* Footers are stamped after the whole document exists, because "page 2 of 7"
+   needs the final count. */
+function stampFooters(doc, meta) {
+  const total = doc.internal.getNumberOfPages();
+  const PW = doc.internal.pageSize.getWidth();
+  const PH = doc.internal.pageSize.getHeight();
+  const M = 28;
+  for (let p = 1; p <= total; p++) {
+    doc.setPage(p);
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(6.8);
+    doc.setTextColor(140, 155, 175);
+    doc.text((meta && meta.footer) || 'Confidential — contains patient health information',
+      M, PH - 16);
+    doc.text('Page ' + p + ' of ' + total, PW - M, PH - 16, { align: 'right' });
+    if (meta && meta.generated)
+      doc.text('Generated ' + meta.generated, PW / 2, PH - 16, { align: 'center' });
+  }
+}
+
+/* One report, one document. */
+function buildProviderDoc(jsPDFCtor, prov, meta, C) {
+  const doc = new jsPDFCtor({ orientation: 'landscape', unit: 'pt', format: 'letter' });
+  renderProvider(doc, prov, meta, C);
+  stampFooters(doc, meta);
+  return doc;
+}
+
+/* All providers in one document, each starting on a fresh page — the version
+   the clinic keeps, rather than 44 separate files. */
+function buildCombinedDoc(jsPDFCtor, provs, meta, C) {
+  const doc = new jsPDFCtor({ orientation: 'landscape', unit: 'pt', format: 'letter' });
+  provs.forEach((p, i) => {
+    if (i) doc.addPage();
+    renderProvider(doc, p, meta, C);
+  });
+  stampFooters(doc, meta);
+  return doc;
+}
+
+/* ══ RMPFIN — UI layer ═════════════════════════════════════════════════
+   Everything stateful lives here; the parsing, aggregation, workbook and PDF
+   code above is the logic that was tested standalone against the real
+   monthly export.                                                          */
+
+const MODULE_LABEL = 'RMPFIN';
+let wbRaw = null;         // the parsed source workbook
+let srcName = '';         // uploaded file name
+let det = null;           // {rows, footer, map}
+let provs = [];           // aggregated per provider
+let grand = null;
+let period = { from: '', to: '' };
+let recon = { checked: false, items: [] };
+let pick = {};            // provider key → included in the PDF run
+let built = [];           // generated PDFs: {key, name, file, blob, pages}
+
+/* ── chrome ─────────────────────────────────────────────────────────── */
+function go(id, el) {
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+  const p = document.getElementById('p-' + id);
+  if (p) p.classList.add('active');
+  document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+  if (el) el.classList.add('active');
+  window.scrollTo(0, 0);
+}
+const esc = s => String(s == null ? '' : s)
+  .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+  .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+const el = id => document.getElementById(id);
+function setDot(id, cls) { const d = el(id); if (d) { d.classList.remove('ok', 'warn'); if (cls) d.classList.add(cls); } }
+function today() {
+  const d = new Date();
+  return String(d.getDate()).padStart(2, '0') + '/' +
+         String(d.getMonth() + 1).padStart(2, '0') + '/' + d.getFullYear();
+}
+/* The clinic name is remembered between visits; nothing else is stored. */
+function clinicName() {
+  const v = (el('s-clinic') || {}).value;
+  return (v && v.trim()) || 'Radiation Medicine Program';
+}
+function saveClinic() {
+  try { localStorage.setItem('om_rmp_clinic', clinicName()); } catch (e) { /* private mode */ }
+}
+
+/* ── 1 · upload ─────────────────────────────────────────────────────── */
+/* The detail sheet is the one whose first column holds a "Provider" header.
+   Falling back to the largest sheet means an export that renames its tabs
+   still works. */
+function findDetailSheet(wb) {
+  let best = null, bestRows = -1;
+  for (const nm of wb.SheetNames) {
+    const ws = wb.Sheets[nm];
+    if (!ws || !ws['!ref']) continue;
+    const R = XLSX.utils.decode_range(ws['!ref']);
+    for (let r = R.s.r; r <= Math.min(R.e.r, R.s.r + 24); r++) {
+      const c = ws[XLSX.utils.encode_cell({ r: r, c: R.s.c })];
+      if (c && String(c.v).trim() === 'Provider') return nm;
+    }
+    const n = R.e.r - R.s.r;
+    if (n > bestRows) { bestRows = n; best = nm; }
+  }
+  return best;
+}
+
+async function onFile(input) {
+  const f = input.files && input.files[0];
+  if (!f) return;
+  srcName = f.name;
+  const z = el('uz'); z.classList.add('loaded');
+  el('uz-file').textContent = f.name + '  ·  ' + (f.size / 1048576).toFixed(1) + ' MB';
+  el('up-msg').innerHTML = '<div class="alert a-info">Reading the workbook…</div>';
+  await new Promise(r => setTimeout(r, 30));
+
+  try {
+    const buf = await f.arrayBuffer();
+    wbRaw = XLSX.read(new Uint8Array(buf), { type: 'array', cellDates: true });
+    const nm = findDetailSheet(wbRaw);
+    if (!nm) throw new Error('No worksheet in this file looks like the detail report.');
+    det = readDetail(wbRaw.Sheets[nm], XLSX);
+    if (!det.rows.length) throw new Error('The detail sheet was found but holds no claim rows.');
+
+    const summary = readSummary(wbRaw, XLSX);
+    provs = aggregate(det.rows, summary);
+    grand = grandTotals(det.rows);
+    period = readPeriod(wbRaw, XLSX, det.rows);
+    recon = reconcile(grand, det.footer);
+    pick = {}; provs.forEach(p => { pick[p.key] = true; });
+    built = [];
+
+    setDot('dot-u', 'ok');
+    renderReview();
+    el('up-msg').innerHTML = '<div class="alert a-ok">Read <strong>' +
+      det.rows.length.toLocaleString() + '</strong> claim lines for <strong>' +
+      provs.length + '</strong> care providers from sheet <strong>' + esc(nm) + '</strong>.</div>';
+    el('btn-next').style.display = '';
+  } catch (e) {
+    wbRaw = null; det = null; provs = []; grand = null;
+    setDot('dot-u', 'warn');
+    el('up-msg').innerHTML = '<div class="alert a-warn"><strong>Could not read this file.</strong><div style="margin-top:5px">' +
+      esc(e && e.message ? e.message : String(e)) + '</div></div>';
+  }
+}
+
+/* ── 2 · review ─────────────────────────────────────────────────────── */
+function renderReview() {
+  const nRej = provs.reduce((a, p) => a + p.nRej, 0);
+  el('stats').innerHTML =
+    stat('Claim lines', det.rows.length.toLocaleString()) +
+    stat('Providers', provs.length) +
+    stat('Submitted', money(grand.sub)) +
+    stat('Paid', money(grand.paid), 'ok') +
+    stat('Outstanding', money(grand.out), 'warn');
+
+  /* The period and what was dropped. */
+  let head = '<div class="note"><strong>Period</strong> ' +
+    (period.from ? esc(period.from) + ' – ' + esc(period.to) : 'not stated in the file') +
+    (period.src === 'dates' ? ' <em>(taken from the service dates — the file did not say)</em>' : '') +
+    '<br><strong>Source</strong> ' + esc(srcName) + '</div>';
+
+  /* Reconciliation against the file's own footer: the check that catches a
+     silent change to the export's layout. */
+  let rec = '';
+  if (recon.checked) {
+    const rows = recon.items.map(i =>
+      '<tr><td>' + esc(i.label) + '</td><td style="text-align:right">' + money(i.file) +
+      '</td><td style="text-align:right">' + money(i.computed) + '</td><td style="text-align:center">' +
+      (i.ok ? '<span class="badge b-ok">match</span>' : '<span class="badge b-err">differs</span>') +
+      '</td></tr>').join('');
+    rec = '<div class="card"><div class="card-hd"><div><div class="ct">' +
+      (recon.ok ? '✓ Totals reconcile with the report’s own footer'
+                : '⚠ Totals do NOT match the report’s footer') +
+      '</div><div class="cd">Recomputed from the ' + det.rows.length.toLocaleString() +
+      ' claim lines and compared with the figures the export printed at the bottom.</div></div></div>' +
+      '<div class="card-body"><table class="field-table"><thead><tr><th>Figure</th>' +
+      '<th style="text-align:right">In the file</th><th style="text-align:right">Recomputed</th>' +
+      '<th style="text-align:center">&nbsp;</th></tr></thead><tbody>' + rows + '</tbody></table>' +
+      (grand.balanced ? '' :
+        '<div class="alert a-warn" style="margin-top:10px">Paid + written off + outstanding does not equal submitted. ' +
+        'The per-provider figures are still the sum of the rows, but the source data is inconsistent.</div>') +
+      '</div></div>';
+  } else {
+    rec = '<div class="alert a-info">This export has no totals footer, so there is nothing to cross-check against. ' +
+      'The figures below are the sum of the ' + det.rows.length.toLocaleString() + ' claim lines.</div>';
+  }
+
+  /* Anything the column mapping could not find. */
+  let miss = '';
+  if (det.map && det.map.missing && det.map.missing.length) {
+    miss = '<div class="alert a-warn"><strong>' + det.map.missing.length +
+      ' column(s) not found in this export:</strong> ' + esc(det.map.missing.join(', ')) +
+      '<div style="margin-top:5px">They will be blank in the cleaned file. If the report layout changed, say so and the mapping can be adjusted.</div></div>';
+  }
+  if (Math.abs(grand.wo) >= 0.005) {
+    miss += '<div class="alert a-info"><strong>This period has ' + money(grand.wo) +
+      ' of write-offs</strong>, so the Write Off column is carried into the cleaned workbook ' +
+      'and each affected provider’s PDF shows it as its own line — without it, submitted ' +
+      'minus paid would not equal outstanding.</div>';
+  } else {
+    miss += '<div class="alert a-info">No write-offs this period, so the Write Off column is ' +
+      'left out of the cleaned workbook entirely.</div>';
+  }
+
+  const unknown = expLegend(allCodes(), expEdits).filter(e => !e.known).map(e => e.code);
+  if (unknown.length) {
+    miss += '<div class="alert a-warn"><strong>' + unknown.length + ' explanatory code' +
+      (unknown.length === 1 ? '' : 's') + ' with no description on file:</strong> ' +
+      esc(unknown.join(', ')) + '<div style="margin-top:5px">They will print as the bare code. ' +
+      'Add the wording on the <strong>Codes</strong> tab and it is remembered for next month.</div></div>';
+  }
+  el('rv-head').innerHTML = head + miss + rec;
+
+  /* Per-provider table, with the tick boxes that drive the PDF run. */
+  const rows = provs.map(p =>
+    '<tr>' +
+    '<td style="width:30px"><input type="checkbox" ' + (pick[p.key] ? 'checked' : '') +
+      ' onchange="togglePick(\'' + esc(p.key).replace(/'/g, "\\'") + '\',this.checked)"></td>' +
+    '<td><strong>' + esc(provTitle(p.full)) + '</strong>' +
+      (p.full !== p.raw ? '' : ' <span class="badge b-multi">name abbreviated</span>') + '</td>' +
+    '<td style="font-family:monospace">' + esc(p.num) + '</td>' +
+    '<td style="text-align:right">' + p.rows.length + '</td>' +
+    '<td style="text-align:right">' + money(p.sub) + '</td>' +
+    '<td style="text-align:right">' + money(p.paid) + '</td>' +
+    '<td style="text-align:right">' + money(p.out) + '</td>' +
+    '<td style="text-align:right">' + (p.collected === null ? '—' : (p.collected * 100).toFixed(1) + '%') + '</td>' +
+    '<td style="text-align:center">' + (p.nRej ? '<span class="badge b-warn">' + p.nRej + '</span>' : '') + '</td>' +
+    '</tr>').join('');
+  el('rv-table').innerHTML =
+    '<table class="ledger-table"><thead><tr>' +
+    '<th style="width:30px"><input type="checkbox" id="pick-all" checked onchange="pickAll(this.checked)"></th>' +
+    '<th>Care provider</th><th>Provider #</th><th style="text-align:right">Lines</th>' +
+    '<th style="text-align:right">Submitted</th><th style="text-align:right">Paid</th>' +
+    '<th style="text-align:right">Outstanding</th><th style="text-align:right">Collected</th>' +
+    '<th style="text-align:center">Rejected</th>' +
+    '</tr></thead><tbody>' + rows +
+    '<tr style="background:var(--g5);font-weight:700"><td></td><td>TOTAL</td><td></td>' +
+    '<td style="text-align:right">' + det.rows.length.toLocaleString() + '</td>' +
+    '<td style="text-align:right">' + money(grand.sub) + '</td>' +
+    '<td style="text-align:right">' + money(grand.paid) + '</td>' +
+    '<td style="text-align:right">' + money(grand.out) + '</td>' +
+    '<td style="text-align:right">' + (grand.sub > 0 ? (grand.paid / grand.sub * 100).toFixed(1) + '%' : '—') + '</td>' +
+    '<td style="text-align:center">' + (nRej || '') + '</td></tr>' +
+    '</tbody></table>';
+
+  setDot('dot-r', 'ok');
+  updPick();
+  renderPdfList();
+  renderCodes();
+}
+function stat(l, v, cls) {
+  return '<div class="ssi"><div class="ssl">' + esc(l) + '</div><div class="ssv ' +
+    (cls || '') + '">' + esc(v) + '</div></div>';
+}
+function togglePick(k, on) { pick[k] = !!on; updPick(); }
+function pickAll(on) {
+  provs.forEach(p => { pick[p.key] = !!on; });
+  document.querySelectorAll('#rv-table tbody input[type=checkbox]').forEach(c => { c.checked = !!on; });
+  updPick();
+}
+function selected() { return provs.filter(p => pick[p.key]); }
+function updPick() {
+  const s = selected();
+  const t = s.length + ' of ' + provs.length + ' selected';
+  ['pick-count', 'pick-count2'].forEach(id => { const e = el(id); if (e) e.textContent = t; });
+  ['btn-pdf', 'btn-pdf-one'].forEach(id => { const b = el(id); if (b) b.disabled = !s.length; });
+  const a = el('pick-all');
+  if (a) a.checked = s.length === provs.length;
+}
+
+/* ── 3 · cleaned workbook ───────────────────────────────────────────── */
+async function makeClean() {
+  if (!det) return;
+  const b = el('btn-clean'); b.disabled = true;
+  el('cl-msg').innerHTML = '<div class="alert a-info">Building the workbook…</div>';
+  await new Promise(r => setTimeout(r, 30));
+  try {
+    const out = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(out, buildCleanSheet(det.rows, XLSX), 'Claims');
+    XLSX.utils.book_append_sheet(out, buildSummarySheet(provs, grand, XLSX), 'By Provider');
+    let data = XLSX.write(out, { type: 'array', bookType: 'xlsx', cellDates: true, compression: true });
+    let blob;
+    if (typeof JSZip !== 'undefined') {
+      blob = await freezeHeaders(data, JSZip, 'blob');
+      if (!(blob instanceof Blob)) blob = new Blob([data], { type: XLSX_MIME });
+    } else {
+      blob = new Blob([data], { type: XLSX_MIME });
+    }
+    const name = cleanName();
+    const url = URL.createObjectURL(blob);
+    const nCols = cleanColumns(det.rows).length;
+    el('cl-msg').innerHTML = '<div class="alert a-ok"><strong>Ready.</strong> ' +
+      det.rows.length.toLocaleString() + ' rows · ' + nCols + ' columns · two sheets.</div>' +
+      '<a class="btn-zip" href="' + url + '" download="' + esc(name) + '">⬇ ' + esc(name) + '</a>';
+    setDot('dot-c', 'ok');
+  } catch (e) {
+    el('cl-msg').innerHTML = '<div class="alert a-warn"><strong>Could not build the workbook.</strong><div style="margin-top:5px">' +
+      esc(e && e.message ? e.message : String(e)) + '</div></div>';
+  }
+  b.disabled = false;
+}
+const XLSX_MIME = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+/* "...20261009.xls" → "..._CLEAN.xlsx", keeping whatever the clinic named it. */
+function cleanName() {
+  const b = String(srcName || 'Financial_Report').replace(/\.(xlsx?|xlsm|csv)$/i, '').replace(/[_ -]+$/, '');
+  return (b || 'Financial_Report') + '_CLEAN.xlsx';
+}
+/* A filename tag for the period. Usually one month, so "202609" rather than
+   "202609-202609"; a two- or three-month window spans the two ends. */
+function periodTag() {
+  const m = String(period.from || '').match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+  const n = String(period.to || '').match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+  if (!m || !n) return '';
+  const a = m[3] + m[2], b = n[3] + n[2];
+  return a === b ? a : a + '-' + b;
+}
+
+/* ── explanatory codes ──────────────────────────────────────────────── */
+/* Only the clinic's own corrections and additions are stored; the Ministry
+   wording ships with the module and is not duplicated into storage, so a
+   later correction to it is picked up automatically. */
+let expEdits = {};
+let legendMode = 'own';          // 'own' | 'all' | 'off'
+
+function loadExp() {
+  try {
+    const raw = localStorage.getItem('om_rmp_exp');
+    expEdits = raw ? (JSON.parse(raw) || {}) : {};
+  } catch (e) { expEdits = {}; }
+  try {
+    const m = localStorage.getItem('om_rmp_legend');
+    if (m === 'own' || m === 'all' || m === 'off') legendMode = m;
+  } catch (e) { /* private mode */ }
+}
+function saveExp() {
+  try { localStorage.setItem('om_rmp_exp', JSON.stringify(expEdits)); } catch (e) { /* private mode */ }
+}
+/* Every code in the uploaded file, whichever provider it belongs to. */
+function allCodes() { return det ? expCodesOf(det.rows) : []; }
+function legendFor(p) {
+  if (legendMode === 'off') return [];
+  const codes = legendMode === 'all' ? allCodes() : expCodesOf(p.rows);
+  return expLegend(codes, expEdits);
+}
+function setLegendMode(m) {
+  legendMode = m;
+  try { localStorage.setItem('om_rmp_legend', m); } catch (e) { /* private mode */ }
+  document.querySelectorAll('[data-lm]').forEach(b =>
+    b.classList.toggle('active', b.getAttribute('data-lm') === m));
+  renderCodes();
+}
+function setExp(code, text) {
+  const t = String(text == null ? '' : text).trim();
+  /* An edit that matches the shipped wording is not an edit; dropping it
+     keeps the stored set to genuine corrections. */
+  if (!t || t === EXP_CODES[code]) delete expEdits[code]; else expEdits[code] = t;
+  saveExp();
+  renderCodes();
+}
+function resetExp(code) {
+  delete expEdits[code]; saveExp(); renderCodes();
+}
+function renderCodes() {
+  const box = el('codes-tbl');
+  if (!box) return;
+  const codes = allCodes();
+  if (!det) { box.innerHTML = '<div class="empty"><div class="empty-ic">🔖</div>' +
+    '<div class="empty-tx">Upload a file to see the codes it uses.</div></div>'; return; }
+  if (!codes.length) { box.innerHTML = '<div class="alert a-ok">No explanatory codes appear anywhere ' +
+    'in this file, so nothing will be printed.</div>'; return; }
+  const leg = expLegend(codes, expEdits);
+  const n = leg.filter(e => !e.known).length;
+  const rows = leg.map(e => {
+    const edited = expEdits[e.code] !== undefined;
+    return '<tr><td style="width:52px"><strong>' + esc(e.code) + '</strong></td>' +
+      '<td><input class="fi" style="width:100%" value="' + esc(e.text) + '" ' +
+      'placeholder="no description on file — type one to have it printed" ' +
+      'onchange="setExp(\'' + esc(e.code) + '\',this.value)"></td>' +
+      '<td style="width:150px;text-align:right">' +
+      (edited ? '<span class="badge b-multi">edited</span> ' +
+        '<button class="bdel" title="Back to the Ministry wording" ' +
+        'onclick="resetExp(\'' + esc(e.code) + '\')">↺</button>'
+        : (e.known ? '<span class="badge b-ok">Ministry</span>'
+                   : '<span class="badge b-warn">none</span>')) +
+      '</td></tr>';
+  }).join('');
+  box.innerHTML =
+    (n ? '<div class="alert a-warn"><strong>' + n + ' code' + (n === 1 ? '' : 's') +
+      ' in this file ' + (n === 1 ? 'has' : 'have') + ' no description.</strong> ' +
+      'They print as the bare code — nothing is invented. Type the wording once below and it is ' +
+      'remembered for next month.</div>'
+      : '<div class="alert a-ok">Every code in this file has a description.</div>') +
+    '<table class="field-table"><thead><tr><th>Code</th><th>Printed description</th>' +
+    '<th style="text-align:right">Source</th></tr></thead><tbody>' + rows + '</tbody></table>';
+}
+
+/* ── 4 · provider PDFs ──────────────────────────────────────────────── */
+function pdfMeta() {
+  return {
+    from: period.from, to: period.to,
+    clinic: clinicName(),
+    generated: today(),
+    footer: 'Confidential — contains patient health information',
+    legendFor: legendFor
+  };
+}
+function jsPDFCtor() {
+  const ns = window.jspdf || window.jsPDF;
+  const C = (ns && ns.jsPDF) ? ns.jsPDF : window.jsPDF;
+  if (!C) throw new Error('The PDF library did not load. Check the network connection and reload.');
+  return C;
+}
+
+function renderPdfList() {
+  const s = selected();
+  if (!s.length) { el('pdf-list').innerHTML = '<div class="empty"><div class="empty-ic">📄</div>' +
+    '<div class="empty-tx">No providers selected — tick some on the Review tab.</div></div>'; return; }
+  el('pdf-list').innerHTML = s.map(p => {
+    const b = built.find(x => x.key === p.key);
+    return '<div class="pt-row">' +
+      '<div class="ava">' + esc(initials(p)) + '</div>' +
+      '<div class="pi"><div class="pn">' + esc(provTitle(p.full)) + '</div>' +
+      '<div class="pm">' + p.rows.length + ' lines · ' + money(p.sub) + ' submitted · ' +
+      money(p.out) + ' outstanding' + (p.nRej ? ' · ' + p.nRej + ' rejected' : '') + '</div></div>' +
+      (b ? '<span class="badge b-ok">' + b.pages + ' pp</span>' +
+           '<a class="btn-dl" href="' + b.url + '" download="' + esc(b.file) + '">⬇ PDF</a>'
+         : '<span class="badge b-multi">not built</span>') +
+      '</div>';
+  }).join('');
+}
+function initials(p) {
+  const t = String(p.full || p.raw || '');
+  const i = t.indexOf(',');
+  const last = (i < 0 ? t : t.slice(0, i)).trim();
+  const first = (i < 0 ? '' : t.slice(i + 1)).trim();
+  return ((first.charAt(0) || '') + (last.charAt(0) || '')).toUpperCase() || '··';
+}
+
+function pdfFileName(p) {
+  const tag = periodTag();
+  return slug(p.full) + (tag ? '_' + tag : '') + '.pdf';
+}
+
+/* Build one PDF per selected provider. The loop yields between providers so
+   the progress bar actually paints — 44 reports is several seconds of work
+   and a frozen tab looks like a crash. */
+async function makePdfs() {
+  if (!provs.length) return;
+  const s = selected();
+  const btn = el('btn-pdf'); btn.disabled = true;
+  el('btn-pdf-one').disabled = true;
+  const bar = el('pdf-bar'), fill = el('pdf-fill'), msg = el('pdf-msg');
+  bar.style.display = ''; fill.style.width = '0%';
+  msg.innerHTML = '';
+  built.forEach(b => { try { URL.revokeObjectURL(b.url); } catch (e) { } });
+  built = [];
+  const meta = pdfMeta();
+  let Ctor;
+  try { Ctor = jsPDFCtor(); } catch (e) {
+    msg.innerHTML = '<div class="alert a-warn">' + esc(e.message) + '</div>';
+    btn.disabled = false; el('btn-pdf-one').disabled = false; bar.style.display = 'none'; return;
+  }
+  const api = { money: money, provTitle: provTitle, pdfText: pdfText, PDF_COLS: PDF_COLS };
+
+  for (let i = 0; i < s.length; i++) {
+    const p = s[i];
+    try {
+      const doc = buildProviderDoc(Ctor, p, meta, api);
+      const blob = doc.output('blob');
+      built.push({ key: p.key, file: pdfFileName(p), url: URL.createObjectURL(blob),
+        blob: blob, pages: doc.internal.getNumberOfPages() });
+    } catch (e) {
+      msg.innerHTML += '<div class="alert a-warn">' + esc(provTitle(p.full)) + ': ' +
+        esc(e && e.message ? e.message : String(e)) + '</div>';
+    }
+    fill.style.width = Math.round((i + 1) / s.length * 100) + '%';
+    if (i % 2 === 1) await new Promise(r => setTimeout(r, 0));
+  }
+  const pages = built.reduce((a, b) => a + b.pages, 0);
+  msg.innerHTML = '<div class="alert a-ok"><strong>' + built.length + ' report' +
+    (built.length === 1 ? '' : 's') + ' ready</strong> · ' + pages + ' pages in total.</div>' + msg.innerHTML;
+  setDot('dot-p', 'ok');
+  renderPdfList();
+  el('btn-zip').style.display = built.length ? '' : 'none';
+  btn.disabled = false; el('btn-pdf-one').disabled = false;
+  bar.style.display = 'none';
+}
+
+/* Everything in one document instead of 44 files — the copy the office
+   keeps. */
+async function makeCombined() {
+  const s = selected();
+  if (!s.length) return;
+  const b = el('btn-pdf-one'); b.disabled = true;
+  el('pdf-msg').innerHTML = '<div class="alert a-info">Building one combined report…</div>';
+  await new Promise(r => setTimeout(r, 30));
+  try {
+    const Ctor = jsPDFCtor();
+    const api = { money: money, provTitle: provTitle, pdfText: pdfText, PDF_COLS: PDF_COLS };
+    const doc = buildCombinedDoc(Ctor, s, pdfMeta(), api);
+    const tag = periodTag();
+    const name = 'RMP_Financial_All_Providers' + (tag ? '_' + tag : '') + '.pdf';
+    const url = URL.createObjectURL(doc.output('blob'));
+    el('pdf-msg').innerHTML = '<div class="alert a-ok"><strong>Combined report ready</strong> · ' +
+      s.length + ' providers · ' + doc.internal.getNumberOfPages() + ' pages.</div>' +
+      '<a class="btn-zip" href="' + url + '" download="' + esc(name) + '">⬇ ' + esc(name) + '</a>';
+  } catch (e) {
+    el('pdf-msg').innerHTML = '<div class="alert a-warn">' +
+      esc(e && e.message ? e.message : String(e)) + '</div>';
+  }
+  b.disabled = false;
+}
+
+async function zipPdfs() {
+  if (!built.length) return;
+  if (typeof JSZip === 'undefined') {
+    el('pdf-msg').innerHTML = '<div class="alert a-warn">The zip library did not load — ' +
+      'download the reports individually from the list.</div>';
+    return;
+  }
+  const b = el('btn-zip'); b.disabled = true;
+  const tag = periodTag();
+  const folder = 'RMP_Provider_Reports' + (tag ? '_' + tag : '');
+  const zip = new JSZip(), dir = zip.folder(folder);
+  built.forEach(x => dir.file(x.file, x.blob));
+  const blob = await zip.generateAsync({ type: 'blob' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = folder + '.zip';
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  setTimeout(() => URL.revokeObjectURL(a.href), 30000);
+  b.disabled = false;
+}
+
+/* ── boot ───────────────────────────────────────────────────────────── */
+window.addEventListener('DOMContentLoaded', function () {
+  try {
+    const c = localStorage.getItem('om_rmp_clinic');
+    if (c && el('s-clinic')) el('s-clinic').value = c;
+  } catch (e) { /* private mode */ }
+  loadExp();
+  document.querySelectorAll('[data-lm]').forEach(b =>
+    b.classList.toggle('active', b.getAttribute('data-lm') === legendMode));
+  renderCodes();
+  const y = el('yr'); if (y) y.textContent = new Date().getFullYear();
+});
+</script>
+</body>
+</html>

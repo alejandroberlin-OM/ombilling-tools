@@ -115,6 +115,7 @@ body::after{
 .card-g512 {--card-a:#c05a7d;--card-b:#5e2338}
 .card-blad {--card-a:#4a9d6e;--card-b:#1c4d33}
 .card-cdc  {--card-a:#7b5ea7;--card-b:#38275c}
+.card-fin  {--card-a:#4e7d8c;--card-b:#1d3b45}
 
 .card-flag{
   display:inline-flex;align-items:center;gap:7px;
@@ -138,6 +139,7 @@ body::after{
 .card-g512 .flag-dot{background:#e08aa6;box-shadow:0 0 8px #e08aa6}
 .card-blad .flag-dot{background:#6fc496;box-shadow:0 0 8px #6fc496}
 .card-cdc  .flag-dot{background:#a98fd0;box-shadow:0 0 8px #a98fd0}
+.card-fin  .flag-dot{background:#7ab0c2;box-shadow:0 0 8px #7ab0c2}
 
 .card-title{font-family:"Cormorant Garamond",serif;font-size:26px;font-weight:600;
              color:#fff;line-height:1.15;margin-bottom:8px;position:relative;z-index:1}
@@ -383,6 +385,11 @@ const MODULES = {
     flag:'RMP · On-Call', title:'Weekend<br>On-Call',
     sub:'In-patient weekend rounds<br>Visits + premiums · CabMD CSV', btn:'Open Tool'
   },
+  rmpfin: {
+    cls:'card-fin', file:'RMPFIN.html',
+    flag:'RMP · Finance', title:'Financial<br>Reporting',
+    sub:'Monthly report by service date<br>Cleaned Excel · per-provider PDFs', btn:'Open Tool'
+  },
   hope: {
     cls:'card-hope', file:'HOPE.html',
     flag:'RMP · Dr. Hope', title:'HOPE<br>Excel Processor',
@@ -423,13 +430,13 @@ const MODULES = {
 /* ══ PRACTICE SECTIONS ══ */
 const SECTIONS = {
   radonc: { label:'Radiation Oncology',
-            modules:['ifhp_radonc','qc','rnc','rpr','oncall','hope','bladder'] },
+            modules:['ifhp_radonc','qc','rnc','rpr','oncall','rmpfin','hope','bladder'] },
   medonc: { label:'DMOH',
             modules:['ifhp_gen','qc','mhdu','cdc','repeats'] },
   // Admin-only. Not referenced by the radonc or medonc roles, so those users
   // never see these cards.
   admin:  { label:'Administration',
-            modules:['abr','inv','rt','g512','repeats'] }
+            modules:['abr','inv','rt','g512','rmpfin','repeats'] }
 };
 
 /* ══════════════════════════════════════════════════════════════════
