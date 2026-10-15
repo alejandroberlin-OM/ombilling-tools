@@ -878,6 +878,79 @@ function readFullNames(wb, XLSX) {
   return out;
 }
 
+/* ── which report is this? ─────────────────────────────────────────────
+   The billing system issues the same workbook in two flavours and says which
+   on the second line of the summary sheets: "by Service Date" or "by
+   Remittance Date". They read very differently —
+
+     by service date     every claim with a service date in the window,
+                         whatever has happened to it since; much of it is
+                         still outstanding, and the period is the question.
+     by remittance date  what the Ministry actually settled in one payment
+                         run; the service dates stretch back months, every
+                         line is already adjudicated, and the period is just
+                         the month of the cheque.
+
+   so the reports are headed and totalled differently. The subtitle is taken
+   first; failing that, the data decides — a remittance run has a payment
+   date on effectively every line and no claim still sitting at Submitted.  */
+function readReportKind(wb, XLSX, rows) {
+  for (const nm of (wb.SheetNames || [])) {
+    const ws = wb.Sheets[nm];
+    if (!ws || !ws['!ref']) continue;
+    const R = XLSX.utils.decode_range(ws['!ref']);
+    for (let r = R.s.r; r <= Math.min(R.e.r, R.s.r + 12); r++) {
+      for (let c = R.s.c; c <= R.e.c; c++) {
+        const x = ws[XLSX.utils.encode_cell({ r: r, c: c })];
+        if (!x || typeof x.v !== 'string') continue;
+        const t = x.v.toLowerCase().replace(/\s+/g, ' ').trim();
+        if (t === 'by remittance date' || t === 'by remittance advice') return 'remittance';
+        if (t === 'by service date') return 'service';
+      }
+    }
+  }
+  /* No subtitle: judge by the shape of the data. */
+  const rs = rows || [];
+  if (!rs.length) return 'service';
+  let paid = 0, open = 0;
+  rs.forEach(r => {
+    if (dateKey(r['Payment Date'])) paid++;
+    const st = String(r['Status'] == null ? '' : r['Status']).trim().toLowerCase();
+    if (st === 'submitted' || st === 'ready') open++;
+  });
+  return (paid / rs.length > 0.9 && open === 0) ? 'remittance' : 'service';
+}
+
+/* The month a remittance run belongs to, for the page heading. The payment
+   dates are the remittance dates, so they answer this exactly; the stated
+   period is only a fallback. A run that somehow spans months is named as a
+   span rather than silently reported as one of them.                        */
+const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June',
+  'July', 'August', 'September', 'October', 'November', 'December'];
+function remitLabel(rows, period) {
+  const seen = {};
+  (rows || []).forEach(r => {
+    const k = dateKey(r['Payment Date']);
+    if (/^\d{4}-\d{2}/.test(k)) seen[k.slice(0, 7)] = true;
+  });
+  let keys = Object.keys(seen).sort();
+  if (!keys.length && period) {
+    /* Fall back to the stated period, which is DD/MM/YYYY by then. */
+    const f = String(period.from || '').match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+    const t = String(period.to || '').match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+    if (f) keys.push(f[3] + '-' + f[2]);
+    if (t && (!f || t[3] + '-' + t[2] !== keys[0])) keys.push(t[3] + '-' + t[2]);
+    keys = keys.sort();
+  }
+  if (!keys.length) return '';
+  const name = k => { const p = k.split('-'); return MONTHS[+p[1] - 1] + ' ' + p[0]; };
+  if (keys.length === 1) return name(keys[0]);
+  const a = keys[0].split('-'), b = keys[keys.length - 1].split('-');
+  return a[0] === b[0]
+    ? MONTHS[+a[1] - 1] + ' – ' + MONTHS[+b[1] - 1] + ' ' + a[0]
+    : name(keys[0]) + ' – ' + name(keys[keys.length - 1]);
+}
+
 /* The reporting period is printed on the summary sheets as
    "from 2026/09/01 to 2026/10/31". When it is absent, derive it from the
    service dates actually present so the report is never unlabelled.         */
@@ -1122,26 +1195,250 @@ async function freezeHeaders(xlsxData, JSZipCtor, outType) {
    (7 April 2026) — not paraphrased, because a plausible-sounding wrong
    explanation on a financial report is worse than none at all.
 
-   This is the subset that appears in the September–October export. The
+   This is the subset that appears in the exports seen so far — both the
+   by-service-date and the by-remittance-date reports. The
    Ministry's list runs to several hundred, so a code that is not here is
    printed as the bare code with a note that no description is on file, and
    the clinic can add it on the Codes tab; nothing is ever guessed.         */
+/* The Ministry's complete Remittance Advice explanatory-code list — all 227
+   of them, transcribed verbatim from "Remittance Advice Explanatory
+   Codes/Messages" (7 April 2026). Verbatim matters twice over: the reports
+   print an attribution line naming that document, and a plausible-sounding
+   paraphrase on a physician's financial report is worse than no explanation
+   at all. Where the Ministry's own wording is terse or oddly punctuated it is
+   left alone; a clinic that prefers different phrasing overrides any line on
+   the Codes tab, and that override wins.
+
+   Codes outside this list still print as the bare code, flagged on the Codes
+   tab, never guessed at.                                                    */
 const EXP_CODES = {
-  '09': 'Fee Schedule Code(s) used is not correct — resubmit the claim with the appropriate FSC, or submit an RAI if the claim is posted on a Remittance Advice',
-  '30': 'Service is not a benefit of OHIP',
-  '36': 'OHIP records show the service has been rendered by another practitioner, group or lab',
-  '49': 'Paid according to the average fee for this service. Independent consideration will be given if clinical records or operative reports are presented',
-  'B1': 'Service not eligible for payment when delivered by telephone',
-  'B2': 'Paid in accordance with the OHIP Schedule of Benefits for telephone virtual care services',
+  '09': 'Fee Schedule Code(s) used is not correct, please resubmit claim with the appropriate FSC or submit an RAI if the claim is posted on a Remittance Advice',
+  '30': 'Service is not a benefit of OHIP (Ontario Health Insurance Plan)',
+  '31': 'Not a valid network service',
+  '32': 'OHIP records show service(s) on this day claimed previously',
+  '33': 'Approved',
+  '35': 'OHIP records show this service rendered has been claimed previously (used on Pay Practitioner duplicate claims)',
+  '36': 'OHIP records show service has been rendered by another Practitioner, Group, Lab',
+  '37': 'Effective April 1, 1993 the listed benefit for this code is 0 Laboratory Medicine Services (LMS) units',
+  '40': 'Service or related service allowed only once for same patient',
+  '41': 'Fee Schedule Code (FSC) Billed - No Evidence in Supporting Documentation Provided',
+  '42': 'FSC Billed Included in Other Procedure',
+  '45': 'Specialty code restriction on Fee Schedule Code',
+  '46': 'Paid Per 2nd Review by Medical Advisor (MA)',
+  '47': 'Not Paid Per 2nd Review by Medical Advisor (MA)',
+  '48': 'Paid as submitted - clinical records may be requested for verification purposes',
+  '49': 'Paid according to the average fee for this service. Independent consideration will be given if clinical records/operative reports presented.',
+  '50': 'Paid in accordance with the Schedule of Benefits',
+  '51': 'Fee Schedule Code changed in accordance with Schedule of Benefits',
+  '52': 'Fee-for-service assessed by medical consultant',
+  '53': 'Fee allowed according to appropriate item in a previous Schedule of Benefits',
+  '54': 'Interim payment - claim under review',
+  '55': 'Deduction is an adjustment on an earlier account',
+  '56': 'Claim under review',
+  '57': 'This payment is an adjustment on an earlier account',
+  '58': 'Claimed by another physician within group',
+  '59': 'Practitioner\'s notification - WCB claims',
+  '60': 'Not a benefit of the Reciprocal Medical Billing Agreement',
+  '62': 'Claim assessed by Assessment Officer',
+  '65': 'Service included in approved hospital payment',
+  '66': 'Reduced per Alternative Payment Program (APP) Funding Contract',
+  '69': 'Elective Services Paid At 75% Of OHIP Schedule of Rates',
+  '70': 'OHIP records show corresponding procedure(s) on this day claimed previously by another physician',
+  '80': 'Technical fee adjustment for hospitals',
+  'AP': 'This payment is in accordance with legislation. If you disagree with the payment, you may appeal to the General Manager',
+  'AH': 'Not allowed in addition to health exam',
+  'B1': 'Service Not Eligible for Payment When Delivered by Telephone',
+  'B2': 'Paid in accordance with the OHIP Schedule of Benefits for Telephone Virtual Care Services',
+  'B3': 'Patient-Physician Relationship Requirements Not Met',
+  'B4': 'Virtual Service not allowed in addition to In-Person Equivalent Service',
+  'B5': 'In-Person Service Not Allowed in Addition to Virtual Equivalent Service',
+  'B6': 'Limited Virtual Care Service Already Paid',
+  'B7': 'Comprehensive Virtual Care Service Already Paid',
+  'B8': 'Service Not Eligible for Payment Virtually',
+  'C1': 'Allowed as repeat/limited consultation/midwife-requested emergency assessment',
   'C2': 'Allowed at re-assessment fee',
+  'C3': 'Allowed at minor assessment fee',
+  'C4': 'Consultation not allowed with this service-paid as assessment',
+  'C5': 'Allowed as multiple systems assessment',
+  'C6': 'Allowed as Type 2 admission assessment',
+  'C7': 'An admission assessment (C003A) or general re-assessment (C004A) may not be claimed by any physician within 30 days following a predental/pre-operative assessment',
+  'C8': 'Payment reduced to geriatric consultation fee-maximum number of comprehensive geriatric consultations has been reached',
+  'C9': 'Allowed as in-patient interim admission orders-initial assessment already claimed by other physician',
+  'D1': 'Allowed as repeat procedure-initial procedure previously claimed',
+  'D2': 'Additional procedures allowed at 50%',
   'D3': 'Not allowed in addition to visit fee',
+  'D4': 'Procedure allowed at 50% with visit',
+  'D5': 'Procedure already allowed-visit fee adjusted',
+  'D6': 'Limit of payment for this procedure reached',
   'D7': 'Not allowed in addition to other procedure',
-  'DC': 'Procedure paid previously, not allowed in addition to this procedure — fee adjusted to pay the difference',
-  'DF': 'Corresponding fee code was not billed, or was paid at zero',
-  'H2': 'Allowed as subsequent visit — initial visit previously claimed',
-  'HA': 'Admission assessment claimed by another physician — hospital visit fee applied',
-  'M1': 'Maximum fee allowed, or maximum number of services has been reached, for the same or any provider',
-  'V7': 'Allowed at medical/specific re-assessment fee'
+  'D8': 'Allowed with specific procedures only',
+  'D9': 'Not allowed to a hospital department',
+  'DA': 'Maximum for this procedure reached - paid as repeat/chronic procedure',
+  'DB': 'Other dialysis procedure already paid',
+  'DC': 'Procedure paid previously not allowed in addition to this procedure. Fee adjusted to pay the difference',
+  'DD': 'Not allowed as diagnostic code is unrelated to original eye exam',
+  'DE': 'Lab tests already paid-visit fee adjusted',
+  'DF': 'Corresponding fee code was not billed or paid at zero',
+  'DG': 'Diagnostic/Miscellaneous services for hospital patients are not payable on a fee-for-service basis in the Hospital Global budget.',
+  'DH': 'Ventilatory support allowed with Haemodialysis',
+  'DL': 'Allowed as laboratory tests in private office',
+  'DM': 'Paid/disallowed in accordance with MOH policy regarding an Emergency Department Equivalent',
+  'DN': 'Allowed as pudenal block in addition to procedure-as per stated OHIP policy',
+  'DP': 'Procedure paid previously allowed at 50% in addition to this procedure-fee adjusted to pay the difference',
+  'DS': 'Not allowed-mutually exclusive code billed',
+  'DT': 'In-patient technical fee not allowed',
+  'DR': 'Self-Referred Diagnostic Services Payable at 50%',
+  'DV': 'Service is included in Monthly Management Fee for Long-Term Care (LTC) patients',
+  'DW': 'Procedure paid previously not allowed in addition to monthly management. For long-term care patients-fee adjusted to pay the difference.',
+  'DX': 'Diagnostic code not eligible with Fee Schedule Code',
+  'E1': 'Service date prior to start of eligibility',
+  'E2': 'Incorrect version code for service date',
+  'E3': 'Version Code not on File for HN (Health Number)',
+  'E4': 'Service date after the eligibility termination date',
+  'E5': 'Service date not within an eligible period',
+  'E6': 'Service Date after Eligibility End Date - Eligibility Terminated as MOH Records Indicate Patient Deceased',
+  'E9': 'Service Date after Eligibility End Date - Eligibility Terminated Due to no Response to Notice to Register',
+  'EA': 'Service date is not within an eligible period - Services provided on or after the 20th of this month will not be paid unless eligibility status changes',
+  'EB': 'Coding added/changed in accordance with Schedule of Benefits',
+  'EE': 'Assessment Allowed at Full Fee for Patient Proceeding to Hospital',
+  'EF': 'Incorrect version code-services provided on or after the 20th of this month will not be paid unless the current version code is provided',
+  'EN': 'Network billing not allowed',
+  'EP': 'This payment is an adjustment of an earlier account due to provider registration update',
+  'EV': 'Check health card for current version code',
+  'F1': 'Additional fractures/dislocations allowed at 85%',
+  'F2': 'Allowed in accordance with transferred care',
+  'F3': 'Previous attempted reductions (open or closed) allowed at 85%',
+  'F5': 'Two weeks aftercare included in fracture fee',
+  'F6': 'Allowed as Minor/Partial Assessment',
+  'FF': 'Additional payment for the claim shown',
+  'G1': 'Other critical/comprehensive care already paid',
+  'GF': 'Coverage lapsed-bill patient for future claims',
+  'H1': 'Admission assessment or Emergency department assessment already paid',
+  'H2': 'Allowed as subsequent visit - initial visit previously claimed',
+  'H3': 'Maximum fee allowed per week after 5th week',
+  'H4': 'Maximum fee allowed per week after 6th week to pediatricians',
+  'H5': 'Maximum fee allowed per month after the 13th week',
+  'H6': 'Allowed as supportive or concurrent care',
+  'H7': 'Allowed as chronic care',
+  'H8': 'Hospital number and/or admission date required for in-hospital service',
+  'H9': 'Concurrent care already claimed by another doctor',
+  'HA': 'Admission assessment claimed by another physician-hospital visit fee applied',
+  'HB': 'Subsequent Visit Already Paid Same Day',
+  'HF': 'Concurrent or supportive care already claimed in period',
+  'HM': 'Invalid master number used on date of service',
+  'I2': 'Service is globally funded',
+  'I3': 'Fee Schedule Code is not on the IHF (Independent Health Facility) licence profile for the date specified',
+  'I4': 'Records show service has been rendered by another Practitioner, Group or IHF',
+  'I5': 'Service is globally funded and Fee Schedule Code is not on IHF licence profile',
+  'I6': 'Premium not applicable',
+  'I7': 'Claim date does not match patient enrolment date',
+  'I8': 'Confirmation not received',
+  'I9': 'Payment not applicable/expired',
+  'J1': 'Service Date is Before the Effective Date of OHIP Coverage',
+  'J2': 'Service Date is After the Termination of Coverage Date',
+  'J3': 'Approved for stale dated processing',
+  'J5': 'Coverage Applied For; Premiums Not Yet Paid',
+  'J7': 'Claim submitted three months after service date',
+  'J8': 'Coverage Not In Effect; Services Provided On Or After The 20th Of This Month Will Not Be Paid Unless Subscriber Takes Corrective Action',
+  'J9': 'Coverage Reinstated. Submit Claims Routinely',
+  'L1': 'This service paid to another laboratory',
+  'L2': 'Not allowed to medical Laboratory Director',
+  'L3': 'Not allowed in addition to other laboratory procedure(s)',
+  'L4': 'Not allowed to attending physicians',
+  'L5': 'Not allowed in addition to other procedure paid to another laboratory',
+  'L6': 'Procedure paid previously to another laboratory, not allowed in addition this procedure-fee adjusted to pay the difference',
+  'L7': 'Not allowed-referred specimen',
+  'L8': 'Not to be claimed with prenatal/fetal assessment',
+  'L9': 'Laboratory services for hospital in-patients or out-patients are not payable on a fee-for-service basis-included in the hospital global budget',
+  'LA': 'Lab service is funded by special Lab Agreement',
+  'LS': 'Paid in accordance to special Lab Agreement',
+  'M1': 'Maximum fee allowed or maximum number of service has been reached same/any provider',
+  'M2': 'Maximum allowance for radiographic examination(s) by one or more practitioners',
+  'M3': 'Maximum fee allowed for prenatal care',
+  'M4': 'Maximum fee allowed for these services by one or more practitioners has been reached',
+  'M5': 'Monthly maximum has been reached',
+  'M6': 'Maximum fee allowed for special visit premium-additional patient seen',
+  'MA': 'Maximum number of sessions has been reached',
+  'MC': 'Maximum number of case conferences has been reached in a 12 month period',
+  'MD': 'Daily maximum has been exceeded',
+  'ME': 'Maximum number of e-assessments paid',
+  'MM': 'Claim does not meet requirements of the Physician Schedule of Benefits',
+  'MN': 'Maximum number of occipital nerve block sessions has been reached',
+  'MO': 'Maximum number of Optical Coherence Tomography (OCT) services has been reached',
+  'MR': 'Minimum service requirements have not been met',
+  'MS': 'Maximum allowed for sleep studies in a specific period by one or more physicians has been reached',
+  'MX': 'Maximum of 2 arthroscopy "R" codes with E595 has been reached',
+  'MU': 'Maximum Units Exceeded',
+  'MW': 'Maximum Number of Weeks has elapsed since payment of initial service',
+  'MY': 'Yearly maximum has been exceeded',
+  'O1': 'Fee for obstetric care apportioned',
+  'O2': 'Previous prenatal care already claimed',
+  'O3': 'Previous prenatal care already claimed by another doctor',
+  'O4': 'Office visits relating to pregnancy and claimed prior to delivery included in obstetric fee',
+  'O5': 'Not allowed in addition to delivery',
+  'O6': 'Medical induction/stimulation of labour allowed once per pregnancy',
+  'O7': 'Allowed as subsequent prenatal visit-initial prenatal visit already claimed',
+  'O8': 'Allowed once per pregnancy',
+  'O9': 'Not allowed in addition to post-natal care',
+  'P2': 'Maximum fee allowed for low birth weight care',
+  'P3': 'Maximum fee allowed for newborn care',
+  'P4': 'Fee for newborn care/low birth weight care is not billable with neonatal intensive care',
+  'P5': 'Over-age for paediatric rates of payment',
+  'P6': 'Over-age for well-baby care',
+  'P8': 'Health Care Connect greater than 3 months',
+  'P9': 'Complex New patient',
+  'PM': 'Minimum roster size not met',
+  'Q7': 'No fee allowed for treatment of immediate family',
+  'Q8': 'Lab not licensed to perform this test on date of service',
+  'R1': 'Only one health exam allowed in a twelve-month period',
+  'R2': '10 Well Baby Visits Allowed Up To Two Years Of Age',
+  'R3': 'One Well Child Exam (Age 2-5 Years) Allowed Within A 12 Month Period',
+  'RD': 'Duplicate, paid in Reciprocal Medical Billing System (RMBS)',
+  'S1': 'Bilateral surgery, one stage, allowed at 85% higher than unilateral',
+  'S2': 'Bilateral surgery, two stage, allowed at 85% higher than unilateral',
+  'S3': 'Second surgical procedure allowed at 85%',
+  'S4': 'Procedure fee reduced when paid with related surgery or anaesthetic',
+  'S5': 'Not allowed in addition to major surgical fee',
+  'S6': 'Allowed as subsequent procedure-initial procedure previously claimed',
+  'S7': 'Normal pre-operative and post-operative care included in surgical fee',
+  'S9': 'Initial procedure not found',
+  'SA': 'Surgical procedure allowed at consultation fee',
+  'SB': 'Normal pre-operative visit included in surgical fee-visit fee previously paid-surgical fee adjusted',
+  'SC': 'Not allowed, major pre-operative visit already claimed',
+  'SD': 'Not allowed, Team/Assist Fee already claimed',
+  'SE': 'Major pre-operative visit previously paid and admission assessment previously paid-surgery fee reduced by the admission assessment',
+  'SF': 'Most Responsible Physician (MRP) visit not allowed during postoperative period-surgical fee adjusted',
+  'SN': 'Multiple Surgical Anaesthesia. Documentation of Separate Surgeries Same Day/Same Patient Required',
+  'SV': 'MRP visit not allowed during post-operative period-fee reduced to subsequent visit fee',
+  'SW': 'Intensive Care Unit per diem code paid to another physician-MRP subsequent visit reduced to subsequent visit',
+  'SX': 'ICU Per Diem code Paid To Another Physician, MRP Premium Not Allowed',
+  'T1': 'Fee allowed according to surgery claim',
+  'V1': 'Allowed as repeat assessment-initial assessment previously claimed',
+  'V2': 'Allowed as extra patient seen in the home',
+  'V3': 'Not allowed in addition to procedural fee',
+  'V4': 'Date of service was not a Saturday, Sunday or statutory holiday',
+  'V5': 'Only one major oculo-visual examination allowed in a 12-month period for under 19 or over 65 with medical condition; 1 in 18 month period for over 65 without medical condition',
+  'V6': 'Allowed as minor assessment-initial assessment already claimed',
+  'V7': 'Allowed at medical/specific re-assessment fee',
+  'V8': 'This service paid at lower fee as per stated OHIP policy',
+  'V9': 'Only one initial office visit allowed within a twelve-month period',
+  'VA': 'Procedure fee reduced-consultation/visit fees not allowed in addition',
+  'VB': 'Additional Oculo-Visual Assessment (OVA) is allowed once within the second year for patients aged 20-64, following a periodic OVA',
+  'VC': 'Procedure Paid Previously Not Allowed In Addition To Visit Fee. Fee Adjusted To Pay The Difference',
+  'VG': 'Only one geriatric general assessment premium per patient per 12-month period',
+  'VM': 'Oculo-visual minor assessment is only allowed within eligibility period after a major oculo-visual examination',
+  'VN': 'Allowed as major oculo-visual examination for seniors with medical conditions',
+  'VP': 'Allowed with special visit only',
+  'VR': 'Visit reduced premium not applicable',
+  'VS': 'Date of service was a Saturday, Sunday or statutory holiday',
+  'VX': 'Complexity premium not applicable to visit fee',
+  'W3': 'Warning: service date is older than 3 months',
+  'W4': 'Warning: service location indicator code missing',
+  'X2': 'Gastrointestinal (G.I.) tract includes cine and video tape',
+  'X3': 'Gastrointestinal (G.I.) tract includes survey film of abdomen',
+  'X4': 'Only one Bone Mineral Density (BMD) allowed within a 36 month period for a low risk patient',
+  'X5': 'Only one Bone Mineral Density (BMD) allowed within a 12 month period for a high risk patient',
+  'X6': 'Only one Bone Mineral Density (BMD) allowed within a 60 month period for a low risk patient'
 };
 /* A cell can carry several codes: "30, B2". */
 function splitExp(v) {
@@ -1199,6 +1496,44 @@ const PDF_COLS = [
   { k: 'Payment Date',        h: 'Payment\nDate',  w: 56,  a: 'center', t: 'date' }
 ];
 
+/* On a remittance run three of those columns carry no information worth the
+   width they take: Status reads "Paid" on all but a few hundred lines,
+   Payment Date is the one remittance date repeated down the page (it is
+   printed once at the foot instead), and there is no outstanding balance to
+   report on a run that has already been adjudicated. Dropping them gives the
+   space to Service Description, which is the column that was being cut.    */
+const REMIT_DROP = { 'Outstanding': 1, 'Status': 1, 'Payment Date': 1 };
+function pdfColsFor(kind) {
+  if (kind !== 'remittance') return PDF_COLS;
+  const keep = PDF_COLS.filter(c => !REMIT_DROP[c.k]);
+  /* Hand the freed width to the description rather than stretching every
+     column, so the table keeps the proportions it was designed with. */
+  const freed = PDF_COLS.reduce((a, c) => a + (REMIT_DROP[c.k] ? c.w : 0), 0);
+  return keep.map(c => c.k === 'Service Description'
+    ? Object.assign({}, c, { w: c.w + freed }) : c);
+}
+
+/* "01-Oct-2026". The remittance date is printed once, at the foot of every
+   page, instead of on all 12,000 rows. A run that settled over more than one
+   day is reported as a span rather than as whichever date came first.      */
+const MON3 = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+  'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+function dmy(k) {
+  const p = String(k).split('-');
+  return p[2] + '-' + MON3[+p[1] - 1] + '-' + p[0];
+}
+function remitDateLabel(rows) {
+  const seen = {};
+  (rows || []).forEach(r => {
+    const k = dateKey(r['Payment Date']);
+    if (/^\d{4}-\d{2}-\d{2}$/.test(k)) seen[k] = true;
+  });
+  const keys = Object.keys(seen).sort();
+  if (!keys.length) return '';
+  if (keys.length === 1) return dmy(keys[0]);
+  return dmy(keys[0]) + ' to ' + dmy(keys[keys.length - 1]);
+}
+
 /* Printable value for a PDF cell. Money that is genuinely absent prints
    blank rather than $0.00, so an unpaid line is visibly unpaid; a real zero
    still prints, because a $0.00 code is a fact worth seeing. */
@@ -1232,7 +1567,9 @@ const MUTED = [90, 112, 96];
    clinic name. Returns the number of pages added.                          */
 function renderProvider(doc, prov, meta, C) {
   meta = meta || {};
-  const COLS = C.PDF_COLS;
+  /* A remittance run drops three columns that say the same thing on every
+     line; see pdfColsFor. */
+  const COLS = C.pdfColsFor ? C.pdfColsFor(meta.kind) : C.PDF_COLS;
   const PW = doc.internal.pageSize.getWidth();
   const PH = doc.internal.pageSize.getHeight();
   const M = 28;
@@ -1275,9 +1612,14 @@ function renderProvider(doc, prov, meta, C) {
     doc.text(meta.clinic || 'PM Radiation Oncologists', PW - M, y + 3, { align: 'right' });
     doc.setFont('helvetica', 'normal'); doc.setFontSize(7.6);
     doc.setTextColor(MUTED[0], MUTED[1], MUTED[2]);
-    doc.text('Financial Report by Service Date', PW - M, y + 13, { align: 'right' });
-    if (meta.from || meta.to)
-      doc.text('Period  ' + (meta.from || '?') + '  –  ' + (meta.to || '?'), PW - M, y + 22, { align: 'right' });
+    /* A remittance run is headed by its month alone. Printing a date range
+       there invites the reader to take it for a service-date window, which
+       is the one thing it is not — the service dates on these lines stretch
+       back months before it. */
+    doc.text(meta.kindLabel || 'Financial Report by Service Date', PW - M, y + 13, { align: 'right' });
+    const per = meta.periodLabel !== undefined ? meta.periodLabel
+      : ((meta.from || meta.to) ? 'Period  ' + (meta.from || '?') + '  –  ' + (meta.to || '?') : '');
+    if (per) doc.text(per, PW - M, y + 22, { align: 'right' });
 
     y += 30;
     doc.setDrawColor(INK[0], INK[1], INK[2]); doc.setLineWidth(1.1);
@@ -1398,25 +1740,38 @@ function renderProvider(doc, prov, meta, C) {
     y += bold ? 15 : 12.5;
   };
 
-  line('Total submitted', money(prov.sub), true);
-  line('Total paid', money(prov.paid), true);
-  /* Write Off is hidden from the detail at the clinic's request, but without
-     it Submitted − Paid ≠ Outstanding. It is shown here only when it is not
-     zero, so the three headline figures always reconcile on the page. */
-  if (Math.abs(prov.wo) >= 0.005) line('Written off', money(prov.wo), false, MUTED);
-  line('Outstanding', money(prov.out), true);
+  const pct = (prov.collected === null || prov.collected === undefined) ? ''
+    : '  (' + (prov.collected * 100).toFixed(1) + '%)';
 
-  /* Left-hand note, level with the totals. "Collected" is paid as a share of
-     submitted — plainly what it says. The report's own Billing Success
-     figure is deliberately not reproduced: it measures something else, and
-     two percentages that disagree invite the wrong question. No breakdown of
-     claim statuses is printed either; the Status column already carries it
-     line by line. */
-  const ly = y - (Math.abs(prov.wo) >= 0.005 ? 54.5 : 45);
-  if (prov.collected !== null && prov.collected !== undefined) {
-    doc.setFont('helvetica', 'normal'); doc.setFontSize(7.8);
-    doc.setTextColor(MUTED[0], MUTED[1], MUTED[2]);
-    doc.text('Collected ' + (prov.collected * 100).toFixed(1) + '% of submitted', x0, ly);
+  if (meta.kind === 'remittance') {
+    /* Everything on a remittance run has already been adjudicated, so there
+       is no outstanding balance to carry forward and no write-off line to
+       reconcile against one: what matters is how much of what was submitted
+       came back, which the percentage beside Total paid says outright. */
+    line('Total submitted', money(prov.sub), true);
+    line('Total paid', money(prov.paid) + pct, true);
+  } else {
+    line('Total submitted', money(prov.sub), true);
+    line('Total paid', money(prov.paid), true);
+    /* Write Off is hidden from the detail at the clinic's request, but
+       without it Submitted − Paid ≠ Outstanding. It is shown here only when
+       it is not zero, so the three headline figures always reconcile. */
+    if (Math.abs(prov.wo) >= 0.005) line('Written off', money(prov.wo), false, MUTED);
+    line('Outstanding', money(prov.out), true);
+
+    /* Left-hand note, level with the totals. "Collected" is paid as a share
+       of submitted — plainly what it says. The report's own Billing Success
+       figure is deliberately not reproduced: it measures something else, and
+       two percentages that disagree invite the wrong question. No breakdown
+       of claim statuses is printed either; the Status column already carries
+       it line by line. On a remittance run this line is left out, because
+       the same percentage now sits beside Total paid. */
+    const ly = y - (Math.abs(prov.wo) >= 0.005 ? 54.5 : 45);
+    if (pct) {
+      doc.setFont('helvetica', 'normal'); doc.setFontSize(7.8);
+      doc.setTextColor(MUTED[0], MUTED[1], MUTED[2]);
+      doc.text('Collected ' + (prov.collected * 100).toFixed(1) + '% of submitted', x0, ly);
+    }
   }
 
   /* ── explanatory-code legend ─────────────────────────────────────────
@@ -1478,7 +1833,11 @@ function stampFooters(doc, meta) {
     doc.setPage(p);
     doc.setFont('helvetica', 'normal'); doc.setFontSize(6.8);
     doc.setTextColor(140, 155, 175);
-    doc.text((meta && meta.footer) || 'Confidential — contains patient health information',
+    /* On a remittance run the payment date is the same on every line, so it
+       is stated once here rather than filling a column 12,000 times. */
+    if (meta && meta.remitDate)
+      doc.text('Remittance Advice Payment Date: ' + meta.remitDate, M, PH - 26);
+    doc.text((meta && meta.footer) || 'Confidential · contains patient health information',
       M, PH - 16);
     doc.text('Page ' + p + ' of ' + total, PW - M, PH - 16, { align: 'right' });
     if (meta && meta.generated)
@@ -1518,6 +1877,8 @@ let det = null;           // {rows, footer, map}
 let provs = [];           // aggregated per provider
 let grand = null;
 let period = { from: '', to: '' };
+let kind = 'service';     // 'service' | 'remittance' — how the export was run
+let remit = '';           // 'October 2026', for a remittance run
 let recon = { checked: false, items: [] };
 let pick = {};            // provider key → included in the PDF run
 let built = [];           // generated PDFs: {key, name, file, blob, pages}
@@ -1591,6 +1952,8 @@ async function onFile(input) {
     provs = aggregate(det.rows, summary);
     grand = grandTotals(det.rows);
     period = readPeriod(wbRaw, XLSX, det.rows);
+    kind = readReportKind(wbRaw, XLSX, det.rows);
+    remit = kind === 'remittance' ? remitLabel(det.rows, period) : '';
     recon = reconcile(grand, det.footer);
     pick = {}; provs.forEach(p => { pick[p.key] = true; });
     built = [];
@@ -1612,17 +1975,30 @@ async function onFile(input) {
 /* ── 2 · review ─────────────────────────────────────────────────────── */
 function renderReview() {
   const nRej = provs.reduce((a, p) => a + p.nRej, 0);
+  const collected = grand.sub > 0 ? (grand.paid / grand.sub * 100).toFixed(1) + '%' : '—';
+  /* On a remittance run there is no balance left to carry, so the last tile
+     answers the question that run actually poses: how much came back. */
   el('stats').innerHTML =
     stat('Claim lines', det.rows.length.toLocaleString()) +
     stat('Providers', provs.length) +
     stat('Submitted', money(grand.sub)) +
     stat('Paid', money(grand.paid), 'ok') +
-    stat('Outstanding', money(grand.out), 'warn');
+    (kind === 'remittance' ? stat('Collected', collected, 'ok')
+                           : stat('Outstanding', money(grand.out), 'warn'));
 
-  /* The period and what was dropped. */
-  let head = '<div class="note"><strong>Period</strong> ' +
-    (period.from ? esc(period.from) + ' – ' + esc(period.to) : 'not stated in the file') +
-    (period.src === 'dates' ? ' <em>(taken from the service dates — the file did not say)</em>' : '') +
+  /* Which of the two exports this is, and what that changes. */
+  const isRem = kind === 'remittance';
+  let head = '<div class="note"><strong>' +
+    (isRem ? 'Remittance Advice &mdash; ' + esc(remit || 'month not stated')
+           : 'By service date') + '</strong>' +
+    (isRem
+      ? '<br>Reports are headed by the month of the payment run, with no date range: the service ' +
+        'dates on these lines go back well before it. Totals show submitted and paid with the ' +
+        'percentage collected &mdash; there is no outstanding balance to carry on a run that has ' +
+        'already been adjudicated.'
+      : '<br>Period ' + (period.from ? esc(period.from) + ' &ndash; ' + esc(period.to)
+                                     : 'not stated in the file') +
+        (period.src === 'dates' ? ' <em>(taken from the service dates &mdash; the file did not say)</em>' : '')) +
     '<br><strong>Source</strong> ' + esc(srcName) + '</div>';
 
   /* Reconciliation against the file's own footer: the check that catches a
@@ -1864,9 +2240,20 @@ function renderCodes() {
 function pdfMeta() {
   return {
     from: period.from, to: period.to,
+    kind: kind,
+    kindLabel: kind === 'remittance'
+      ? 'Financial Report by Remittance Advice'
+      : 'Financial Report by Service Date',
+    /* A remittance run is headed by its month; a service-date run by its
+       window. Passing '' rather than leaving it undefined keeps the heading
+       to two lines when the month could not be worked out. */
+    periodLabel: kind === 'remittance'
+      ? (remit || '')
+      : ((period.from || period.to) ? 'Period  ' + (period.from || '?') + '  –  ' + (period.to || '?') : ''),
+    remitDate: kind === 'remittance' ? remitDateLabel(det ? det.rows : []) : '',
     clinic: clinicName(),
     generated: today(),
-    footer: 'Confidential — contains patient health information',
+    footer: 'Confidential \u00b7 contains patient health information',
     legendFor: legendFor
   };
 }
@@ -1926,7 +2313,8 @@ async function makePdfs() {
     msg.innerHTML = '<div class="alert a-warn">' + esc(e.message) + '</div>';
     btn.disabled = false; el('btn-pdf-one').disabled = false; bar.style.display = 'none'; return;
   }
-  const api = { money: money, provTitle: provTitle, pdfText: pdfText, PDF_COLS: PDF_COLS };
+  const api = { money: money, provTitle: provTitle, pdfText: pdfText,
+    PDF_COLS: PDF_COLS, pdfColsFor: pdfColsFor };
 
   for (let i = 0; i < s.length; i++) {
     const p = s[i];
@@ -1962,7 +2350,8 @@ async function makeCombined() {
   await new Promise(r => setTimeout(r, 30));
   try {
     const Ctor = jsPDFCtor();
-    const api = { money: money, provTitle: provTitle, pdfText: pdfText, PDF_COLS: PDF_COLS };
+    const api = { money: money, provTitle: provTitle, pdfText: pdfText,
+    PDF_COLS: PDF_COLS, pdfColsFor: pdfColsFor };
     const doc = buildCombinedDoc(Ctor, s, pdfMeta(), api);
     const tag = periodTag();
     const name = 'RMP_Financial_All_Providers' + (tag ? '_' + tag : '') + '.pdf';
